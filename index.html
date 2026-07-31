@@ -258,7 +258,15 @@ const Store = {
     if(!d.settings.currentChildId) d.settings.currentChildId=Object.keys(d.children)[0]||'';
     if(!d.shopItems) d.shopItems=Shop.defaultItems();
     if(!d.plantDefs) d.plantDefs=Garden.defaultDefs();
+    // 合并宠物定义：确保已有宠物的 img 字段被更新（兼容旧数据）
     if(!d.petDefs) d.petDefs=Pet.defaultDefs();
+    else{
+      const defs=Pet.defaultDefs();
+      Object.keys(defs).forEach(k=>{
+        if(!d.petDefs[k]) d.petDefs[k]=defs[k];
+        else d.petDefs[k].img=defs[k].img; // 强制更新 img 字段
+      });
+    }
     if(!d.achievementDefs) d.achievementDefs=Ach.defaultDefs();
     if(d.settings.reviewMode===undefined) d.settings.reviewMode=false;
     if(!d.deedDefs) d.deedDefs=Bank.defaultDeeds();
@@ -1057,6 +1065,14 @@ function showModal(title,body,footer='',noClose){
   return mask;
 }
 function closeModal(){if(window._curMask){window._curMask.remove();window._curMask=null;}if(Shop.gameTimer){clearInterval(Shop.gameTimer);Shop.gameTimer=null;}}
+// 全局朗读按钮事件委托：通过 data-speak 属性触发朗读，避免内联 onclick 转义问题
+document.addEventListener('click',function(e){
+  const btn=e.target.closest('[data-speak]');
+  if(!btn)return;
+  const txt=decodeURIComponent(btn.getAttribute('data-speak')||'');
+  const lang=btn.getAttribute('data-lang')||'';
+  if(txt)speak(txt,lang);
+});
 function confirmModal(msg,onYes){
   showModal('请确认',`<p style="margin:10px 0;font-size:14px;">${msg}</p>`,
     `<button class="btn ghost sm" onclick="closeModal()">取消</button> <button class="btn danger sm" id="cfYes">确定</button>`);
@@ -1287,7 +1303,7 @@ const UI = {
     const isInput=!item.opts;
     const answered=q.answers[i];
     const isDictation=!!item.dictation;
-    const speakBtn=item.speakText?`<button class="btn sky sm" onclick="speak('${item.speakText.replace(/'/g,"\\'")}','${item.speakLang||''}')" title="点击朗读">🔊 朗读</button>`:'';
+    const speakBtn=item.speakText?`<button class="btn sky sm" data-speak="${encodeURIComponent(item.speakText)}" data-lang="${item.speakLang||''}" title="点击朗读">🔊 朗读</button>`:'';
     let ansHtml='';
     if(isInput){
       ansHtml=`<input type="text" id="qInput" value="${answered||''}" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextQuiz()">`;
@@ -1313,6 +1329,7 @@ const UI = {
         <div class="quiz-ans">${ansHtml}</div>
       </div>`;
     const footer=`
+      <button class="btn ghost sm" onclick="UI.exitQuiz()">退出</button>
       <button class="btn ghost sm" onclick="UI.prevQuiz()" ${i===0?'disabled':''}>上一题</button>
       <button class="btn sm" onclick="UI.nextQuiz()">${i===q.questions.length-1?'提交测试':'下一题'}</button>`;
     showModal(q.title,body,footer,true);
@@ -1321,6 +1338,11 @@ const UI = {
     if(isDictation&&item.speakText){setTimeout(()=>speak(item.speakText,item.speakLang||''),300);}
   },
   selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
+  exitQuiz(){
+    confirmModal('确定要退出测试吗？已答内容将不会保存。',()=>{
+      this.curQuiz=null;closeModal();toast('已退出测试');
+    });
+  },
   prevQuiz(){if(this.curQuiz.idx>0){this.curQuiz.idx--;this.renderQuiz();}},
   nextQuiz(){
     const q=this.curQuiz;
@@ -1549,7 +1571,7 @@ const UI = {
         // 朗读内容：英语读正确答案（英文），语文读题目中的字/词或正确答案
         let speakTxt='';
         if(isEN){speakTxt=w.a;}else{speakTxt=w.a;}
-        const spkBtn=(isEN||/[\u4e00-\u9fa5a-zA-Z]/.test(w.a))?`<button class="btn sky sm" style="padding:2px 6px;font-size:11px;" onclick="speak('${String(speakTxt).replace(/'/g,"\\'")}','${lang}')">🔊</button>`:'';
+        const spkBtn=(isEN||/[\u4e00-\u9fa5a-zA-Z]/.test(w.a))?`<button class="btn sky sm" style="padding:2px 6px;font-size:11px;" data-speak="${encodeURIComponent(String(speakTxt))}" data-lang="${lang}">🔊</button>`:'';
         return `<div class="log-item"><div><div style="font-size:12px;">${w.q} ${spkBtn}</div><div class="log-time">正确：${w.a} · 你的答案：${w.userA} · ${new Date(w.time).toLocaleDateString()}</div></div><span class="log-delta neg">${w.retry?(w.answered?'已复习':'待复习'):'已收录'}</span></div>`;
       }).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无错题</div>'}</div>
       </div>`;
@@ -1567,11 +1589,16 @@ const UI = {
     const isEN=item.subject==='en';
     const lang=isEN?'en-US':'zh-CN';
     const speakTxt=item.a;
-    const spkBtn=(isEN||/[\u4e00-\u9fa5a-zA-Z]/.test(item.a))?`<button class="btn sky sm" onclick="speak('${String(speakTxt).replace(/'/g,"\\'")}','${lang}')">🔊 朗读</button>`:'';
+    const spkBtn=(isEN||/[\u4e00-\u9fa5a-zA-Z]/.test(item.a))?`<button class="btn sky sm" data-speak="${encodeURIComponent(String(speakTxt))}" data-lang="${lang}">🔊 朗读</button>`:'';
     const ansHtml=`<div class="quiz-ans"><input type="text" id="qInput" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextWrong()"></div>`;
     showModal('错题复习',`<div class="quiz-box"><div style="font-size:12px;color:var(--text-soft);">第 ${i+1}/${q.length} 题</div><div class="quiz-q">${item.q} ${spkBtn}</div>${ansHtml}</div>`,
-      `<button class="btn sm" onclick="UI.nextWrong()">${i===q.length-1?'完成':'下一题'}</button>`,true);
+      `<button class="btn ghost sm" onclick="UI.exitWrongQuiz()">退出</button> <button class="btn sm" onclick="UI.nextWrong()">${i===q.length-1?'完成':'下一题'}</button>`,true);
     setTimeout(()=>{const inp=$('#qInput');if(inp)inp.focus();},0);
+  },
+  exitWrongQuiz(){
+    confirmModal('确定要退出错题复习吗？',()=>{
+      this.curWrongQuiz=null;closeModal();toast('已退出错题复习');
+    });
   },
   nextWrong(){
     const q=this.curWrongQuiz;if(!q)return;const i=q.idx||0;
