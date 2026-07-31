@@ -224,6 +224,17 @@ const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
 
 function toast(msg,ms=1800){const r=$('#toastRoot');const t=document.createElement('div');t.className='toast';t.textContent=msg;r.appendChild(t);setTimeout(()=>t.remove(),ms);}
 function sunFloat(x,y,txt){const f=document.createElement('div');f.className='sun-float';f.textContent=txt;f.style.left=x+'px';f.style.top=y+'px';document.body.appendChild(f);setTimeout(()=>f.remove(),1200);}
+// 语音朗读（Web Speech API）
+function speak(text,lang){
+  try{
+    if(!('speechSynthesis'in window))return;
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang=lang||(/[\u4e00-\u9fa5]/.test(text)?'zh-CN':'en-US');
+    u.rate=0.9;u.pitch=1.1;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
 
 /* ============ Store 模块 ============ */
 const Store = {
@@ -811,6 +822,8 @@ function todayTaskList(c){
     list.push({id:'cn_pinyin',cat:'语文',name:'拼音测试',reward:10,perfectReward:10});
     // 识字任务（幼小衔接/低年级专属）
     if(Bank.characters[grade])list.push({id:'cn_literacy',cat:'语文',name:'识字测试',reward:10,perfectReward:10});
+    // 语文生字默写（幼小衔接/低年级专属）
+    if(Bank.characters[grade])list.push({id:'cn_dictation',cat:'语文',name:'生字默写',reward:10,perfectReward:10});
     list.push({id:'cn_callig',cat:'语文',name:'练字练习',reward:10,review:true});
     list.push({id:'cn_poetry',cat:'语文',name:'古诗背诵',reward:10,perfectReward:10});
     list.push({id:'cn_reading',cat:'语文',name:'课外阅读',reward:50,review:true});
@@ -823,6 +836,7 @@ function todayTaskList(c){
   // 英语
   if(Bank.english[grade]){
     list.push({id:'en_word',cat:'英语',name:'单词测试',reward:10,perfectReward:10});
+    list.push({id:'en_dictation',cat:'英语',name:'单词听写',reward:10,perfectReward:10});
     list.push({id:'en_sent',cat:'英语',name:'短句测试',reward:10,perfectReward:10});
   }
   // 运动：每项独立打卡（sport_前缀）
@@ -948,7 +962,7 @@ function completeTask(taskId,reward,reason,perfect,bonus){
   const c=curChild();const t=c.today.tasks[taskId];
   if(t&&t.completed){toast('今日已完成，不可重复领取');return false;}
   const totalScore=reward+(bonus||0);
-  const isQuiz=taskId.startsWith('cn_pinyin')||taskId.startsWith('cn_poetry')||taskId.startsWith('math_')||taskId.startsWith('en_')||taskId==='cn_literacy';
+  const isQuiz=taskId.startsWith('cn_pinyin')||taskId.startsWith('cn_poetry')||taskId.startsWith('math_')||taskId.startsWith('en_')||taskId==='cn_literacy'||taskId==='cn_dictation';
   // 家长审核模式：非测试的需审核任务，孩子只能"申请审核"
   if(d_settings().reviewMode&&!isQuiz){
     const task=todayTaskList(c).find(x=>x.id===taskId);
@@ -1148,9 +1162,9 @@ const UI = {
           ${rate>=0.8?'<div style="color:var(--primary-d);font-size:12px;margin-top:4px;">✨ 完成率≥80%，僵尸被冻结！</div>':''}
         </div>`;
     },
-    chinese(){const g=curChild().grade;const ids=Bank.characters[g]?['cn_pinyin','cn_literacy','cn_callig','cn_poetry','cn_reading']:['cn_pinyin','cn_callig','cn_poetry','cn_reading'];return UI.renderSubject('chinese','语文',ids);},
+    chinese(){const g=curChild().grade;const ids=Bank.characters[g]?['cn_pinyin','cn_literacy','cn_dictation','cn_callig','cn_poetry','cn_reading']:['cn_pinyin','cn_callig','cn_poetry','cn_reading'];return UI.renderSubject('chinese','语文',ids);},
     math(){const c=curChild();const ids=['math_add','math_sub'];if(c.grade!=='gradeK'&&c.grade!=='grade1')ids.push('math_mul');ids.push('math_think');return UI.renderSubject('math','数学',ids);},
-    english(){return UI.renderSubject('english','英语',['en_word','en_sent']);},
+    english(){return UI.renderSubject('english','英语',['en_word','en_dictation','en_sent']);},
     sport(){const c=curChild();const items=Bank.sports[c.grade]||[];
       return `<div class="card"><div class="card-title">⚽ 运动打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">参考广西中考体育标准，每项独立打卡各 +10 阳光</p>
       <div class="grid grid-2">${items.map((s,si)=>UI.taskCard('sport_'+si,s.name,'目标：'+s.target,10,'🏃')).join('')}</div>
@@ -1185,7 +1199,7 @@ const UI = {
     const c=curChild();const task=c.today.tasks[id];
     const done=task?.completed;
     const pending=task?.pendingReview;
-    const isQuiz=id.startsWith('cn_pinyin')||id.startsWith('cn_poetry')||id.startsWith('math_')||id.startsWith('en_')||id==='cn_literacy';
+    const isQuiz=id.startsWith('cn_pinyin')||id.startsWith('cn_poetry')||id.startsWith('math_')||id.startsWith('en_')||id==='cn_literacy'||id==='cn_dictation'||id==='en_dictation';
     let btns='';
     if(done){
       btns=`<button class="btn done sm" disabled>✅ 已完成</button> <button class="btn ghost sm" onclick="undoTask('${id}')">撤销</button>`;
@@ -1246,8 +1260,18 @@ const UI = {
     else if(taskId==='math_think'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.thinking(grade));title='思维训练';}
     else if(taskId==='en_word'){
       const bank=Bank.english[grade]?.words||[];
-      questions=pick(bank,Math.min(10,bank.length)).map(w=>({q:w.en+' ['+w.phonetic+'] 的意思是？',opts:shuffle([w.cn,...pick(bank.filter(x=>x.cn!==w.cn),3).map(x=>x.cn)]),a:w.cn}));
+      questions=pick(bank,Math.min(10,bank.length)).map(w=>({q:w.en+' ['+w.phonetic+'] 的意思是？',opts:shuffle([w.cn,...pick(bank.filter(x=>x.cn!==w.cn),3).map(x=>x.cn)]),a:w.cn,speakText:w.en,speakLang:'en-US'}));
       title='单词测试';
+    }else if(taskId==='en_dictation'){
+      // 英语听写：听读音，拼写英文单词
+      const bank=Bank.english[grade]?.words||[];
+      questions=pick(bank,Math.min(10,bank.length)).map(w=>({q:'🔊 听读音，拼写英文单词',a:w.en,speakText:w.en,speakLang:'en-US',dictation:true,hint:w.cn+' ['+w.phonetic+']'}));
+      title='单词听写';
+    }else if(taskId==='cn_dictation'){
+      // 语文生字默写：听拼音读音，写汉字
+      const bank=Bank.characters[grade]||[];
+      questions=pick(bank,Math.min(10,bank.length)).map(w=>({q:'🔊 听读音，写出汉字',a:w.char,speakText:w.pinyin,speakLang:'zh-CN',dictation:true,hint:'组词：'+w.word}));
+      title='生字默写';
     }else if(taskId==='en_sent'){
       const bank=Bank.english[grade]?.sentences||[];
       questions=pick(bank,Math.min(10,bank.length)).map(s=>({q:'"'+s.en+'" 的意思是？',opts:shuffle([s.cn,...pick(bank.filter(x=>x.cn!==s.cn),3).map(x=>x.cn)]),a:s.cn}));
@@ -1262,11 +1286,21 @@ const UI = {
     const i=q.idx;const item=q.questions[i];
     const isInput=!item.opts;
     const answered=q.answers[i];
+    const isDictation=!!item.dictation;
+    const speakBtn=item.speakText?`<button class="btn sky sm" onclick="speak('${item.speakText.replace(/'/g,"\\'")}','${item.speakLang||''}')" title="点击朗读">🔊 朗读</button>`:'';
     let ansHtml='';
     if(isInput){
       ansHtml=`<input type="text" id="qInput" value="${answered||''}" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextQuiz()">`;
     }else{
+      // 选择题：选项如果是英文单词也支持朗读（整体题干已含）
       ansHtml=`<div class="opt-grid">${item.opts.map(o=>`<button class="opt-btn ${answered===o?'sel':''}" onclick="UI.selectQuiz('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')}</div>`;
+    }
+    // 听写模式：题目区只显示朗读按钮+提示，不显示答案文字
+    let qArea;
+    if(isDictation){
+      qArea=`<div style="text-align:center;padding:10px;"><div style="font-size:15px;font-weight:600;margin-bottom:10px;">${item.q}</div>${speakBtn}<div style="font-size:12px;color:var(--text-soft);margin-top:8px;">💡 提示：${item.hint||''}</div></div>`;
+    }else{
+      qArea=`<div class="quiz-q">${item.q} ${speakBtn}</div>`;
     }
     const body=`
       <div class="quiz-box">
@@ -1275,7 +1309,7 @@ const UI = {
           <span>已答 ${q.answers.filter(a=>a!==null).length} 题</span>
         </div>
         <div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${(i+1)/q.questions.length*100}%;background:var(--sky);"></div></div>
-        <div class="quiz-q">${item.q}</div>
+        ${qArea}
         <div class="quiz-ans">${ansHtml}</div>
       </div>`;
     const footer=`
@@ -1283,6 +1317,8 @@ const UI = {
       <button class="btn sm" onclick="UI.nextQuiz()">${i===q.questions.length-1?'提交测试':'下一题'}</button>`;
     showModal(q.title,body,footer,true);
     if(isInput)setTimeout(()=>{const inp=$('#qInput');if(inp){inp.focus();inp.oninput=(e)=>{this.curQuiz.answers[i]=e.target.value;};}},0);
+    // 听写题自动朗读一次
+    if(isDictation&&item.speakText){setTimeout(()=>speak(item.speakText,item.speakLang||''),300);}
   },
   selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
   prevQuiz(){if(this.curQuiz.idx>0){this.curQuiz.idx--;this.renderQuiz();}},
@@ -1507,7 +1543,15 @@ const UI = {
       </div>
       <div class="card"><div class="card-title">🎯 薄弱知识点</div><div>${weakHtml}</div></div>
       <div class="card"><div class="card-title">📚 全部错题记录（${allList.length}）</div>
-      <div style="max-height:240px;overflow-y:auto;">${allList.slice(-30).reverse().map(w=>`<div class="log-item"><div><div style="font-size:12px;">${w.q}</div><div class="log-time">正确：${w.a} · 你的答案：${w.userA} · ${new Date(w.time).toLocaleDateString()}</div></div><span class="log-delta neg">${w.retry?(w.answered?'已复习':'待复习'):'已收录'}</span></div>`).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无错题</div>'}</div>
+      <div style="max-height:240px;overflow-y:auto;">${allList.slice(-30).reverse().map(w=>{
+        const isEN=w.subject==='en';
+        const lang=isEN?'en-US':'zh-CN';
+        // 朗读内容：英语读正确答案（英文），语文读题目中的字/词或正确答案
+        let speakTxt='';
+        if(isEN){speakTxt=w.a;}else{speakTxt=w.a;}
+        const spkBtn=(isEN||/[\u4e00-\u9fa5a-zA-Z]/.test(w.a))?`<button class="btn sky sm" style="padding:2px 6px;font-size:11px;" onclick="speak('${String(speakTxt).replace(/'/g,"\\'")}','${lang}')">🔊</button>`:'';
+        return `<div class="log-item"><div><div style="font-size:12px;">${w.q} ${spkBtn}</div><div class="log-time">正确：${w.a} · 你的答案：${w.userA} · ${new Date(w.time).toLocaleDateString()}</div></div><span class="log-delta neg">${w.retry?(w.answered?'已复习':'待复习'):'已收录'}</span></div>`;
+      }).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无错题</div>'}</div>
       </div>`;
   },
   curWrongQuiz:null,
@@ -1520,8 +1564,12 @@ const UI = {
   },
   renderWrongQuiz(){
     const q=this.curWrongQuiz;if(!q)return;const i=q.idx||0;const item=q[i];
+    const isEN=item.subject==='en';
+    const lang=isEN?'en-US':'zh-CN';
+    const speakTxt=item.a;
+    const spkBtn=(isEN||/[\u4e00-\u9fa5a-zA-Z]/.test(item.a))?`<button class="btn sky sm" onclick="speak('${String(speakTxt).replace(/'/g,"\\'")}','${lang}')">🔊 朗读</button>`:'';
     const ansHtml=`<div class="quiz-ans"><input type="text" id="qInput" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextWrong()"></div>`;
-    showModal('错题复习',`<div class="quiz-box"><div style="font-size:12px;color:var(--text-soft);">第 ${i+1}/${q.length} 题</div><div class="quiz-q">${item.q}</div>${ansHtml}</div>`,
+    showModal('错题复习',`<div class="quiz-box"><div style="font-size:12px;color:var(--text-soft);">第 ${i+1}/${q.length} 题</div><div class="quiz-q">${item.q} ${spkBtn}</div>${ansHtml}</div>`,
       `<button class="btn sm" onclick="UI.nextWrong()">${i===q.length-1?'完成':'下一题'}</button>`,true);
     setTimeout(()=>{const inp=$('#qInput');if(inp)inp.focus();},0);
   },
@@ -1812,7 +1860,7 @@ init();
 window.App=App;window.UI=UI;window.Router=Router;window.Store=Store;
 window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=undoTask;
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
-window.Pet=Pet;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;
+window.Pet=Pet;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;
 
 })();
 </script>
