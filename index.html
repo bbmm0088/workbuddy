@@ -251,6 +251,7 @@ const Store = {
     if(!d.achievementDefs) d.achievementDefs=Ach.defaultDefs();
     if(d.settings.reviewMode===undefined) d.settings.reviewMode=false;
     if(!d.deedDefs) d.deedDefs=Bank.defaultDeeds();
+    if(!d.customTasks) d.customTasks=[];
     Object.keys(d.children).forEach(cid=>this.fixChild(d.children[cid]));
   },
   fixChild(c){
@@ -299,7 +300,8 @@ const Store = {
       plantDefs:Garden.defaultDefs(),
       petDefs:Pet.defaultDefs(),
       achievementDefs:Ach.defaultDefs(),
-      deedDefs:Bank.defaultDeeds()
+      deedDefs:Bank.defaultDeeds(),
+      customTasks:[]
     };
   }
 };
@@ -829,6 +831,8 @@ function todayTaskList(c){
   Bank.chores.forEach(ch=>list.push({id:ch.id,cat:'家务',name:ch.name,icon:ch.icon,reward:10,review:true}));
   // 作息德育
   Bank.deeds().forEach(d=>list.push({id:d.id,cat:'德育',name:d.name,icon:d.icon,reward:5,review:true}));
+  // 家长自定义作业任务
+  (Store.data.customTasks||[]).forEach(t=>list.push({id:t.id,cat:t.cat||'自定义',name:t.name,icon:t.icon||'📝',reward:t.reward,review:!!t.review,custom:true}));
   return list;
 }
 function dailyReset(){
@@ -865,7 +869,7 @@ const Sync = {
     let data;
     if(scope==='child'){
       const cid=d_settings().currentChildId;
-      data={version:Store.data.version,settings:Store.data.settings,children:{[cid]:JSON.parse(JSON.stringify(Store.data.children[cid]))},shopItems:Store.data.shopItems,plantDefs:Store.data.plantDefs,petDefs:Store.data.petDefs,achievementDefs:Store.data.achievementDefs,deedDefs:Store.data.deedDefs};
+      data={version:Store.data.version,settings:Store.data.settings,children:{[cid]:JSON.parse(JSON.stringify(Store.data.children[cid]))},shopItems:Store.data.shopItems,plantDefs:Store.data.plantDefs,petDefs:Store.data.petDefs,achievementDefs:Store.data.achievementDefs,deedDefs:Store.data.deedDefs,customTasks:Store.data.customTasks};
     }else{
       data=JSON.parse(JSON.stringify(Store.data));
     }
@@ -926,6 +930,7 @@ const Sync = {
           if(data.petDefs)Store.data.petDefs=data.petDefs;
           if(data.achievementDefs)Store.data.achievementDefs=data.achievementDefs;
           if(data.deedDefs)Store.data.deedDefs=data.deedDefs;
+          if(data.customTasks)Store.data.customTasks=data.customTasks;
         }
         Store.migrate();
         Object.values(Store.data.children).forEach(c=>Store.fixChild(c));
@@ -1662,6 +1667,34 @@ const UI = {
       <div class="card"><div class="card-title">🛒 商店管理</div><div id="shopMgr">${Store.data.shopItems.map(it=>`<div class="log-item"><span>${it.icon} <input type="text" value="${it.name}" style="width:90px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').name=this.value;Store.save()"> <input type="number" value="${it.price}" style="width:60px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').price=+this.value;Store.save()">☀️</span><button class="btn danger sm" onclick="UI.delShop('${it.id}')">删除</button></div>`).join('')}</div>
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newShopName" placeholder="名称"><input id="newShopPrice" type="number" placeholder="价格"><input id="newShopIcon" placeholder="图标" value="🎁"><button class="btn sm" onclick="UI.addShop()">添加</button></div>
       </div>
+      <div class="card"><div class="card-title">📝 作业任务管理 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长自定义作业，可设阳光值）</span></div>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">这里添加的自定义作业会出现在孩子的任务列表中，每个任务可独立设置阳光奖励。</p>
+        ${(Store.data.customTasks||[]).map(t=>`<div class="log-item">
+          <span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <input type="text" value="${t.icon||'📝'}" style="width:40px;border:1px solid var(--border);border-radius:4px;padding:2px;text-align:center;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').icon=this.value;Store.save()">
+            <input type="text" value="${t.name}" style="width:120px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').name=this.value;Store.save()">
+            <select style="border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').cat=this.value;Store.save()">
+              ${['语文','数学','英语','运动','家务','德育','自定义'].map(c=>`<option value="${c}" ${t.cat===c?'selected':''}>${c}</option>`).join('')}
+            </select>
+            <input type="number" value="${t.reward}" style="width:55px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').reward=+this.value||10;Store.save()">☀️
+            <label style="font-size:11px;"><input type="checkbox" ${t.review?'checked':''} onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').review=this.checked;Store.save()"> 审核</label>
+          </span>
+          <button class="btn danger sm" onclick="UI.delCustomTask('${t.id}')">删除</button>
+        </div>`).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;font-size:12px;">暂无自定义作业</div>'}
+        <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px;">➕ 添加新作业任务</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+            <input id="newCtIcon" placeholder="图标" value="📝" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;">
+            <input id="newCtName" placeholder="任务名称（如：写日记）" style="flex:1;min-width:120px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+            <select id="newCtCat" style="padding:6px;border:1px solid var(--border);border-radius:6px;">
+              ${['语文','数学','英语','运动','家务','德育','自定义'].map(c=>`<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <input id="newCtReward" type="number" placeholder="阳光" value="10" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+            <label style="font-size:11px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="newCtReview"> 需审核</label>
+            <button class="btn sm" onclick="UI.addCustomTask()">添加</button>
+          </div>
+        </div>
+      </div>
       <div class="card"><div class="card-title">🏆 徽章管理</div>${Store.data.achievementDefs.map(a=>`<div class="log-item"><span>${a.icon} <input type="text" value="${a.name}" style="width:80px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.achievementDefs.find(x=>x.id==='${a.id}').name=this.value;Store.save()"> <input type="text" value="${a.cond}" style="width:120px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.achievementDefs.find(x=>x.id==='${a.id}').cond=this.value;Store.save()"></span><button class="btn danger sm" onclick="UI.delBadge('${a.id}')">删除</button></div>`).join('')}
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newBadgeName" placeholder="名称"><input id="newBadgeCond" placeholder="解锁条件"><input id="newBadgeIcon" placeholder="图标" value="🎖️"><button class="btn sm" onclick="UI.addBadge()">添加</button></div>
       </div>
@@ -1707,6 +1740,23 @@ const UI = {
     Store.save();UI.render();
   },
   delDeed(id){Store.data.deedDefs=Store.data.deedDefs.filter(x=>x.id!==id);Store.save();UI.render();},
+  addCustomTask(){
+    const name=$('#newCtName').value.trim();
+    if(!name){toast('请填写任务名称');return;}
+    const icon=$('#newCtIcon').value||'📝';
+    const cat=$('#newCtCat').value||'自定义';
+    const reward=+$('#newCtReward').value||10;
+    const review=$('#newCtReview').checked;
+    if(!Store.data.customTasks)Store.data.customTasks=[];
+    Store.data.customTasks.push({id:'ct_'+uid(),name,icon,cat,reward,review,custom:true});
+    Store.save();UI.render();toast('已添加自定义作业：'+name);
+  },
+  delCustomTask(id){
+    Store.data.customTasks=(Store.data.customTasks||[]).filter(x=>x.id!==id);
+    // 同时清除各孩子当日该任务的完成记录
+    Object.values(Store.data.children).forEach(c=>{if(c.today&&c.today.tasks)delete c.today.tasks[id];});
+    Store.save();UI.render();
+  },
   approveChild(cid,tid){d_settings().currentChildId=cid;approveTask(tid);},
   rejectChild(cid,tid){const ch=Store.data.children[cid];if(ch&&ch.today.tasks[tid]){delete ch.today.tasks[tid];}Store.save();UI.render();toast('已驳回');},
   addShop(){
