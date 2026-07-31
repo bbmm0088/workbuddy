@@ -656,10 +656,10 @@ function gardenSettleFor(c){
 const Pet = {
   defaultDefs(){
     return{
-      black_cat:{name:'小黑猫',emoji:'🐈‍⬛',img:'images/black_cat.jpg',desc:'酷酷的小黑猫，眼神明亮，喜欢戴蓝色小围巾。',cost:100,attrs:{饱食:'高',亲密:'中',攻击:'无',防御:'低'}},
-      labrador:{name:'拉布拉多',emoji:'🐕',img:'images/labrador.jpg',desc:'温柔的拉布拉多，戴橙色项圈，最喜欢和主人玩耍。',cost:100,attrs:{饱食:'高',亲密:'高',攻击:'低',防御:'中'}},
-      tricolor:{name:'三花猫',emoji:'🐱',img:'images/tricolor.jpg',desc:'可爱的小三花，戴粉色蝴蝶结，毛色由黄白黑相间。',cost:150,attrs:{饱食:'中',亲密:'高',攻击:'无',防御:'中'}},
-      samoyed:{name:'萨摩耶',emoji:'🐩',img:'images/samoyed.jpg',desc:'微笑天使萨摩耶，戴口水巾，笑容治愈每一天。',cost:150,attrs:{饱食:'高',亲密:'高',攻击:'无',防御:'高'}}
+      black_cat:{name:'小黑猫',emoji:'🐈‍⬛',img:'images/black_cat.jpg?v=2',desc:'酷酷的小黑猫，眼神明亮，喜欢戴蓝色小围巾。',cost:100,attrs:{饱食:'高',亲密:'中',攻击:'无',防御:'低'}},
+      labrador:{name:'拉布拉多',emoji:'🐕',img:'images/labrador.jpg?v=2',desc:'温柔的拉布拉多，戴橙色项圈，最喜欢和主人玩耍。',cost:100,attrs:{饱食:'高',亲密:'高',攻击:'低',防御:'中'}},
+      tricolor:{name:'三花猫',emoji:'🐱',img:'images/tricolor.jpg?v=2',desc:'可爱的小三花，戴粉色蝴蝶结，毛色由黄白黑相间。',cost:150,attrs:{饱食:'中',亲密:'高',攻击:'无',防御:'中'}},
+      samoyed:{name:'萨摩耶',emoji:'🐩',img:'images/samoyed.jpg?v=2',desc:'微笑天使萨摩耶，戴口水巾，笑容治愈每一天。',cost:150,attrs:{饱食:'高',亲密:'高',攻击:'无',防御:'高'}}
     };
   },
   list(){return Store.data.petDefs;},
@@ -823,8 +823,8 @@ function todayTaskList(c){
     list.push({id:'en_word',cat:'英语',name:'单词测试',reward:10,perfectReward:10});
     list.push({id:'en_sent',cat:'英语',name:'短句测试',reward:10,perfectReward:10});
   }
-  // 运动
-  if(Bank.sports[grade])list.push({id:'sport',cat:'运动',name:'运动打卡',reward:10,review:true});
+  // 运动：每项独立打卡（sport_前缀）
+  if(Bank.sports[grade])Bank.sports[grade].forEach((sp,si)=>list.push({id:'sport_'+si,cat:'运动',name:sp.name,icon:'🏃',reward:10,review:true,target:sp.target}));
   // 家务
   Bank.chores.forEach(ch=>list.push({id:ch.id,cat:'家务',name:ch.name,icon:ch.icon,reward:10,review:true}));
   // 作息德育
@@ -961,7 +961,7 @@ function completeTask(taskId,reward,reason,perfect,bonus){
   // 统计
   if(taskId==='cn_reading')c.stats.totalReading++;
   if(taskId.startsWith('math_')&&perfect){c.stats.perfectMathCount++;c.stats.totalPerfect++;}
-  if(taskId==='sport'){if(c.stats.lastSportDate!==todayStr()){c.stats.sportsDays++;c.stats.lastSportDate=todayStr();}}
+  if(taskId.startsWith('sport_')){if(c.stats.lastSportDate!==todayStr()){c.stats.sportsDays++;c.stats.lastSportDate=todayStr();}}
   // 等级检查
   checkLevelUp();
   Ach.check();Store.save();UI.render();return true;
@@ -1147,9 +1147,8 @@ const UI = {
     math(){const c=curChild();const ids=['math_add','math_sub'];if(c.grade!=='gradeK'&&c.grade!=='grade1')ids.push('math_mul');ids.push('math_think');return UI.renderSubject('math','数学',ids);},
     english(){return UI.renderSubject('english','英语',['en_word','en_sent']);},
     sport(){const c=curChild();const items=Bank.sports[c.grade]||[];
-      return `<div class="card"><div class="card-title">⚽ 运动打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">参考广西中考体育标准</p>
-      <div class="grid grid-2">${items.map(s=>`<div class="task-card"><div class="t-title">${s.name}</div><div class="t-desc">目标：${s.target}</div></div>`).join('')}</div>
-      ${UI.taskCard('sport','运动打卡','完成今日运动项目',10,'🏃')}
+      return `<div class="card"><div class="card-title">⚽ 运动打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">参考广西中考体育标准，每项独立打卡各 +10 阳光</p>
+      <div class="grid grid-2">${items.map((s,si)=>UI.taskCard('sport_'+si,s.name,'目标：'+s.target,10,'🏃')).join('')}</div>
       </div>`;},
     chore(){return `<div class="card"><div class="card-title">🧹 家务打卡</div><div class="grid grid-2">${Bank.chores.map(ch=>UI.taskCard(ch.id,ch.name,'完成家务任务',10,ch.icon)).join('')}</div></div>`;},
     deed(){return UI.renderDeed();},
@@ -1310,7 +1309,7 @@ const UI = {
     completeTask(q.taskId,reward,q.title+(perfect?'（满分）':''),perfect,perfect?bonus:0);
     closeModal();
     this.curQuiz=null;
-    showModal('测试结果',`<div style="text-align:center;padding:20px;"><div style="font-size:50px;">${perfect?'🎉':'💪'}</div><div style="font-size:20px;font-weight:700;margin:10px 0;">${correct} / ${total}</div><p style="color:var(--text-soft);white-space:pre-line;">${msg}</p><p style="margin-top:10px;color:var(--primary-d);font-weight:700;">获得 ${reward+bonus} 阳光 ☀️</p></div>`,`<button class="btn sm" onclick="closeModal()">好的</button>`);
+    showModal('测试结果',`<div style="text-align:center;padding:20px;"><div style="font-size:50px;">${perfect?'🎉':'💪'}</div><div style="font-size:20px;font-weight:700;margin:10px 0;">${correct} / ${total}</div><p style="color:var(--text-soft);white-space:pre-line;">${msg}</p><p style="margin-top:10px;color:var(--primary-d);font-weight:700;">获得 ${reward+bonus} 阳光 ☀️</p></div>`,`<button class="btn sm" onclick="closeModal();UI.render();">好的</button>`);
   },
   showCallig(){
     const c=curChild();const chars=Bank.chinese[c.grade]?.calligraphy||[{char:'永',radical:'水',strokes:5}];
