@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WorkBuddy 儿童智能学习工作台</title>
+<style>
+/* ============ [1] 主题变量与基础 ============ */
+:root{
+  --bg:#f0f9ee; --bg2:#e7f5e1; --card:#ffffff; --primary:#5cb85c; --primary-d:#449d44;
+  --sky:#5bc0de; --sky-d:#31b0d5; --orange:#f0ad4e; --orange-d:#ec971f;
+  --pink:#ff8fb1; --pink-d:#f06292; --purple:#b39ddb; --purple-d:#9575cd;
+  --danger:#e74c3c; --danger-d:#c0392b; --gold:#ffd54f; --brown:#a1887f;
+  --text:#3a3a3a; --text-soft:#6b6b6b; --text-light:#9e9e9e; --border:#e0e7dd;
+  --radius:18px; --radius-sm:12px; --shadow:0 4px 16px rgba(92,184,92,.18);
+  --shadow-hover:0 8px 24px rgba(92,184,92,.28);
+  --grass1:#7cb342; --grass2:#689f38; --grass3:#558b2f;
+  --font:'PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{font-family:var(--font);background:linear-gradient(135deg,#f0f9ee 0%,#e3f2fd 100%);color:var(--text);overflow:hidden;font-size:14px;line-height:1.5;}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;}
+input,select,textarea{font-family:inherit;outline:none;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:var(--primary);border-radius:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ============ [2] 布局 ============ */
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100vh;}
+.topbar{background:linear-gradient(90deg,var(--primary),var(--sky));color:#fff;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.1);z-index:10;min-height:56px;}
+.topbar .logo{font-weight:700;font-size:16px;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+.topbar .stats{display:flex;gap:8px;flex:1;flex-wrap:wrap;align-items:center;}
+.stat-chip{background:rgba(255,255,255,.22);border-radius:20px;padding:4px 10px;font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.stat-chip b{font-size:13px;}
+.progress-wrap{flex:1;min-width:140px;max-width:260px;}
+.progress-bar{background:rgba(255,255,255,.3);border-radius:10px;height:16px;overflow:hidden;position:relative;}
+.progress-fill{background:linear-gradient(90deg,#ffd54f,#ffb300);height:100%;border-radius:10px;transition:width .4s;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#5d4037;}
+.mode-toggle{background:rgba(255,255,255,.25);border-radius:20px;padding:4px 12px;font-size:12px;color:#fff;font-weight:600;}
+.mode-toggle.parent{background:rgba(231,76,60,.7);}
+
+.main-area{display:grid;grid-template-columns:auto 1fr;overflow:hidden;}
+.sidebar{background:var(--card);border-right:2px solid var(--bg2);padding:10px 8px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;width:84px;}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:var(--radius-sm);background:var(--bg);color:var(--text-soft);font-size:11px;font-weight:600;transition:all .2s;min-height:60px;justify-content:center;}
+.nav-btn .ico{font-size:22px;line-height:1;}
+.nav-btn.active{background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#fff;box-shadow:var(--shadow);transform:scale(1.02);}
+.nav-btn:hover:not(.active){background:var(--bg2);}
+.content{overflow-y:auto;padding:16px;}
+.bottombar{background:var(--card);border-top:2px solid var(--bg2);padding:8px 16px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-soft);min-height:36px;}
+
+/* ============ [3] 组件 ============ */
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:14px;}
+.card-title{font-size:16px;font-weight:700;color:var(--primary-d);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.btn{padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all .2s;background:var(--primary);color:#fff;}
+.btn:hover{background:var(--primary-d);transform:translateY(-1px);}
+.btn.sky{background:var(--sky);} .btn.sky:hover{background:var(--sky-d);}
+.btn.orange{background:var(--orange);} .btn.orange:hover{background:var(--orange-d);}
+.btn.pink{background:var(--pink);} .btn.pink:hover{background:var(--pink-d);}
+.btn.danger{background:var(--danger);} .btn.danger:hover{background:var(--danger-d);}
+.btn.ghost{background:var(--bg);color:var(--text-soft);} .btn.ghost:hover{background:var(--bg2);color:var(--text);}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.btn:disabled{background:#ccc !important;color:#999 !important;cursor:not-allowed;transform:none !important;}
+.btn.done{background:#a5d6a7 !important;color:#2e7d32 !important;}
+
+.grid{display:grid;gap:12px;}
+.grid-2{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}
+.grid-3{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+.task-card{background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;border:2px solid transparent;transition:all .2s;}
+.task-card.done{border-color:var(--primary);background:#f1f8e9;}
+.task-card .t-title{font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;}
+.task-card .t-desc{font-size:12px;color:var(--text-soft);flex:1;}
+.task-card .t-foot{display:flex;justify-content:space-between;align-items:center;}
+.reward-tag{background:var(--gold);color:#5d4037;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:12px;}
+.modal{background:var(--card);border-radius:var(--radius);padding:20px;max-width:600px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.25);}
+.modal-title{font-size:18px;font-weight:700;color:var(--primary-d);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;}
+.modal-close{background:var(--bg);border-radius:50%;width:30px;height:30px;font-size:18px;color:var(--text-soft);}
+.toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;z-index:200;animation:fadeIn .3s;}
+@keyframes fadeIn{from{opacity:0;transform:translate(-50%,-10px);}to{opacity:1;transform:translate(-50%,0);}}
+
+/* 答题 */
+.quiz-box{display:flex;flex-direction:column;gap:14px;}
+.quiz-q{font-size:15px;font-weight:600;background:var(--bg);padding:12px;border-radius:var(--radius-sm);}
+.quiz-ans{display:flex;gap:8px;flex-wrap:wrap;}
+.quiz-ans input{flex:1;min-width:120px;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:15px;}
+.quiz-ans input:focus{border-color:var(--primary);}
+.opt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.opt-btn{padding:12px;border-radius:var(--radius-sm);background:var(--bg);font-size:14px;font-weight:600;border:2px solid transparent;}
+.opt-btn:hover{background:var(--bg2);}
+.opt-btn.sel{background:var(--sky);color:#fff;}
+.opt-btn.correct{background:var(--primary);color:#fff;}
+.opt-btn.wrong{background:var(--danger);color:#fff;}
+
+/* 花园 */
+.garden-wrap{background:linear-gradient(180deg,#a5d6a7,#81c784);border-radius:var(--radius);padding:12px;}
+.garden-grid{display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(5,1fr);gap:3px;aspect-ratio:9/5;}
+.cell{background:repeating-linear-gradient(90deg,var(--grass1) 0 50%,var(--grass2) 50% 100%);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;position:relative;transition:transform .15s;min-height:34px;}
+.cell:hover{transform:scale(1.08);z-index:2;box-shadow:0 0 8px rgba(0,0,0,.2);}
+.cell.has-plant{background:repeating-linear-gradient(90deg,#aed581 0 50%,#9ccc65 50% 100%);}
+.cell .hp-bar{position:absolute;bottom:1px;left:2px;right:2px;height:3px;background:rgba(0,0,0,.2);border-radius:2px;}
+.cell .hp-bar i{display:block;height:100%;background:#ff5252;border-radius:2px;}
+.zombie-row{display:flex;justify-content:flex-start;gap:4px;padding:4px;margin-top:6px;min-height:50px;align-items:center;flex-wrap:wrap;}
+.zombie{background:rgba(74,74,74,.85);border-radius:8px;padding:4px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:#fff;min-width:50px;position:relative;animation:zWalk .8s ease;}
+@keyframes zWalk{0%{transform:translateY(-6px);}100%{transform:translateY(0);}}
+.zombie .z-emoji{font-size:24px;}
+.zombie .z-hp{font-size:10px;}
+.zombie .z-bar{width:34px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;}
+.zombie .z-bar i{display:block;height:100%;background:#76ff03;border-radius:2px;}
+
+/* 宠物 */
+.pet-card{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px;}
+.pet-emoji{font-size:48px;text-align:center;}
+.bar-wrap{background:#fff;border-radius:10px;height:14px;overflow:hidden;position:relative;}
+.bar-fill{height:100%;border-radius:10px;transition:width .4s;}
+.bar-fill.sat{background:linear-gradient(90deg,#ffb300,#ff8f00);}
+.bar-fill.int{background:linear-gradient(90deg,#ec407a,#e91e63);}
+.bar-label{font-size:11px;color:var(--text-soft);display:flex;justify-content:space-between;}
+.status-tag{padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;align-self:flex-start;}
+.status-tag.healthy{background:#c8e6c9;color:#2e7d32;}
+.status-tag.hungry{background:#fff9c4;color:#f57f17;}
+.status-tag.sick{background:#ffcdd2;color:#c62828;}
+.status-tag.dead{background:#b71c1c;color:#fff;}
+
+/* 商店 */
+.shop-card{background:var(--card);border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow);}
+.shop-card .price{color:var(--orange-d);font-weight:700;font-size:18px;}
+.shop-card .s-icon{font-size:40px;}
+
+/* 成就 */
+.badge{background:var(--card);border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow);position:relative;}
+.badge.locked{filter:grayscale(1);opacity:.55;}
+.badge .b-icon{font-size:40px;}
+.badge.unlocked .b-icon{animation:shine 2s infinite;}
+@keyframes shine{0%,100%{filter:drop-shadow(0 0 0 transparent);}50%{filter:drop-shadow(0 0 6px var(--gold));}}
+
+/* 日志 */
+.log-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--bg);font-size:12px;}
+.log-time{color:var(--text-light);font-size:11px;}
+.log-delta.pos{color:var(--primary-d);font-weight:700;}
+.log-delta.neg{color:var(--danger);font-weight:700;}
+
+/* 笔顺动画 */
+.stroke-demo{font-size:80px;text-align:center;font-family:'KaiTi','STKaiti',serif;color:var(--primary-d);animation:strokePulse 2s ease infinite;}
+@keyframes strokePulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
+
+/* 阳光飘字 */
+.sun-float{position:fixed;color:var(--gold);font-weight:700;font-size:22px;pointer-events:none;z-index:300;text-shadow:0 0 4px #fff;animation:floatUp 1.2s ease forwards;}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-50px);}}
+
+/* 表单 */
+.form-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.form-row label{font-size:12px;color:var(--text-soft);font-weight:600;}
+.form-row input,.form-row select{padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;}
+
+/* ============ [4] 响应式 ============ */
+@media(max-width:768px){
+  .topbar{font-size:12px;padding:6px 10px;gap:6px;}
+  .topbar .logo{font-size:13px;}
+  .stat-chip{font-size:11px;padding:3px 7px;}
+  .main-area{grid-template-columns:1fr;grid-template-rows:1fr auto;}
+  .sidebar{flex-direction:row;width:100%;overflow-x:auto;border-right:none;border-top:2px solid var(--bg2);padding:6px;gap:4px;order:2;}
+  .nav-btn{min-width:62px;min-height:54px;flex-shrink:0;}
+  .content{order:1;padding:10px;}
+  .bottombar{font-size:11px;padding:6px 10px;}
+  .grid-2{grid-template-columns:1fr;}
+  .grid-3{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}
+  .modal{padding:14px;margin:8px;}
+}
+@media(max-width:480px){
+  .garden-grid .cell{font-size:16px;}
+  .pet-emoji{font-size:36px;}
+  .stat-chip b{font-size:12px;}
+}
+
+.tooltip{position:absolute;background:rgba(0,0,0,.82);color:#fff;padding:6px 10px;border-radius:8px;font-size:11px;z-index:50;pointer-events:none;max-width:180px;white-space:normal;}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 顶部状态栏 -->
+  <header class="topbar">
+    <div class="logo">🌻 WorkBuddy</div>
+    <div class="stats" id="topStats"></div>
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="topProgress" style="width:0%">0%</div></div>
+    </div>
+    <button class="mode-toggle" id="modeBtn" onclick="App.toggleMode()">👶 孩子模式</button>
+  </header>
+
+  <!-- 主区域 -->
+  <div class="main-area">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="content" id="content"></main>
+  </div>
+
+  <!-- 底部 -->
+  <footer class="bottombar">
+    <span id="footLeft">© WorkBuddy 儿童智能学习工作台</span>
+    <span id="footRight"></span>
+  </footer>
+</div>
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+/* ====================================================================
+ * WorkBuddy 儿童智能学习工作台 - 单文件应用
+ * 模块：Store / State / Bank / Reset / Garden / Pet / Shop / Ach / Log / Audio / Sync / Router / UI
+ * ==================================================================== */
+(function(){
+'use strict';
+
+/* ============ 工具函数 ============ */
+const $ = (s,p=document)=>p.querySelector(s);
+const $$ = (s,p=document)=>[...p.querySelectorAll(s)];
+const todayStr = ()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const nowISO = ()=>new Date().toISOString();
+const rnd = (n)=>Math.floor(Math.random()*n);
+const pick = (arr,n)=>{const c=[...arr];const r=[];for(let i=0;i<n&&c.length;i++){r.push(c.splice(rnd(c.length),1)[0]);}return r;};
+const shuffle = (arr)=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
+const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+
+function toast(msg,ms=1800){const r=$('#toastRoot');const t=document.createElement('div');t.className='toast';t.textContent=msg;r.appendChild(t);setTimeout(()=>t.remove(),ms);}
+function sunFloat(x,y,txt){const f=document.createElement('div');f.className='sun-float';f.textContent=txt;f.style.left=x+'px';f.style.top=y+'px';document.body.appendChild(f);setTimeout(()=>f.remove(),1200);}
+
+/* ============ Store 模块 ============ */
+const Store = {
+  KEY:'wb_data_v1',
+  data:null,
+  load(){
+    try{const raw=localStorage.getItem(this.KEY);this.data=raw?JSON.parse(raw):null;}catch(e){this.data=null;}
+    if(!this.data) this.data=this.defaultData();
+    this.migrate();
+    return this.data;
+  },
+  save(){try{localStorage.setItem(this.KEY,JSON.stringify(this.data));Sync.broadcast();}catch(e){console.warn('save fail',e);}},
+  migrate(){
+    const d=this.data;
+    if(!d.version) d.version='1.0';
+    if(!d.settings) d.settings={};
+    if(!d.settings.parentPassword) d.settings.parentPassword='8888';
+    if(d.settings.zombieEnabled===undefined) d.settings.zombieEnabled=true;
+    if(d.settings.petDecayEnabled===undefined) d.settings.petDecayEnabled=true;
+    if(!d.settings.lastResetDate) d.settings.lastResetDate=todayStr();
+    if(!d.settings.currentChildId) d.settings.currentChildId=Object.keys(d.children)[0]||'';
+    if(!d.shopItems) d.shopItems=Shop.defaultItems();
+    if(!d.plantDefs) d.plantDefs=Garden.defaultDefs();
+    if(!d.petDefs) d.petDefs=Pet.defaultDefs();
+    if(!d.achievementDefs) d.achievementDefs=Ach.defaultDefs();
+    if(d.settings.reviewMode===undefined) d.settings.reviewMode=false;
+    if(!d.deedDefs) d.deedDefs=Bank.defaultDeeds();
+    Object.keys(d.children).forEach(cid=>this.fixChild(d.children[cid]));
+  },
+  fixChild(c){
+    if(!c.profile) c.profile={name:'孩子',avatar:'🙂',grade:'grade1'};
+    if(!c.grade) c.grade=c.profile.grade||'grade1';
+    if(!c.today) c.today={date:todayStr(),sunlight:0,tasks:{},quizRecords:{}};
+    if(!c.today.tasks) c.today.tasks={};
+    if(!c.today.quizRecords) c.today.quizRecords={};
+    if(c.today.mood===undefined) c.today.mood='';
+    if(!c.sunlight) c.sunlight={total:0};
+    if(!c.garden) c.garden={grid:this.emptyGrid(),zombies:[],undoFree:true};
+    if(!c.garden.grid||c.garden.grid.length!==5) c.garden.grid=this.emptyGrid();
+    if(!c.garden.zombies) c.garden.zombies=[];
+    if(c.garden.zombies.length===0&&d_settings().zombieEnabled) c.garden.zombies.push(this.newZombie());
+    if(!c.pets) c.pets=[];
+    if(!c.achievements) c.achievements=[];
+    if(!c.logs) c.logs={sunlight:[],pet:[]};
+    if(!c.wrongQuestions) c.wrongQuestions=[];
+    if(!c.stats) c.stats={streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[]};
+    if(c.stats.focusMinutes===undefined) c.stats.focusMinutes=0;
+    if(c.stats.level===undefined) c.stats.level=0;
+    if(!c.stats.levelGifts) c.stats.levelGifts=[];
+    if(!c.stats.moodHistory) c.stats.moodHistory=[];
+    if(!c.undoCount) c.undoCount=0;
+  },
+  emptyGrid(){const g=[];for(let r=0;r<5;r++){g.push(new Array(9).fill(null));}return g;},
+  newZombie(){return{id:uid(),hp:100,maxHp:100,pos:4,intro:'普通僵尸：行动缓慢，喜欢啃食植物。'};},
+  defaultData(){
+    const childId='c_'+uid();
+    return{
+      version:'1.0',
+      settings:{parentPassword:'8888',zombieEnabled:true,petDecayEnabled:true,reviewMode:false,lastResetDate:todayStr(),currentChildId:childId},
+      children:{
+        [childId]:{
+          profile:{name:'小明',avatar:'🦁',grade:'grade1'},
+          grade:'grade1',
+          today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},
+          sunlight:{total:50},
+          garden:{grid:this.emptyGrid(),zombies:[this.newZombie()],undoFree:true,undoCount:0},
+          pets:[],achievements:[],logs:{sunlight:[],pet:[]},
+          wrongQuestions:[],
+          stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[]}
+        }
+      },
+      shopItems:Shop.defaultItems(),
+      plantDefs:Garden.defaultDefs(),
+      petDefs:Pet.defaultDefs(),
+      achievementDefs:Ach.defaultDefs(),
+      deedDefs:Bank.defaultDeeds()
+    };
+  }
+};
+function d_settings(){return Store.data.settings;}
+function curChild(){return Store.data.children[d_settings().currentChildId];}
+
+/* ============ State 模块 ============ */
+const State = {mode:'child',view:'dashboard',focusing:false};
+
+/* ============ QuestionBank 题库 ============ */
+const Bank = {
+  gradeNames:{gradeK:'幼小衔接',grade1:'一年级',grade2:'二年级',grade3:'三年级',grade4:'四年级',grade5:'五年级',grade6:'六年级'},
+  // 数学：动态生成
+  mathGen:{
+    oralAdd:(grade)=>{const max={gradeK:10,grade1:20,grade2:50,grade3:100,grade4:100,grade5:100,grade6:100}[grade]||100;const a=rnd(max+1),b=rnd(max-a+1);return{q:a+' + '+b+' = ?',a:String(a+b)};},
+    oralSub:(grade)=>{const max={gradeK:10,grade1:20,grade2:50,grade3:100,grade4:100,grade5:100,grade6:100}[grade]||100;const a=rnd(max+1),b=rnd(a+1);return{q:a+' - '+b+' = ?',a:String(a-b)};},
+    mul:(grade)=>{const t={grade2:9,grade3:9,grade4:12,grade5:12,grade6:12}[grade]||9;const a=1+rnd(t),b=1+rnd(t);return{q:a+' × '+b+' = ?',a:String(a*b)};},
+    thinking:(grade)=>{const bank=[
+      '小明有5个苹果，吃了2个，又买了3个，现在有几个？|6',
+      '一排树共8棵，每两棵间隔2米，从第1到第8棵共多远？|14',
+      '鸡兔同笼，共5个头14条腿，几只鸡几只兔？|2鸡3兔',
+      '一根绳子对折再对折量一下是3米，绳子原来多长？|12',
+      '1+2+3+...+10=?|55',
+      '钟表3点整，时针分针成多少度？|90度',
+      '有5元和10元共8张总65元，各几张？|3张5元5张10元',
+      '一个数加5后乘3再减6得18，这个数是？|3'
+    ];const it=bank[rnd(bank.length)].split('|');return{q:it[0],a:it[1]};}
+  },
+  // 语文：拼音、古诗、字
+  chinese:{
+    gradeK:{
+      pinyin:[
+        {q:'b',a:'玻',opts:['玻','波','摸','佛']},
+        {q:'p',a:'坡',opts:['坡','玻','摸','佛']},
+        {q:'m',a:'摸',opts:['摸','坡','玻','佛']},
+        {q:'f',a:'佛',opts:['佛','摸','坡','玻']},
+        {q:'d',a:'得',opts:['得','特','讷','勒']},
+        {q:'t',a:'特',opts:['特','得','讷','勒']},
+        {q:'n',a:'讷',opts:['讷','得','特','勒']},
+        {q:'l',a:'勒',opts:['勒','得','特','讷']},
+        {q:'g',a:'哥',opts:['哥','科','喝','佛']},
+        {q:'k',a:'科',opts:['科','哥','喝','佛']}
+      ],
+      calligraphy:[{char:'一',radical:'横',strokes:1},{char:'二',radical:'横',strokes:2},{char:'三',radical:'横',strokes:3},{char:'十',radical:'十',strokes:2},{char:'口',radical:'口',strokes:3},{char:'人',radical:'人',strokes:2}],
+      poetry:[
+        {title:'咏鹅',author:'骆宾王',content:'鹅，鹅，鹅，曲项向天歌。白毛浮绿水，红掌拨清波。',pinyin:'é,é,é,qū xiàng xiàng tiān gē。bái máo fú lǜ shuǐ,hóng zhǎng bō qīng bō。',analysis:'诗人用白描手法，生动写出鹅在水中游动的姿态。'}
+      ],
+      reading:[{book:'猜猜我有多爱你',author:'山姆·麦克布雷尼'},{book:'好饿的毛毛虫',author:'艾瑞·卡尔'}]
+    },
+    grade1:{
+      pinyin:[
+        {q:'zh',a:'知',opts:['知','吃','诗','日']},
+        {q:'ch',a:'吃',opts:['吃','知','诗','日']},
+        {q:'sh',a:'诗',opts:['诗','知','吃','日']},
+        {q:'r',a:'日',opts:['日','知','吃','诗']},
+        {q:'z',a:'资',opts:['资','次','思','日']},
+        {q:'c',a:'次',opts:['次','资','思','日']},
+        {q:'s',a:'思',opts:['思','资','次','日']},
+        {q:'ai',a:'爱',opts:['爱','诶','熬','欧']},
+        {q:'ei',a:'欸',opts:['欸','爱','熬','欧']},
+        {q:'ao',a:'熬',opts:['熬','爱','欸','欧']}
+      ],
+      calligraphy:[{char:'日',radical:'日',strokes:4},{char:'月',radical:'月',strokes:4},{char:'水',radical:'水',strokes:4},{char:'火',radical:'火',strokes:4},{char:'山',radical:'山',strokes:3},{char:'石',radical:'石',strokes:5}],
+      poetry:[
+        {title:'静夜思',author:'李白',content:'床前明月光，疑是地上霜。举头望明月，低头思故乡。',pinyin:'chuáng qián míng yuè guāng,yí shì dì shàng shuāng。jǔ tóu wàng míng yuè,dī tóu sī gù xiāng。',analysis:'描写游子月夜思乡之情，"疑"字写出月光如霜的错觉。'},
+        {title:'春晓',author:'孟浩然',content:'春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。',pinyin:'chūn mián bù jué xiǎo,chù chù wén tí niǎo。yè lái fēng yǔ shēng,huā luò zhī duō shǎo。',analysis:'描写春日清晨景象，含蓄表达惜春之情。'},
+        {title:'池上',author:'白居易',content:'小娃撑小艇，偷采白莲回。不解藏踪迹，浮萍一道开。',pinyin:'xiǎo wá chēng xiǎo tǐng,tōu cǎi bái lián huí。bù jiě cáng zōng jì,fú píng yī dào kāi。',analysis:'写儿童偷采莲蓬的趣事，天真可爱。'}
+      ],
+      reading:[{book:'小猪唏哩呼噜',author:'孙幼军'},{book:'一年级大个子二年级小个子',author:'古田足日'}]
+    },
+    grade2:{
+      pinyin:[
+        {q:'an',a:'安',opts:['安','恩','昂','翁']},
+        {q:'en',a:'恩',opts:['恩','安','昂','翁']},
+        {q:'ang',a:'昂',opts:['昂','安','恩','翁']},
+        {q:'eng',a:'鞥',opts:['鞥','昂','安','恩']},
+        {q:'ing',a:'英',opts:['英','昂','安','恩']},
+        {q:'ong',a:'翁',opts:['翁','英','昂','安']},
+        {q:'ua',a:'蛙',opts:['蛙','窝','歪','威']},
+        {q:'uo',a:'窝',opts:['窝','蛙','歪','威']},
+        {q:'uai',a:'歪',opts:['歪','蛙','窝','威']},
+        {q:'ue',a:'约',opts:['约','蛙','窝','歪']}
+      ],
+      calligraphy:[{char:'树',radical:'木',strokes:9},{char:'林',radical:'木',strokes:8},{char:'森',radical:'木',strokes:12},{char:'说',radical:'言',strokes:9},{char:'话',radical:'言',strokes:8},{char:'读',radical:'言',strokes:10}],
+      poetry:[
+        {title:'登鹳雀楼',author:'王之涣',content:'白日依山尽，黄河入海流。欲穷千里目，更上一层楼。',pinyin:'bái rì yī shān jìn,huáng hé rù hǎi liú。yù qióng qiān lǐ mù,gèng shàng yī céng lóu。',analysis:'前两句写景，后两句寓理，启示人要不断进取。'},
+        {title:'望庐山瀑布',author:'李白',content:'日照香炉生紫烟，遥看瀑布挂前川。飞流直下三千尺，疑是银河落九天。',pinyin:'rì zhào xiāng lú shēng zǐ yān,yáo kàn pù bù guà qián chuān。fēi liú zhí xià sān qiān chǐ,yí shì yín hé luò jiǔ tiān。',analysis:'用夸张比喻写瀑布壮观，"飞流直下"气势磅礴。'},
+        {title:'草',author:'白居易',content:'离离原上草，一岁一枯荣。野火烧不尽，春风吹又生。',pinyin:'lí lí yuán shàng cǎo,yī suì yī kū róng。yě huǒ shāo bù jìn,chūn fēng chuī yòu shēng。',analysis:'赞颂野草顽强生命力，"烧不尽""吹又生"对仗精妙。'}
+      ],
+      reading:[{book:'神笔马良',author:'洪汛涛'},{book:'大头儿子小头爸爸',author:'郑春华'}]
+    },
+    grade3:{
+      pinyin:[
+        {q:'ia',a:'呀',opts:['呀','耶','腰','忧']},
+        {q:'ie',a:'耶',opts:['耶','呀','腰','忧']},
+        {q:'iao',a:'腰',opts:['腰','呀','耶','忧']},
+        {q:'iou',a:'忧',opts:['忧','呀','耶','腰']},
+        {q:'uan',a:'弯',opts:['弯','温','汪','翁']},
+        {q:'uen',a:'温',opts:['温','弯','汪','翁']},
+        {q:'üan',a:'冤',opts:['冤','弯','温','汪']},
+        {q:'üe',a:'约',opts:['约','冤','弯','温']}
+      ],
+      calligraphy:[{char:'春',radical:'日',strokes:9},{char:'夏',radical:'夂',strokes:10},{char:'秋',radical:'禾',strokes:9},{char:'冬',radical:'夂',strokes:5},{char:'海',radical:'水',strokes:10},{char:'蓝',radical:'艹',strokes:13}],
+      poetry:[
+        {title:'山行',author:'杜牧',content:'远上寒山石径斜，白云生处有人家。停车坐爱枫林晚，霜叶红于二月花。',pinyin:'yuǎn shàng hán shān shí jìng xié,bái yún shēng chù yǒu rén jiā。tíng chē zuò ài fēng lín wǎn,shuāng yè hóng yú èr yuè huā。',analysis:'写秋山美景，"霜叶红于二月花"是千古名句。'},
+        {title:'望天门山',author:'李白',content:'天门中断楚江开，碧水东流至此回。两岸青山相对出，孤帆一片日边来。',pinyin:'tiān mén zhōng duàn chǔ jiāng kāi,bì shuǐ dōng liú zhì cǐ huí。liǎng àn qīng shān xiāng duì chū,gū fān yī piàn rì biān lái。',analysis:'描绘长江流经天门山的壮阔景象。'},
+        {title:'饮湖上初晴后雨',author:'苏轼',content:'水光潋滟晴方好，山色空蒙雨亦奇。欲把西湖比西子，淡妆浓抹总相宜。',pinyin:'shuǐ guāng liàn yàn qíng fāng hǎo,shān sè kōng méng yǔ yì qí。yù bǎ xī hú bǐ xī zǐ,dàn zhuāng nóng mǒ zǒng xiāng yí。',analysis:'以美人喻西湖，晴雨皆美，比喻新颖。'}
+      ],
+      reading:[{book:'稻草人',author:'叶圣陶'},{book:'格林童话',author:'格林兄弟'}]
+    },
+    grade4:{
+      calligraphy:[{char:'潮',radical:'水',strokes:15},{char:'塔',radical:'土',strokes:12},{char:'敬',radical:'攵',strokes:12},{char:'额',radical:'页',strokes:15},{char:'雀',radical:'隹',strokes:11},{char:'幕',radical:'巾',strokes:13}],
+      poetry:[
+        {title:'题西林壁',author:'苏轼',content:'横看成岭侧成峰，远近高低各不同。不识庐山真面目，只缘身在此山中。',pinyin:'héng kàn chéng lǐng cè chéng fēng,yuǎn jìn gāo dī gè bù tóng。bù shí lú shān zhēn miàn mù,zhǐ yuán shēn zài cǐ shān zhōng。',analysis:'写景寓理，"当局者迷"的哲理。'},
+        {title:'望洞庭',author:'刘禹锡',content:'湖光秋月两相和，潭面无风镜未磨。遥望洞庭山水翠，白银盘里一青螺。',pinyin:'hú guāng qiū yuè liǎng xiāng hé,tán miàn wú fēng jìng wèi mó。yáo wàng dòng tíng shān shuǐ cuì,bái yín pán lǐ yī qīng luó。',analysis:'以白银盘青螺喻洞庭山水，比喻奇巧。'},
+        {title:'忆江南',author:'白居易',content:'江南好，风景旧曾谙。日出江花红胜火，春来江水绿如蓝。能不忆江南？',pinyin:'jiāng nán hǎo,fēng jǐng jiù céng ān。rì chū jiāng huā hóng shèng huǒ,chūn lái jiāng shuǐ lǜ rú lán。néng bù yì jiāng nán？',analysis:'追忆江南春色，色彩鲜明。'}
+      ],
+      reading:[{book:'西游记（少儿版）',author:'吴承恩'},{book:'爱的教育',author:'亚米契斯'}]
+    },
+    grade5:{
+      calligraphy:[{char:'鹰',radical:'鸟',strokes:18},{char:'瀑',radical:'水',strokes:18},{char:'徽',radical:'彳',strokes:17},{char:'襄',radical:'衣',strokes:17},{char:'彝',radical:'彐',strokes:18},{char:'爵',radical:'爪',strokes:17}],
+      poetry:[
+        {title:'枫桥夜泊',author:'张继',content:'月落乌啼霜满天，江枫渔火对愁眠。姑苏城外寒山寺，夜半钟声到客船。',pinyin:'yuè luò wū tí shuāng mǎn tiān,jiāng fēng yú huǒ duì chóu mián。gū sū chéng wài hán shān sì,yè bàn zhōng shēng dào kè chuán。',analysis:'写夜泊愁思，钟声烘托孤寂。'},
+        {title:'渔歌子',author:'张志和',content:'西塞山前白鹭飞，桃花流水鳜鱼肥。青箬笠，绿蓑衣，斜风细雨不须归。',pinyin:'xī sài shān qián bái lù fēi,táo huā liú shuǐ guì yú féi。qīng ruò lì,lǜ suō yī,xié fēng xì yǔ bù xū guī。',analysis:'写江南水乡渔父生活，意境优美。'},
+        {title:'泊船瓜洲',author:'王安石',content:'京口瓜洲一水间，钟山只隔数重山。春风又绿江南岸，明月何时照我还。',pinyin:'jīng kǒu guā zhōu yī shuǐ jiān,zhōng shān zhǐ gé shù chóng shān。chūn fēng yòu lǜ jiāng nán àn,míng yuè hé shí zhào wǒ huán。',analysis:'"绿"字传神，写思乡之情。'}
+      ],
+      reading:[{book:'草房子',author:'曹文轩'},{book:'窗边的小豆豆',author:'黑柳彻子'}]
+    },
+    grade6:{
+      calligraphy:[{char:'鼎',radical:'鼎',strokes:12},{char:'瀚',radical:'水',strokes:19},{char:'曦',radical:'日',strokes:20},{char:'璨',radical:'玉',strokes:18},{char:'巍',radical:'山',strokes:20},{char:'裹',radical:'衣',strokes:14}],
+      poetry:[
+        {title:'春夜喜雨',author:'杜甫',content:'好雨知时节，当春乃发生。随风潜入夜，润物细无声。野径云俱黑，江船火独明。晓看红湿处，花重锦官城。',pinyin:'hǎo yǔ zhī shí jié,dāng chūn nǎi fā shēng。suí fēng qián rù yè,rùn wù xì wú shēng。yě jìng yún jù hēi,jiāng chuán huǒ dú míng。xiǎo kàn hóng shī chù,huā zhòng jǐn guān chéng。',analysis:'写春雨润物，体物入微。'},
+        {title:'水调歌头',author:'苏轼',content:'明月几时有？把酒问青天。不知天上宫阙，今夕是何年。但愿人长久，千里共婵娟。',pinyin:'míng yuè jǐ shí yǒu？bǎ jiǔ wèn qīng tiān。bù zhī tiān shàng gōng què,jīn xī shì hé nián。dàn yuàn rén cháng jiǔ,qiān lǐ gòng chán juān。',analysis:'中秋怀人名作，"千里共婵娟"传诵千古。'},
+        {title:'示儿',author:'陆游',content:'死去元知万事空，但悲不见九州同。王师北定中原日，家祭无忘告乃翁。',pinyin:'sǐ qù yuán zhī wàn shì kōng,dàn bēi bù jiàn jiǔ zhōu tóng。wáng shī běi dìng zhōng yuán rì,jiā jì wú wàng gào nǎi wēng。',analysis:'临终遗嘱，爱国之情深沉。'}
+      ],
+      reading:[{book:'鲁滨逊漂流记',author:'笛福'},{book:'三国演义（少儿版）',author:'罗贯中'}]
+    }
+  },
+  // 英语
+  english:{
+    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə'},{en:'cat',cn:'猫',phonetic:'kæt'},{en:'dog',cn:'狗',phonetic:'dɒɡ'},{en:'egg',cn:'蛋',phonetic:'eɡ'},{en:'fish',cn:'鱼',phonetic:'fɪʃ'},{en:'milk',cn:'牛奶',phonetic:'mɪlk'},{en:'sun',cn:'太阳',phonetic:'sʌn'}],sentences:[{en:'Hello!',cn:'你好！'},{en:'Good morning.',cn:'早上好。'},{en:'Thank you.',cn:'谢谢。'},{en:'Goodbye.',cn:'再见。'}]},
+    grade1:{words:[{en:'book',cn:'书',phonetic:'bʊk'},{en:'pen',cn:'笔',phonetic:'pen'},{en:'school',cn:'学校',phonetic:'skuːl'},{en:'teacher',cn:'老师',phonetic:'ˈtiːtʃə'},{en:'student',cn:'学生',phonetic:'ˈstjuːdənt'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'green',cn:'绿色',phonetic:'ɡriːn'}],sentences:[{en:'I am a student.',cn:'我是一名学生。'},{en:'What is your name?',cn:'你叫什么名字？'},{en:'Nice to meet you.',cn:'很高兴认识你。'},{en:'Stand up, please.',cn:'请起立。'}]},
+    grade2:{words:[{en:'family',cn:'家庭',phonetic:'ˈfæməli'},{en:'father',cn:'爸爸',phonetic:'ˈfɑːðə'},{en:'mother',cn:'妈妈',phonetic:'ˈmʌðə'},{en:'brother',cn:'兄弟',phonetic:'ˈbrʌðə'},{en:'sister',cn:'姐妹',phonetic:'ˈsɪstə'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'home',cn:'家',phonetic:'həʊm'},{en:'love',cn:'爱',phonetic:'lʌv'}],sentences:[{en:'This is my family.',cn:'这是我的家庭。'},{en:'I love my mom.',cn:'我爱我的妈妈。'},{en:'He is my brother.',cn:'他是我的兄弟。'},{en:'She is my friend.',cn:'她是我的朋友。'}]},
+    grade3:{words:[{en:'weather',cn:'天气',phonetic:'ˈweðə'},{en:'sunny',cn:'晴朗',phonetic:'ˈsʌni'},{en:'rainy',cn:'下雨',phonetic:'ˈreɪni'},{en:'windy',cn:'有风',phonetic:'ˈwɪndi'},{en:'cloudy',cn:'多云',phonetic:'ˈklaʊdi'},{en:'snowy',cn:'下雪',phonetic:'ˈsnəʊi'},{en:'hot',cn:'热',phonetic:'hɒt'},{en:'cold',cn:'冷',phonetic:'kəʊld'}],sentences:[{en:'How is the weather?',cn:'天气怎么样？'},{en:'It is sunny today.',cn:'今天是晴天。'},{en:'I like rainy days.',cn:'我喜欢雨天。'},{en:'It is very cold.',cn:'很冷。'}]},
+    grade4:{words:[{en:'subject',cn:'科目',phonetic:'ˈsʌbdʒɪkt'},{en:'math',cn:'数学',phonetic:'mæθ'},{en:'English',cn:'英语',phonetic:'ˈɪŋɡlɪʃ'},{en:'science',cn:'科学',phonetic:'ˈsaɪəns'},{en:'music',cn:'音乐',phonetic:'ˈmjuːzɪk'},{en:'art',cn:'美术',phonetic:'ɑːt'},{en:'history',cn:'历史',phonetic:'ˈhɪstri'},{en:'geography',cn:'地理',phonetic:'dʒiˈɒɡrəfi'}],sentences:[{en:'What is your favorite subject?',cn:'你最喜欢的科目是什么？'},{en:'I like English best.',cn:'我最喜欢英语。'},{en:'Math is interesting.',cn:'数学很有趣。'},{en:'We have music on Monday.',cn:'我们周一有音乐课。'}]},
+    grade5:{words:[{en:'holiday',cn:'假期',phonetic:'ˈhɒlədeɪ'},{en:'travel',cn:'旅行',phonetic:'ˈtrævl'},{en:'mountain',cn:'山',phonetic:'ˈmaʊntən'},{en:'river',cn:'河',phonetic:'ˈrɪvə'},{en:'forest',cn:'森林',phonetic:'ˈfɒrɪst'},{en:'beach',cn:'海滩',phonetic:'biːtʃ'},{en:'city',cn:'城市',phonetic:'ˈsɪti'},{en:'village',cn:'村庄',phonetic:'ˈvɪlɪdʒ'}],sentences:[{en:'Where did you go on holiday?',cn:'你假期去哪了？'},{en:'I went to Beijing.',cn:'我去了北京。'},{en:'The mountain is very high.',cn:'那座山很高。'},{en:'I love the beach.',cn:'我爱海滩。'}]},
+    grade6:{words:[{en:'environment',cn:'环境',phonetic:'ɪnˈvaɪrənmənt'},{en:'protect',cn:'保护',phonetic:'prəˈtekt'},{en:'future',cn:'未来',phonetic:'ˈfjuːtʃə'},{en:'dream',cn:'梦想',phonetic:'driːm'},{en:'success',cn:'成功',phonetic:'səkˈses'},{en:'challenge',cn:'挑战',phonetic:'ˈtʃælɪndʒ'},{en:'knowledge',cn:'知识',phonetic:'ˈnɒlɪdʒ'},{en:'experience',cn:'经验',phonetic:'ɪkˈspɪəriəns'}],sentences:[{en:'We should protect the environment.',cn:'我们应该保护环境。'},{en:'What is your dream?',cn:'你的梦想是什么？'},{en:'My dream is to be a doctor.',cn:'我的梦想是当医生。'},{en:'Knowledge is power.',cn:'知识就是力量。'}]}
+  },
+  // 体育：广西中考体育标准
+  sports:{
+    gradeK:[{name:'趣味跑',target:'15米往返'},{name:'拍球',target:'连续拍20个'},{name:'跳绳',target:'30个/分钟'}],
+    grade1:[{name:'跳绳',target:'60次/分钟'},{name:'立定跳远',target:'1.2米'},{name:'坐位体前屈',target:'10厘米'}],
+    grade2:[{name:'跳绳',target:'80次/分钟'},{name:'立定跳远',target:'1.4米'},{name:'50米跑',target:'11秒'}],
+    grade3:[{name:'跳绳',target:'100次/分钟'},{name:'立定跳远',target:'1.6米'},{name:'50米跑',target:'10秒'}],
+    grade4:[{name:'跳绳',target:'120次/分钟'},{name:'立定跳远',target:'1.8米'},{name:'仰卧起坐',target:'30次/分钟'}],
+    grade5:[{name:'跳绳',target:'140次/分钟'},{name:'立定跳远',target:'1.9米'},{name:'仰卧起坐',target:'38次/分钟'},{name:'50米跑',target:'9秒'}],
+    grade6:[{name:'跳绳',target:'150次/分钟'},{name:'立定跳远',target:'2.0米'},{name:'仰卧起坐',target:'40次/分钟'},{name:'50米跑',target:'8.5秒'},{name:'800米跑',target:'4分30秒'}]
+  },
+  // 家务
+  chores:[
+    {id:'chore_clean',name:'整理书桌',icon:'🧹'},
+    {id:'chore_bed',name:'整理床铺',icon:'🛏️'},
+    {id:'chore_sweep',name:'扫地拖地',icon:'🧽'},
+    {id:'chore_dish',name:'帮忙洗碗',icon:'🍽️'},
+    {id:'chore_water',name:'浇花',icon:'💧'},
+    {id:'chore_trash',name:'倒垃圾',icon:'🗑️'}
+  ],
+  // 作息德育默认任务
+  defaultDeeds(){
+    return[
+      {id:'deed_sleep',name:'早睡早起',icon:'🛏️'},
+      {id:'deed_teeth',name:'早晚刷牙',icon:'🪥'},
+      {id:'deed_bag',name:'整理书包',icon:'🎒'},
+      {id:'deed_desk',name:'整理书桌',icon:'📖'},
+      {id:'deed_sit',name:'端正坐姿',icon:'🪑'},
+      {id:'deed_greet',name:'主动问好',icon:'👋'},
+      {id:'deed_food',name:'节约粮食',icon:'🍚'},
+      {id:'deed_emo',name:'控制情绪',icon:'😌'},
+      {id:'deed_help',name:'分担家务',icon:'🤝'}
+    ];
+  },
+  deeds(){return Store.data.deedDefs||this.defaultDeeds();},
+  // 识字字库（幼小衔接/低年级）
+  characters:{
+    gradeK:[
+      {char:'一',pinyin:'yī',word:'一个',sentence:'我吃了一个苹果。'},
+      {char:'二',pinyin:'èr',word:'二月',sentence:'二月春风似剪刀。'},
+      {char:'三',pinyin:'sān',word:'三个',sentence:'我家有三口人。'},
+      {char:'四',pinyin:'sì',word:'四季',sentence:'一年有四季。'},
+      {char:'五',pinyin:'wǔ',word:'五颜六色',sentence:'花园里五颜六色。'},
+      {char:'上',pinyin:'shàng',word:'上学',sentence:'我高高兴兴上学去。'},
+      {char:'下',pinyin:'xià',word:'下雨',sentence:'今天下雨了。'},
+      {char:'左',pinyin:'zuǒ',word:'左手',sentence:'我用左手拿笔。'},
+      {char:'右',pinyin:'yòu',word:'右手',sentence:'我用右手吃饭。'},
+      {char:'中',pinyin:'zhōng',word:'中国',sentence:'中国是我的祖国。'},
+      {char:'大',pinyin:'dà',word:'大人',sentence:'大人在工作。'},
+      {char:'小',pinyin:'xiǎo',word:'小朋友',sentence:'小朋友真可爱。'}
+    ],
+    grade1:[
+      {char:'天',pinyin:'tiān',word:'天空',sentence:'天空蓝蓝的。'},
+      {char:'地',pinyin:'dì',word:'大地',sentence:'大地绿绿的。'},
+      {char:'人',pinyin:'rén',word:'人们',sentence:'人们在劳动。'},
+      {char:'你',pinyin:'nǐ',word:'你好',sentence:'你好，同学！'},
+      {char:'我',pinyin:'wǒ',word:'我们',sentence:'我们爱学习。'},
+      {char:'他',pinyin:'tā',word:'他们',sentence:'他们在玩耍。'},
+      {char:'日',pinyin:'rì',word:'日出',sentence:'日出真美丽。'},
+      {char:'月',pinyin:'yuè',word:'月亮',sentence:'月亮像小船。'},
+      {char:'水',pinyin:'shuǐ',word:'喝水',sentence:'多喝水身体好。'},
+      {char:'火',pinyin:'huǒ',word:'火车',sentence:'火车开来了。'},
+      {char:'山',pinyin:'shān',word:'高山',sentence:'高山真雄伟。'},
+      {char:'石',pinyin:'shí',word:'石头',sentence:'石头硬硬的。'}
+    ],
+    grade2:[
+      {char:'树',pinyin:'shù',word:'树木',sentence:'树木要爱护。'},
+      {char:'林',pinyin:'lín',word:'森林',sentence:'森林里真凉快。'},
+      {char:'花',pinyin:'huā',word:'花朵',sentence:'花朵真美丽。'},
+      {char:'草',pinyin:'cǎo',word:'青草',sentence:'青草绿油油。'},
+      {char:'风',pinyin:'fēng',word:'春风',sentence:'春风吹又生。'},
+      {char:'雨',pinyin:'yǔ',word:'下雨',sentence:'下雨要带伞。'},
+      {char:'云',pinyin:'yún',word:'白云',sentence:'白云飘在天上。'},
+      {char:'阳',pinyin:'yáng',word:'太阳',sentence:'太阳暖洋洋。'},
+      {char:'鸟',pinyin:'niǎo',word:'小鸟',sentence:'小鸟在歌唱。'},
+      {char:'鱼',pinyin:'yú',word:'小鱼',sentence:'小鱼游啊游。'},
+      {char:'虫',pinyin:'chóng',word:'昆虫',sentence:'昆虫真有趣。'},
+      {char:'马',pinyin:'mǎ',word:'小马',sentence:'小马跑得快。'}
+    ]
+  }
+};
+
+/* ============ Audio 音效（Web Audio合成）============ */
+const Audio = {
+  ctx:null,
+  init(){if(!this.ctx){try{this.ctx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}},
+  play(type){
+    this.init();if(!this.ctx)return;
+    if(this.ctx.state==='suspended')this.ctx.resume();
+    const c=this.ctx;const now=c.currentTime;
+    const beep=(freq,start,dur,wave='sine',vol=0.15)=>{
+      const o=c.createOscillator(),g=c.createGain();
+      o.type=wave;o.frequency.value=freq;
+      o.connect(g);g.connect(c.destination);
+      g.gain.setValueAtTime(0,now+start);
+      g.gain.linearRampToValueAtTime(vol,now+start+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,now+start+dur);
+      o.start(now+start);o.stop(now+start+dur);
+    };
+    const seq={plant:[['523',0,0.1],['659',0.1,0.1],['784',0.2,0.15]],
+      checkin:[['659',0,0.08],['880',0.08,0.1],['1047',0.16,0.12]],
+      correct:[['523',0,0.1],['784',0.1,0.15]],
+      wrong:[['400',0,0.1],['300',0.1,0.1],['200',0.2,0.15]],
+      sunlight:[['880',0,0.08],['1100',0.08,0.1]],
+      pet:[['660',0,0.1],['880',0.1,0.1],['660',0.2,0.1]],
+      zombie:[['150',0,0.2,'sawtooth']],
+      badge:[['523',0,0.1],['659',0.1,0.1],['784',0.2,0.1],['1047',0.3,0.2]],
+      redeem:[['784',0,0.1],['1047',0.1,0.1],['1319',0.2,0.2]]
+    }[type]||[['440',0,0.1]];
+    seq.forEach(s=>beep(s[0],s[1],s[2],s[3]||'sine'));
+  }
+};
+
+/* ============ Logger 日志 ============ */
+const Log = {
+  sunlight(action,delta){
+    const c=curChild();
+    c.sunlight.total=Math.max(0,c.sunlight.total+delta);
+    c.logs.sunlight.unshift({time:nowISO(),action,delta,balance:c.sunlight.total});
+    if(c.logs.sunlight.length>500)c.logs.sunlight.length=500;
+  },
+  pet(action,petId,detail){
+    const c=curChild();
+    c.logs.pet.unshift({time:nowISO(),action,petId,detail});
+    if(c.logs.pet.length>300)c.logs.pet.length=300;
+  }
+};
+
+/* ============ 阳光操作 ============ */
+function addSunlight(amount,reason){
+  const c=curChild();
+  c.today.sunlight+=amount;
+  Log.sunlight(reason,amount);
+  Audio.play('sunlight');
+  Store.save();
+}
+function spendSunlight(amount,reason){
+  const c=curChild();
+  if(c.sunlight.total<amount)return false;
+  Log.sunlight(reason,-amount);  // Log内部会扣减total并记日志
+  Store.save();
+  return true;
+}
+
+/* ============ Garden 模块 ============ */
+const Garden = {
+  defaultDefs(){
+    return{
+      sunflower:{name:'向日葵',emoji:'🌻',cost:50,produce:5,attack:0,desc:'每日产出5阳光'},
+      sunshroom:{name:'阳光菇',emoji:'🍄',cost:25,produce:2,attack:0,desc:'每日产出2阳光'},
+      peashooter:{name:'豌豆射手',emoji:'🟢',cost:100,produce:0,attack:10,desc:'每日攻击僵尸10血'},
+      snowpea:{name:'寒冰射手',emoji:'💙',cost:175,produce:0,attack:15,desc:'每日攻击僵尸15血'},
+      firepea:{name:'火焰豌豆',emoji:'🔥',cost:200,produce:0,attack:20,desc:'每日攻击僵尸20血'},
+      cherrybomb:{name:'樱桃炸弹',emoji:'🍒',cost:150,produce:0,attack:25,desc:'每日攻击僵尸25血'},
+      wallnut:{name:'坚果墙',emoji:'🥜',cost:50,produce:0,attack:0,block:true,desc:'阻挡僵尸前进1天'}
+    };
+  },
+  plantList(){return Store.data.plantDefs;},
+  canPlant(type){
+    const def=this.plantList()[type];if(!def)return false;
+    return curChild().sunlight.total>=def.cost;
+  },
+  plant(row,col,type){
+    const c=curChild();const def=this.plantList()[type];if(!def)return false;
+    if(c.garden.grid[row][col])return false;
+    if(!spendSunlight(def.cost,'种植'+def.name))return false;
+    c.garden.grid[row][col]={type,plantedAt:nowISO(),hp:def.block?200:100};
+    Audio.play('plant');Store.save();return true;
+  },
+  remove(row,col){
+    const c=curChild();const cell=c.garden.grid[row][col];if(!cell)return;
+    const def=this.plantList()[cell.type];
+    let cost=0;
+    if(c.garden.undoFree){c.garden.undoFree=false;}
+    else{cost=10;if(!spendSunlight(10,'撤销种植'+def.name)){toast('阳光不足，无法撤销');return false;}}
+    c.garden.grid[row][col]=null;
+    // 退回植物本身费用（Log.sunlight内部会加回total并记日志）
+    Log.sunlight('退还'+def.name,def.cost);
+    c.today.sunlight+=def.cost;
+    Store.save();return true;
+  },
+};
+// 每日结算：产阳光+攻击僵尸+僵尸移动（遍历所有孩子时使用，日志直接写入对应孩子）
+function gardenSettleFor(c){
+  const defs=Garden.plantList();
+  let produce=0,totalAttack=0,hasWallnut=false;
+  for(let r=0;r<5;r++)for(let col=0;col<9;col++){
+    const cell=c.garden.grid[r][col];if(!cell)continue;
+    const d=defs[cell.type];if(!d)continue;
+    if(d.produce)produce+=d.produce;
+    if(d.attack)totalAttack+=d.attack;
+    if(d.block){hasWallnut=true;cell.hp-=100;if(cell.hp<=0)c.garden.grid[r][col]=null;}
+  }
+  if(produce>0){c.sunlight.total+=produce;c.today.sunlight+=produce;c.logs.sunlight.unshift({time:nowISO(),action:'花园产出阳光',delta:produce,balance:c.sunlight.total});}
+  if(c.garden.zombies.length>0&&totalAttack>0){c.garden.zombies[0].hp-=totalAttack;if(c.garden.zombies[0].hp<=0)c.garden.zombies.shift();}
+  if(d_settings().zombieEnabled){
+    const rate=dailyRate(c);
+    const tasks=todayTaskList(c);
+    const doneCount=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
+    if(rate<0.5&&!hasWallnut)c.garden.zombies.forEach(z=>{z.pos=Math.max(0,z.pos-1);});
+    // 保底：当日完成任意2项任务，不再新增僵尸
+    if(rate<0.3&&c.garden.zombies.length<5&&doneCount<2)c.garden.zombies.push(Store.newZombie());
+  }
+}
+
+/* ============ Pet 模块 ============ */
+const Pet = {
+  defaultDefs(){
+    return{
+      black_cat:{name:'小黑猫',emoji:'🐈‍⬛',cost:100},
+      labrador:{name:'拉布拉多',emoji:'🐕',cost:100},
+      tricolor:{name:'三花猫',emoji:'🐱',cost:150},
+      samoyed:{name:'萨摩耶',emoji:'🦮',cost:150}
+    };
+  },
+  list(){return Store.data.petDefs;},
+  buy(type){
+    const def=this.list()[type];if(!def)return false;
+    if(!spendSunlight(def.cost,'购买'+def.name))return false;
+    const c=curChild();
+    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,status:'healthy',purchasedAt:nowISO()};
+    c.pets.push(pet);
+    Log.pet('购买',pet.id,def.name);
+    Audio.play('pet');Store.save();
+    // 弹出命名框
+    UI.promptName(pet.id,'给宠物起个名字吧～');
+    return true;
+  },
+  rename(petId,newName){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return false;
+    const old=p.name;p.name=newName;
+    Log.pet('改名',petId,old+'→'+newName);
+    Store.save();return true;
+  },
+  validateName(name){
+    if(!name||!name.trim())return'名称不能为空';
+    const clean=name.replace(/[\u4e00-\u9fa5a-zA-Z0-9_]/g,'');
+    if(clean.length>0)return'只能用汉字、字母、数字';
+    const cn=(name.match(/[\u4e00-\u9fa5]/g)||[]).length;
+    const en=(name.match(/[a-zA-Z0-9]/g)||[]).length;
+    if(cn>8)return'最多8个汉字';
+    if(cn===0&&en>12)return'字母数字最多12个字符';
+    return'';
+  },
+  feed(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;const def=this.list()[p.type];
+    if(!spendSunlight(100,'喂食'+p.name))return;
+    p.satiety=clamp(p.satiety+100,0,200);this.updateStatus(p);Log.pet('喂食',p.id,'饱食+100');Audio.play('pet');Store.save();},
+  water(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(50,'喂水'+p.name))return;
+    p.satiety=clamp(p.satiety+50,0,200);this.updateStatus(p);Log.pet('喂水',p.id,'饱食+50');Audio.play('pet');Store.save();},
+  touch(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(50,'抚摸'+p.name))return;
+    p.intimacy=clamp(p.intimacy+50,0,200);this.updateStatus(p);Log.pet('抚摸',p.id,'亲密+50');Audio.play('pet');Store.save();},
+  walk(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(100,'遛宠'+p.name))return;
+    p.intimacy=clamp(p.intimacy+100,0,200);this.updateStatus(p);Log.pet('遛宠',p.id,'亲密+100');Audio.play('pet');Store.save();},
+  heal(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    const cost=this._healCost||150;
+    if(!spendSunlight(cost,'治疗'+p.name))return;
+    p.satiety=clamp(p.satiety+50,0,200);p.intimacy=clamp(p.intimacy+50,0,200);p.status='healthy';Log.pet('治疗',p.id,'恢复健康');Audio.play('pet');Store.save();},
+  updateStatus(p){
+    if(p.satiety<=0||p.intimacy<=0){p.status='dead';return;}
+    if(p.satiety<=30||p.intimacy<50){p.status='sick';}
+    else if(p.satiety<50){p.status='hungry';}
+    else{p.status='healthy';}
+  },
+  // 每日衰减
+  decay(c){
+    if(!d_settings().petDecayEnabled)return;
+    const ds=this._decaySat||30,di=this._decayInt||20;
+    c.pets.forEach(p=>{
+      if(p.status==='dead')return;
+      p.satiety=Math.max(-1,p.satiety-ds);
+      p.intimacy=Math.max(-1,p.intimacy-di);
+      this.updateStatus(p);
+      if(p.status==='dead'){c.logs.pet.unshift({time:nowISO(),action:'死亡',petId:p.id,detail:'属性耗尽'});}
+    });
+    // 清理死亡宠物
+    c.pets=c.pets.filter(p=>p.status!=='dead');
+  }
+};
+
+/* ============ Shop 模块 ============ */
+const Shop = {
+  defaultItems(){
+    return[
+      {id:'sh_zombie',name:'消灭一只僵尸',icon:'💀',price:100,action:'killZombie'},
+      {id:'sh_exempt',name:'免写卡',icon:'🎫',price:200,action:'exempt'},
+      {id:'sh_game',name:'游戏娱乐30分钟',icon:'🎮',price:300,action:'game'},
+      {id:'sh_park',name:'一次游乐场奖励',icon:'🎠',price:500,action:'park'}
+    ];
+  },
+  redeem(itemId){
+    const item=Store.data.shopItems.find(x=>x.id===itemId);if(!item)return;
+    const c=curChild();
+    if(c.sunlight.total<item.price){toast('阳光不足');return;}
+    if(item.action==='killZombie'){
+      if(c.garden.zombies.length===0){toast('当前没有僵尸');return;}
+      c.garden.zombies.shift();
+    }
+    if(!spendSunlight(item.price,'兑换：'+item.name))return;
+    Audio.play('redeem');
+    if(item.action==='game'){this.startGameTimer();}
+    toast('兑换成功：'+item.name+' 🎉');
+    Store.save();UI.render();
+  },
+  gameTimer:null,
+  startGameTimer(){
+    let sec=30*60;
+    if(this.gameTimer)clearInterval(this.gameTimer);
+    const modal=showModal('游戏时间',`<div style="text-align:center;padding:20px;"><div style="font-size:60px;">🎮</div><div id="gameTimer" style="font-size:32px;font-weight:700;color:var(--primary-d);">30:00</div><p>快乐游戏时间！</p></div>`,null,true);
+    this.gameTimer=setInterval(()=>{
+      sec--;const m=Math.floor(sec/60),s=sec%60;
+      const t=$('#gameTimer');if(t)t.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+      if(sec<=0){clearInterval(this.gameTimer);closeModal();toast('游戏时间结束！⏰');}
+    },1000);
+  }
+};
+
+/* ============ Achievement 模块 ============ */
+const Ach = {
+  defaultDefs(){
+    return[
+      {id:'streak7',name:'连续7天打卡',icon:'🔥',cond:'连续7天完成任务',custom:false},
+      {id:'fullday',name:'每日全勤',icon:'⭐',cond:'一天内完成所有任务',custom:false},
+      {id:'reader',name:'阅读达人',icon:'📚',cond:'累计阅读5次',custom:false},
+      {id:'math100',name:'口算满分',icon:'🧮',cond:'口算测试全对',custom:false},
+      {id:'sport',name:'运动坚持',icon:'🏃',cond:'累计运动打卡7天',custom:false}
+    ];
+  },
+  check(){
+    const c=curChild();const defs=Store.data.achievementDefs;
+    const unlocked=new Set(c.achievements.map(a=>a.id));
+    const unlock=(id)=>{if(!unlocked.has(id)){c.achievements.push({id,unlockedAt:nowISO()});Audio.play('badge');toast('🏆 获得徽章：'+defs.find(d=>d.id===id).name);}};
+    // 连续7天
+    if(c.stats.streakDays>=7)unlock('streak7');
+    // 每日全勤
+    if(dailyRate(c)>=1)unlock('fullday');
+    // 阅读达人
+    if(c.stats.totalReading>=5)unlock('reader');
+    // 口算满分
+    if(c.stats.perfectMathCount>=1)unlock('math100');
+    // 运动坚持
+    if(c.stats.sportsDays>=7)unlock('sport');
+    Store.save();
+  }
+};
+
+/* ============ DailyReset 模块 ============ */
+function dailyRate(c){
+  const tasks=todayTaskList(c);
+  if(tasks.length===0)return 1;
+  const done=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
+  return done/tasks.length;
+}
+function todayTaskList(c){
+  const grade=c.grade;const list=[];
+  // 语文
+  if(Bank.chinese[grade]){
+    list.push({id:'cn_pinyin',cat:'语文',name:'拼音测试',reward:10,perfectReward:10});
+    // 识字任务（幼小衔接/低年级专属）
+    if(Bank.characters[grade])list.push({id:'cn_literacy',cat:'语文',name:'识字测试',reward:10,perfectReward:10});
+    list.push({id:'cn_callig',cat:'语文',name:'练字练习',reward:10,review:true});
+    list.push({id:'cn_poetry',cat:'语文',name:'古诗背诵',reward:10,perfectReward:10});
+    list.push({id:'cn_reading',cat:'语文',name:'课外阅读',reward:50,review:true});
+  }
+  // 数学
+  list.push({id:'math_add',cat:'数学',name:'加法口算',reward:10,perfectReward:10});
+  list.push({id:'math_sub',cat:'数学',name:'减法口算',reward:10,perfectReward:10});
+  if(grade!=='gradeK'&&grade!=='grade1')list.push({id:'math_mul',cat:'数学',name:'乘法口算',reward:10,perfectReward:10});
+  list.push({id:'math_think',cat:'数学',name:'思维训练',reward:10,perfectReward:10});
+  // 英语
+  if(Bank.english[grade]){
+    list.push({id:'en_word',cat:'英语',name:'单词测试',reward:10,perfectReward:10});
+    list.push({id:'en_sent',cat:'英语',name:'短句测试',reward:10,perfectReward:10});
+  }
+  // 运动
+  if(Bank.sports[grade])list.push({id:'sport',cat:'运动',name:'运动打卡',reward:10,review:true});
+  // 家务
+  Bank.chores.forEach(ch=>list.push({id:ch.id,cat:'家务',name:ch.name,icon:ch.icon,reward:10,review:true}));
+  // 作息德育
+  Bank.deeds().forEach(d=>list.push({id:d.id,cat:'德育',name:d.name,icon:d.icon,reward:5,review:true}));
+  return list;
+}
+function dailyReset(){
+  const today=todayStr();
+  if(d_settings().lastResetDate===today)return;
+  Object.values(Store.data.children).forEach(c=>{
+    // 连续打卡判定
+    if(c.stats.lastActiveDate===d_settings().lastResetDate&&dailyRate(c)>=0.5){c.stats.streakDays++;}
+    else if(dailyRate(c)<0.5){c.stats.streakDays=0;}
+    // 心情归档
+    if(c.today.mood){c.stats.moodHistory.push({date:d_settings().lastResetDate,mood:c.today.mood});if(c.stats.moodHistory.length>90)c.stats.moodHistory.shift();}
+    // 错题本：将昨日错题标记为待复习
+    c.wrongQuestions.forEach(wq=>{wq.retry=true;wq.answered=false;});
+    // 花园结算（必须在清空任务前，用昨日完成率判定僵尸移动）
+    gardenSettleFor(c);
+    // 清空当日
+    c.today={date:today,sunlight:0,tasks:{},quizRecords:{},mood:''};
+    // 宠物衰减
+    Pet.decay(c);
+  });
+  d_settings().lastResetDate=today;
+  Store.save();
+}
+// 每分钟检测跨天
+setInterval(dailyReset,60000);
+
+/* ============ Sync 模块 ============ */
+const Sync = {
+  channel:null,
+  init(){try{this.channel=new BroadcastChannel('workbuddy_sync');this.channel.onmessage=(e)=>{if(e.data&&e.data.type==='update'){Store.load();UI.render();}};}catch(e){}},
+  broadcast(){if(this.channel){try{this.channel.postMessage({type:'update'});}catch(e){}}},
+  // 导出：支持单孩子/全部孩子
+  exportData(scope){
+    let data;
+    if(scope==='child'){
+      const cid=d_settings().currentChildId;
+      data={version:Store.data.version,settings:Store.data.settings,children:{[cid]:JSON.parse(JSON.stringify(Store.data.children[cid]))},shopItems:Store.data.shopItems,plantDefs:Store.data.plantDefs,petDefs:Store.data.petDefs,achievementDefs:Store.data.achievementDefs,deedDefs:Store.data.deedDefs};
+    }else{
+      data=JSON.parse(JSON.stringify(Store.data));
+    }
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='workbuddy_backup_'+(scope==='child'?curChild().profile.name:'all')+'_'+todayStr()+'.json';a.click();
+    toast('数据已导出');
+  },
+  // 导出选择弹框
+  showExport(){
+    showModal('📤 导出数据备份',`<div style="padding:6px 0;">
+      <p style="font-size:13px;color:var(--text-soft);margin-bottom:12px;background:#fff8e1;padding:8px;border-radius:8px;">⚠️ 建议定期备份，清理浏览器缓存会丢失本地数据。</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn sm" onclick="Sync.exportData('child');closeModal();">📤 导出当前孩子（${curChild().profile.name}）</button>
+        <button class="btn sm" onclick="Sync.exportData('all');closeModal();">📦 全部孩子批量导出</button>
+      </div></div>`,null);
+  },
+  // 导入：支持合并/覆盖
+  importData(file){
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      try{
+        const data=JSON.parse(e.target.result);
+        if(!data.children||!data.settings)throw new Error('格式错误');
+        // 二次确认 + 模式选择
+        showModal('📥 导入数据确认',`<div style="padding:6px 0;">
+          <p style="font-size:13px;margin-bottom:12px;">检测到备份文件，请选择导入模式：</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn sm" onclick="Sync._doImport(file,'merge')">🔗 合并导入（保留现有数据，按孩子ID合并）</button>
+            <button class="btn danger sm" onclick="Sync._doImport(file,'cover')">⚠️ 覆盖导入（替换当前全部数据）</button>
+            <button class="btn ghost sm" onclick="closeModal()">取消</button>
+          </div></div>`,null,true);
+        Sync._pendingFile=file;
+      }catch(err){toast('导入失败：文件格式错误');}
+    };
+    reader.readAsText(file);
+  },
+  _pendingFile:null,
+  _doImport(file,mode){
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      try{
+        const data=JSON.parse(e.target.result);
+        if(mode==='cover'){
+          Store.data=data;
+        }else{
+          // 合并：按孩子ID合并，新孩子直接加入
+          Object.keys(data.children).forEach(cid=>{
+            if(Store.data.children[cid]){
+              // 已有则用备份覆盖（备份通常较新）
+              Store.data.children[cid]=data.children[cid];
+            }else{
+              Store.data.children[cid]=data.children[cid];
+            }
+          });
+          if(data.shopItems)Store.data.shopItems=data.shopItems;
+          if(data.plantDefs)Store.data.plantDefs=data.plantDefs;
+          if(data.petDefs)Store.data.petDefs=data.petDefs;
+          if(data.achievementDefs)Store.data.achievementDefs=data.achievementDefs;
+          if(data.deedDefs)Store.data.deedDefs=data.deedDefs;
+        }
+        Store.migrate();
+        Object.values(Store.data.children).forEach(c=>Store.fixChild(c));
+        Store.save();closeModal();UI.render();
+        toast(mode==='cover'?'覆盖导入成功':'合并导入成功');
+      }catch(err){toast('导入失败：'+err.message);}
+    };
+    reader.readAsText(Sync._pendingFile||file);
+    Sync._pendingFile=null;
+  }
+};
+
+/* ============ 任务完成/撤销 ============ */
+function completeTask(taskId,reward,reason,perfect,bonus){
+  const c=curChild();const t=c.today.tasks[taskId];
+  if(t&&t.completed){toast('今日已完成，不可重复领取');return false;}
+  const totalScore=reward+(bonus||0);
+  const isQuiz=taskId.startsWith('cn_pinyin')||taskId.startsWith('cn_poetry')||taskId.startsWith('math_')||taskId.startsWith('en_')||taskId==='cn_literacy';
+  // 家长审核模式：非测试的需审核任务，孩子只能"申请审核"
+  if(d_settings().reviewMode&&!isQuiz){
+    const task=todayTaskList(c).find(x=>x.id===taskId);
+    if(task&&task.review&&State.mode==='child'){
+      if(t&&t.pendingReview){toast('已申请审核，请等家长确认');return false;}
+      c.today.tasks[taskId]={pendingReview:true,applyAt:nowISO(),score:totalScore};
+      Store.save();UI.render();toast('已申请审核，等待家长确认');
+      return false;
+    }
+  }
+  c.today.tasks[taskId]={completed:true,lockedAt:nowISO(),score:totalScore,base:reward,bonus:bonus||0,perfect:!!perfect};
+  addSunlight(reward,reason);
+  if(!isQuiz){Audio.play('checkin');}  // 打卡类任务播放打卡音效
+  if(bonus){curChild().today.sunlight+=bonus;Log.sunlight(reason+'满分奖励',bonus);Store.save();}
+  // 统计
+  if(taskId==='cn_reading')c.stats.totalReading++;
+  if(taskId.startsWith('math_')&&perfect){c.stats.perfectMathCount++;c.stats.totalPerfect++;}
+  if(taskId==='sport'){if(c.stats.lastSportDate!==todayStr()){c.stats.sportsDays++;c.stats.lastSportDate=todayStr();}}
+  // 等级检查
+  checkLevelUp();
+  Ach.check();Store.save();UI.render();return true;
+}
+// 家长审核通过
+function approveTask(taskId){
+  const c=curChild();const t=c.today.tasks[taskId];
+  if(!t||!t.pendingReview)return;
+  const task=todayTaskList(c).find(x=>x.id===taskId);
+  const reward=task?task.reward:10;
+  c.today.tasks[taskId]={completed:true,lockedAt:nowISO(),score:reward,base:reward,bonus:0,perfect:false};
+  addSunlight(reward,'审核通过：'+(task?task.name:taskId));
+  Audio.play('checkin');
+  checkLevelUp();Ach.check();Store.save();UI.render();
+}
+function rejectTask(taskId){
+  const c=curChild();delete c.today.tasks[taskId];Store.save();UI.render();
+}
+// 等级体系
+const Levels=[
+  {name:'学童',min:0,emoji:'🌱'},
+  {name:'小生',min:200,emoji:'🌿'},
+  {name:'学子',min:500,emoji:'🍀'},
+  {name:'学士',min:1000,emoji:'🌳'},
+  {name:'小博士',min:2000,emoji:'🎓'}
+];
+function getLevel(sun){
+  let lv=0;
+  for(let i=0;i<Levels.length;i++){if(sun>=Levels[i].min)lv=i;}
+  return lv;
+}
+function checkLevelUp(){
+  const c=curChild();
+  const total=c.sunlight.total;
+  const newLv=getLevel(total);
+  if(newLv>c.stats.level){
+    c.stats.level=newLv;
+    const def=Levels[newLv];
+    toast('🎉 升级！你已成为"'+def.name+'"'+def.emoji);
+    // 升级奖励：赠送限定植物（直接种到花园第一格）
+    const gifts=['firepea','cherrybomb','snowpea','samoyed','tricolor'];
+    const giftId=gifts[Math.min(newLv-1,gifts.length-1)];
+    c.stats.levelGifts.push({level:newLv,gift:giftId,time:nowISO()});
+    Audio.play('badge');
+    showModal('🎉 恭喜升级！',`<div style="text-align:center;padding:20px;">
+      <div style="font-size:60px;">${def.emoji}</div>
+      <div style="font-size:22px;font-weight:700;margin:10px 0;">你已成为「${def.name}」！</div>
+      <p style="color:var(--text-soft);">获得限定奖励：${giftId==='samoyed'||giftId==='tricolor'?'限定宠物皮肤':'限定植物'} 🎁</p>
+      <p style="font-size:12px;color:var(--text-light);margin-top:8px;">去花园/宠物家园查看你的奖励吧～</p>
+      </div>`,`<button class="btn sm" onclick="closeModal()">太棒了！</button>`);
+  }
+}
+function undoTask(taskId){
+  const c=curChild();const t=c.today.tasks[taskId];
+  if(!t||!t.completed)return;
+  // 退回阳光（Log.sunlight内部会扣减total并记日志）
+  Log.sunlight('撤销：'+taskId,-t.score);
+  c.today.sunlight=Math.max(0,c.today.sunlight-t.score);
+  delete c.today.tasks[taskId];
+  // 清除测试记录
+  delete c.today.quizRecords[taskId];
+  toast('已撤销，阳光已退回');
+  Store.save();UI.render();
+}
+
+/* ============ Modal & Toast ============ */
+function showModal(title,body,footer='',noClose){
+  const root=$('#modalRoot');
+  const mask=document.createElement('div');mask.className='modal-mask';
+  mask.innerHTML=`<div class="modal"><div class="modal-title"><span>${title}</span>${noClose?'':'<button class="modal-close" onclick="closeModal()">×</button>'}</div><div>${body}</div>${footer?`<div style="margin-top:14px;text-align:right;">${footer}</div>`:''}</div>`;
+  mask.addEventListener('click',(e)=>{if(e.target===mask&&!noClose)closeModal();});
+  root.appendChild(mask);
+  window._curMask=mask;
+  return mask;
+}
+function closeModal(){if(window._curMask){window._curMask.remove();window._curMask=null;}if(Shop.gameTimer){clearInterval(Shop.gameTimer);Shop.gameTimer=null;}}
+function confirmModal(msg,onYes){
+  showModal('请确认',`<p style="margin:10px 0;font-size:14px;">${msg}</p>`,
+    `<button class="btn ghost sm" onclick="closeModal()">取消</button> <button class="btn danger sm" id="cfYes">确定</button>`);
+  setTimeout(()=>{const b=$('#cfYes');if(b)b.onclick=()=>{closeModal();onYes();};},0);
+}
+
+/* ============ Router & UI ============ */
+const Router = {
+  navItems:[
+    {id:'dashboard',icon:'🏠',name:'首页',childOnly:false},
+    {id:'chinese',icon:'📖',name:'语文',childOnly:false},
+    {id:'math',icon:'🔢',name:'数学',childOnly:false},
+    {id:'english',icon:'🔤',name:'英语',childOnly:false},
+    {id:'sport',icon:'⚽',name:'运动',childOnly:false},
+    {id:'chore',icon:'🧹',name:'家务',childOnly:false},
+    {id:'deed',icon:'🌟',name:'德育',childOnly:false},
+    {id:'wrong',icon:'📝',name:'错题本',childOnly:false},
+    {id:'garden',icon:'🌻',name:'花园',childOnly:false},
+    {id:'pet',icon:'🐾',name:'宠物',childOnly:false},
+    {id:'shop',icon:'🛒',name:'商店',childOnly:false},
+    {id:'badge',icon:'🏆',name:'徽章',childOnly:false},
+    {id:'report',icon:'📊',name:'报表',childOnly:false},
+    {id:'log',icon:'📋',name:'日志',childOnly:false},
+    {id:'parent',icon:'⚙️',name:'家长',childOnly:true}
+  ],
+  navigate(v){
+    // 学习优先锁：未完成60%作业时，孩子模式不能进娱乐板块
+    const funViews=['garden','pet','shop','badge'];
+    if(State.mode==='child'&&!State.focusing&&funViews.includes(v)&&dailyRate(curChild())<0.6){
+      toast('📚 请先完成今日60%的学习任务，再玩耍哦～');
+      return;
+    }
+    State.view=v;UI.render();
+  }
+};
+
+const UI = {
+  render(){
+    this.renderTopbar();this.renderSidebar();this.renderContent();this.renderFooter();
+  },
+  renderTopbar(){
+    const c=curChild();if(!c)return;
+    const tasks=todayTaskList(c);
+    const done=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
+    const rate=tasks.length?Math.round(done/tasks.length*100):0;
+    $('#topProgress').style.width=rate+'%';
+    $('#topProgress').textContent=rate+'%';
+    const plantCount=c.garden.grid.flat().filter(x=>x).length;
+    $('#topStats').innerHTML=`
+      <span class="stat-chip">👤 ${c.profile.name}</span>
+      <span class="stat-chip">📅 ${Bank.gradeNames[c.grade]}</span>
+      <span class="stat-chip">${(Levels[c.stats.level]||Levels[0]).emoji} ${(Levels[c.stats.level]||Levels[0]).name}</span>
+      <span class="stat-chip">☀️ 今日<b>${c.today.sunlight}</b></span>
+      <span class="stat-chip">💰 余额<b>${c.sunlight.total}</b></span>
+      <span class="stat-chip">🌻 <b>${plantCount}</b></span>
+      <span class="stat-chip">🧟 <b>${c.garden.zombies.length}</b></span>`;
+    const mb=$('#modeBtn');
+    mb.textContent=State.mode==='parent'?'🔒 家长模式':'👶 孩子模式';
+    mb.className='mode-toggle'+(State.mode==='parent'?' parent':'');
+  },
+  renderSidebar(){
+    const sb=$('#sidebar');
+    sb.innerHTML=Router.navItems.filter(n=>!n.childOnly||State.mode==='parent').map(n=>
+      `<button class="nav-btn ${State.view===n.id?'active':''}" onclick="Router.navigate('${n.id}')"><span class="ico">${n.icon}</span><span>${n.name}</span></button>`).join('');
+  },
+  renderFooter(){
+    $('#footRight').textContent=todayStr()+' · '+(State.mode==='parent'?'家长模式':'孩子模式')+' · 任务完成 '+Math.round(dailyRate(curChild())*100)+'%';
+  },
+  renderContent(){
+    const v=State.view;const fn=this.views[v]||this.views.dashboard;
+    $('#content').innerHTML=fn();
+  },
+  views:{
+    dashboard(){
+      const c=curChild();const tasks=todayTaskList(c);
+      const done=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
+      const rate=tasks.length?Math.round(done/tasks.length*100):0;
+      // 分科进度
+      const cats={};tasks.forEach(t=>{cats[t.cat]=cats[t.cat]||{total:0,done:0};cats[t.cat].total++;if(c.today.tasks[t.id]?.completed)cats[t.cat].done++;});
+      const catBars=Object.entries(cats).map(([cat,d])=>`<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span>${cat}</span><span>${d.done}/${d.total}</span></div><div class="progress-bar" style="height:10px;"><div class="progress-fill" style="width:${d.total?Math.round(d.done/d.total*100):0}%;background:linear-gradient(90deg,#66bb6a,#43a047);"></div></div></div>`).join('');
+      // 宠物状态
+      const petStatus=c.pets.length?c.pets.map(p=>`<span class="status-tag ${p.status}">${Pet.list()[p.type].emoji}${p.name}：${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>`).join(' '):'<span style="color:var(--text-light);font-size:12px;">还没有宠物，去商店购买吧～</span>';
+      // 等级
+      const lvDef=Levels[c.stats.level]||Levels[0];
+      const moodOpts=[{k:'happy',e:'😊',t:'开心'},{k:'normal',e:'😐',t:'普通'},{k:'sad',e:'😢',t:'难过'}];
+      const moodHtml=`<div style="margin:10px 0;text-align:center;">${moodOpts.map(m=>`<button class="btn ${c.today.mood===m.k?'':'ghost'} sm" style="margin:0 4px;font-size:20px;" onclick="UI.setMood('${m.k}')">${m.e}<div style="font-size:11px;">${m.t}</div></button>`).join('')}</div>`;
+      return `
+        <div class="card">
+          <div class="card-title">🌟 今日学习概览</div>
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+            <div style="font-size:48px;">${c.profile.avatar}</div>
+            <div><div style="font-size:18px;font-weight:700;">${c.profile.name}</div><div style="color:var(--text-soft);">${Bank.gradeNames[c.grade]} · ${lvDef.emoji} ${lvDef.name}</div></div>
+          </div>
+          <div class="progress-bar" style="height:22px;margin-bottom:6px;"><div class="progress-fill" style="width:${rate}%;font-size:12px;">${rate}%</div></div>
+          <div style="font-size:12px;color:var(--text-soft);">总进度：${done}/${tasks.length} ${rate<60?'· 完成不足60%，娱乐板块已锁定':''}</div>
+        </div>
+        <div class="card"><div class="card-title">😊 今日心情</div>${moodHtml}</div>
+        <div class="card"><div class="card-title">📊 分科进度</div>${catBars}</div>
+        <div class="card"><div class="card-title">🐾 宠物状态</div>${petStatus}</div>
+        <div class="card"><div class="card-title">🧟 花园警戒</div>
+          <div style="font-size:13px;">当前僵尸：<b>${c.garden.zombies.length}</b> 只 ${c.garden.zombies.length>0?`· 最近一只血量 ${c.garden.zombies[0].hp}/${c.garden.zombies[0].maxHp}`:''}</div>
+          ${rate<0.5&&c.garden.zombies.length>0?'<div style="color:var(--danger);font-size:12px;margin-top:4px;">⚠️ 完成率不足50%，僵尸会前进！</div>':''}
+          ${rate>=0.8?'<div style="color:var(--primary-d);font-size:12px;margin-top:4px;">✨ 完成率≥80%，僵尸被冻结！</div>':''}
+        </div>`;
+    },
+    chinese(){const g=curChild().grade;const ids=Bank.characters[g]?['cn_pinyin','cn_literacy','cn_callig','cn_poetry','cn_reading']:['cn_pinyin','cn_callig','cn_poetry','cn_reading'];return UI.renderSubject('chinese','语文',ids);},
+    math(){const c=curChild();const ids=['math_add','math_sub'];if(c.grade!=='gradeK'&&c.grade!=='grade1')ids.push('math_mul');ids.push('math_think');return UI.renderSubject('math','数学',ids);},
+    english(){return UI.renderSubject('english','英语',['en_word','en_sent']);},
+    sport(){const c=curChild();const items=Bank.sports[c.grade]||[];
+      return `<div class="card"><div class="card-title">⚽ 运动打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">参考广西中考体育标准</p>
+      <div class="grid grid-2">${items.map(s=>`<div class="task-card"><div class="t-title">${s.name}</div><div class="t-desc">目标：${s.target}</div></div>`).join('')}</div>
+      ${UI.taskCard('sport','运动打卡','完成今日运动项目',10,'🏃')}
+      </div>`;},
+    chore(){return `<div class="card"><div class="card-title">🧹 家务打卡</div><div class="grid grid-2">${Bank.chores.map(ch=>UI.taskCard(ch.id,ch.name,'完成家务任务',10,ch.icon)).join('')}</div></div>`;},
+    deed(){return UI.renderDeed();},
+    wrong(){return UI.renderWrong();},
+    garden(){return UI.renderGarden();},
+    pet(){return UI.renderPet();},
+    shop(){return UI.renderShop();},
+    badge(){return UI.renderBadge();},
+    report(){return UI.renderReport();},
+    log(){return UI.renderLog();},
+    parent(){return UI.renderParent();}
+  },
+  setMood(k){curChild().today.mood=k;Store.save();UI.render();},
+  renderSubject(subj,title,ids){
+    const c=curChild();
+    let extra='';
+    if(subj==='chinese'){
+      const poetry=Bank.chinese[c.grade]?.poetry||[];
+      extra=`<div class="card"><div class="card-title">📜 今日古诗</div>${poetry.length?`<div style="background:linear-gradient(135deg,#fff8e1,#ffe0b2);padding:14px;border-radius:12px;"><div style="font-weight:700;font-size:16px;">《${poetry[0].title}》</div><div style="color:var(--text-soft);font-size:12px;">— ${poetry[0].author}</div><div style="margin:8px 0;font-size:15px;line-height:1.8;">${poetry[0].content}</div><div style="font-size:12px;color:var(--primary-d);">拼音：${poetry[0].pinyin}</div><details style="margin-top:6px;font-size:12px;"><summary>📖 解析</summary><p style="padding:6px 0;">${poetry[0].analysis}</p></details></div>`:'暂无'}</div>`;
+    }
+    return `<div class="card"><div class="card-title">${title} 任务</div><div class="grid grid-2">${ids.map(id=>UI.taskCardById(id)).join('')}</div></div>${extra}`;
+  },
+  taskCardById(id){
+    const tasks=todayTaskList(curChild());
+    const t=tasks.find(x=>x.id===id);if(!t)return'';
+    return UI.taskCard(t.id,t.name,t.cat+'任务',t.reward,t.icon||'📝',t.perfectReward);
+  },
+  taskCard(id,name,desc,reward,icon,perfectReward){
+    const c=curChild();const task=c.today.tasks[id];
+    const done=task?.completed;
+    const pending=task?.pendingReview;
+    const isQuiz=id.startsWith('cn_pinyin')||id.startsWith('cn_poetry')||id.startsWith('math_')||id.startsWith('en_')||id==='cn_literacy';
+    let btns='';
+    if(done){
+      btns=`<button class="btn done sm" disabled>✅ 已完成</button> <button class="btn ghost sm" onclick="undoTask('${id}')">撤销</button>`;
+    }else if(pending){
+      btns=`<button class="btn sm" disabled style="background:#ffe0b2;color:#e65100;">⏳ 审核中</button>`;
+    }else if(isQuiz){
+      btns=`<button class="btn sm" onclick="UI.startQuiz('${id}')">开始测试</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯 专注</button>`;
+    }else if(id==='cn_callig'){
+      btns=`<button class="btn sm" onclick="UI.showCallig()">查看字帖</button> <button class="btn sm" onclick="completeTask('${id}',${reward},'练字练习')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
+    }else if(id==='cn_reading'){
+      btns=`<button class="btn sm" onclick="UI.showReading()">阅读书目</button> <button class="btn orange sm" onclick="completeTask('${id}',${reward},'课外阅读')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
+    }else{
+      btns=`<button class="btn sm" onclick="completeTask('${id}',${reward},'${name}')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯 专注</button>`;
+    }
+    return `<div class="task-card ${done?'done':''} ${pending?'':''}"><div class="t-title">${icon} ${name} ${perfectReward?'<span class="reward-tag">满分+'+perfectReward+'</span>':''}</div><div class="t-desc">${desc}</div><div class="t-foot"><span class="reward-tag">+${reward}☀️</span><div>${btns}</div></div></div>`;
+  },
+  // 答题系统
+  curQuiz:null,
+  startQuiz(taskId){
+    const c=curChild();const grade=c.grade;
+    let questions=[];
+    let title='';
+    if(taskId==='cn_literacy'){
+      const bank=Bank.characters[grade]||[];
+      const chosen=pick(bank,Math.min(10,bank.length));
+      // 一半看字选拼音，一半看拼音选字
+      questions=chosen.map((w,i)=>{
+        const distractors=shuffle(bank.filter(x=>x.char!==w.char)).slice(0,3);
+        if(i%2===0){
+          return{q:'"'+w.char+'"（'+w.word+'）的拼音是？',opts:shuffle([w.pinyin,...distractors.map(d=>d.pinyin)]),a:w.pinyin};
+        }else{
+          return{q:'拼音 "'+w.pinyin+'" 对应哪个字？',opts:shuffle([w.char,...distractors.map(d=>d.char)]),a:w.char};
+        }
+      });
+      title='识字测试';
+    }else if(taskId==='cn_pinyin'){
+      const bank=Bank.chinese[grade]?.pinyin||[];
+      questions=pick(bank,Math.min(10,bank.length)).map(q=>({q:q.q+' 读作？',opts:q.opts,a:q.a}));
+      title='拼音测试';
+    }else if(taskId==='cn_poetry'){
+      const bank=Bank.chinese[grade]?.poetry||[];
+      const p=pick(bank,Math.min(10,Math.max(1,bank.length)));
+      // 一半作者题，一半填空题（用其他诗人名作干扰项）
+      const allAuthors=['李白','杜甫','白居易','苏轼','王安石','陆游','杜牧','孟浩然','骆宾王','张继','刘禹锡','张志和'];
+      questions=p.map((po,idx)=>{
+        if(idx%2===0){
+          return{q:'《'+po.title+'》的作者是？',opts:shuffle([po.author,...pick(allAuthors.filter(a=>a!==po.author),3)]),a:po.author};
+        }else{
+          const arr=po.content.replace(/[，。？！？]/g,'').split('');
+          const ch=arr[rnd(arr.length)];
+          return{q:'《'+po.title+'》中"'+ch+'"出自哪句？',opts:shuffle([po.content,...pick(bank.filter(x=>x.title!==po.title).map(x=>x.content),3).slice(0,3)]),a:po.content};
+        }
+      });
+      title='古诗背诵测试';
+    }else if(taskId==='math_add'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.oralAdd(grade));title='加法口算';}
+    else if(taskId==='math_sub'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.oralSub(grade));title='减法口算';}
+    else if(taskId==='math_mul'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.mul(grade));title='乘法口算';}
+    else if(taskId==='math_think'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.thinking(grade));title='思维训练';}
+    else if(taskId==='en_word'){
+      const bank=Bank.english[grade]?.words||[];
+      questions=pick(bank,Math.min(10,bank.length)).map(w=>({q:w.en+' ['+w.phonetic+'] 的意思是？',opts:shuffle([w.cn,...pick(bank.filter(x=>x.cn!==w.cn),3).map(x=>x.cn)]),a:w.cn}));
+      title='单词测试';
+    }else if(taskId==='en_sent'){
+      const bank=Bank.english[grade]?.sentences||[];
+      questions=pick(bank,Math.min(10,bank.length)).map(s=>({q:'"'+s.en+'" 的意思是？',opts:shuffle([s.cn,...pick(bank.filter(x=>x.cn!==s.cn),3).map(x=>x.cn)]),a:s.cn}));
+      title='短句测试';
+    }
+    if(questions.length<10){toast('题库不足');}
+    this.curQuiz={taskId,title,questions,answers:new Array(questions.length).fill(null),idx:0};
+    this.renderQuiz();
+  },
+  renderQuiz(){
+    const q=this.curQuiz;if(!q)return;
+    const i=q.idx;const item=q.questions[i];
+    const isInput=!item.opts;
+    const answered=q.answers[i];
+    let ansHtml='';
+    if(isInput){
+      ansHtml=`<input type="text" id="qInput" value="${answered||''}" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextQuiz()">`;
+    }else{
+      ansHtml=`<div class="opt-grid">${item.opts.map(o=>`<button class="opt-btn ${answered===o?'sel':''}" onclick="UI.selectQuiz('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')}</div>`;
+    }
+    const body=`
+      <div class="quiz-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-soft);">
+          <span>第 ${i+1} / ${q.questions.length} 题</span>
+          <span>已答 ${q.answers.filter(a=>a!==null).length} 题</span>
+        </div>
+        <div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${(i+1)/q.questions.length*100}%;background:var(--sky);"></div></div>
+        <div class="quiz-q">${item.q}</div>
+        <div class="quiz-ans">${ansHtml}</div>
+      </div>`;
+    const footer=`
+      <button class="btn ghost sm" onclick="UI.prevQuiz()" ${i===0?'disabled':''}>上一题</button>
+      <button class="btn sm" onclick="UI.nextQuiz()">${i===q.questions.length-1?'提交测试':'下一题'}</button>`;
+    showModal(q.title,body,footer,true);
+    if(isInput)setTimeout(()=>{const inp=$('#qInput');if(inp){inp.focus();inp.oninput=(e)=>{this.curQuiz.answers[i]=e.target.value;};}},0);
+  },
+  selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
+  prevQuiz(){if(this.curQuiz.idx>0){this.curQuiz.idx--;this.renderQuiz();}},
+  nextQuiz(){
+    const q=this.curQuiz;
+    if(q.answers[q.idx]===null||q.answers[q.idx]===''){toast('请先作答本题');return;}
+    if(q.idx<q.questions.length-1){q.idx++;this.renderQuiz();return;}
+    // 提交
+    const unanswered=q.answers.filter(a=>a===null||a==='');
+    if(unanswered.length>0){toast('还有'+unanswered.length+'题未作答，必须全部完成');return;}
+    let correct=0;
+    q.questions.forEach((item,i)=>{
+      const a=String(q.answers[i]).trim();const b=String(item.a).trim();
+      const ok=a===b||a.includes(b)||b.includes(a);
+      if(ok)correct++;
+      else{
+        // 答错自动收录错题本
+        curChild().wrongQuestions.push({id:uid(),subject:q.taskId.split('_')[0],q:item.q,a:item.a,userA:a,time:nowISO(),retry:false,answered:false});
+      }
+    });
+    if(curChild().wrongQuestions.length>200)curChild().wrongQuestions=curChild().wrongQuestions.slice(-200);
+    const total=q.questions.length;const perfect=correct===total;
+    const task=todayTaskList(curChild()).find(t=>t.id===q.taskId);
+    const reward=task.reward;
+    let bonus=0;let msg=`测试完成！答对 ${correct}/${total} 题。`;
+    if(perfect&&task.perfectReward){bonus=task.perfectReward;msg+=`\n满分全对！额外+${bonus}阳光`;}
+    if(correct<total)msg+=`\n答错的题目已加入错题本，次日可复习。`;
+    Audio.play(perfect?'correct':'wrong');
+    completeTask(q.taskId,reward,q.title+(perfect?'（满分）':''),perfect,perfect?bonus:0);
+    closeModal();
+    this.curQuiz=null;
+    showModal('测试结果',`<div style="text-align:center;padding:20px;"><div style="font-size:50px;">${perfect?'🎉':'💪'}</div><div style="font-size:20px;font-weight:700;margin:10px 0;">${correct} / ${total}</div><p style="color:var(--text-soft);white-space:pre-line;">${msg}</p><p style="margin-top:10px;color:var(--primary-d);font-weight:700;">获得 ${reward+bonus} 阳光 ☀️</p></div>`,`<button class="btn sm" onclick="closeModal()">好的</button>`);
+  },
+  showCallig(){
+    const c=curChild();const chars=Bank.chinese[c.grade]?.calligraphy||[{char:'永',radical:'水',strokes:5}];
+    showModal('练字字帖',`<div style="text-align:center;"><div class="stroke-demo" id="calligChar">${chars[0].char}</div><div id="calligInfo" style="margin:10px 0;font-size:13px;">部首：${chars[0].radical} · 笔画数：${chars[0].strokes}</div><p style="font-size:12px;color:var(--text-soft);">请按笔顺在纸上练习书写，注意坐姿握笔！</p><div style="margin-top:10px;">${chars.map((x,i)=>`<button class="btn ghost sm" style="margin:2px;" onclick="UI.pickChar(${i})">${x.char}</button>`).join('')}</div></div>`,null);
+    UI._calligChars=chars;
+  },
+  pickChar(i){
+    const x=UI._calligChars[i];if(!x)return;
+    const ch=$('#calligChar');const info=$('#calligInfo');
+    if(ch)ch.textContent=x.char;
+    if(info)info.textContent='部首：'+x.radical+' · 笔画数：'+x.strokes;
+  },
+  showReading(){
+    const c=curChild();const books=Bank.chinese[c.grade]?.reading||[];
+    showModal('课外阅读',`<div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">每日阅读打卡，完成可得50阳光！</p><div class="grid grid-3">${books.map(b=>`<div class="task-card"><div class="t-title">📚</div><div class="t-desc"><b>${b.book}</b><br>${b.author}</div></div>`).join('')}</div></div>`,null);
+  },
+  renderGarden(){
+    const c=curChild();const defs=Garden.plantList();
+    let gridHtml='';
+    for(let r=0;r<5;r++){for(let col=0;col<9;col++){
+      const cell=c.garden.grid[r][col];
+      const def=cell?defs[cell.type]:null;
+      gridHtml+=`<div class="cell ${cell?'has-plant':''}" onclick="UI.clickCell(${r},${col})" onmouseover="UI.cellTip(${r},${col},event)" onmouseout="UI.hideTip()">${cell?(def.emoji+''):''}</div>`;
+    }}
+    // 僵尸行
+    const zHtml=c.garden.zombies.map(z=>`<div class="zombie" onclick="UI.zombieInfo('${z.id}')"><div class="z-emoji">🧟</div><div class="z-bar"><i style="width:${z.hp/z.maxHp*100}%"></i></div><div class="z-hp">${z.hp}/${z.maxHp}</div></div>`).join('');
+    return `<div class="card"><div class="card-title">🌻 我的花园</div>
+      <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>
+      <div class="zombie-row">${zHtml||'<span style="color:#fff;font-size:12px;">暂无僵尸，花园很安全～</span>'}</div></div>
+      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击僵尸。</p></div>
+      <div class="card"><div class="card-title">🛒 植物商店</div>
+      <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>`<div class="task-card"><div style="text-align:center;font-size:32px;">${d.emoji}</div><div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-desc" style="text-align:center;">${d.desc}</div><div class="t-foot" style="justify-content:center;"><span class="reward-tag">${d.cost}☀️</span></div></div>`).join('')}</div></div>`;
+  },
+  curTip:null,
+  cellTip(r,col,e){
+    const c=curChild();const cell=c.garden.grid[r][col];if(!cell)return;
+    const def=Garden.plantList()[cell.type];
+    this.hideTip();
+    const t=document.createElement('div');t.className='tooltip';
+    t.innerHTML=`<b>${def.emoji} ${def.name}</b><br>${def.desc}`;
+    document.body.appendChild(t);
+    t.style.left=(e.clientX+10)+'px';t.style.top=(e.clientY+10)+'px';
+    this.curTip=t;
+  },
+  hideTip(){if(this.curTip){this.curTip.remove();this.curTip=null;}},
+  clickCell(r,col){
+    const c=curChild();const cell=c.garden.grid[r][col];
+    if(cell){
+      // 撤销种植
+      const def=Garden.plantList()[cell.type];
+      confirmModal('确定移除'+def.name+'？'+(c.garden.undoFree?'（首次免费）':'（扣10阳光）'),()=>{if(Garden.remove(r,col)){toast('已移除'+def.name);UI.render();}});
+    }else{
+      // 选择植物
+      const defs=Garden.plantList();
+      const opts=Object.entries(defs).map(([k,d])=>`<button class="btn sm ${Garden.canPlant(k)?'':'done'}" ${Garden.canPlant(k)?'':'disabled'} onclick="UI.doPlant(${r},${col},'${k}')">${d.emoji} ${d.name} (${d.cost}☀️)</button>`).join('');
+      showModal('选择植物',`<div style="display:flex;flex-direction:column;gap:6px;">${opts}</div>`);
+    }
+  },
+  doPlant(r,col,type){
+    if(Garden.plant(r,col,type)){toast('种植成功！');closeModal();UI.render();}
+    else{toast('阳光不足');}
+  },
+  zombieInfo(id){
+    const c=curChild();const z=c.garden.zombies.find(x=>x.id===id);if(!z)return;
+    showModal('僵尸信息',`<div style="text-align:center;"><div style="font-size:60px;">🧟</div><div style="margin:8px 0;">血量：${z.hp}/${z.maxHp}</div><div class="progress-bar" style="height:14px;"><div class="progress-fill" style="width:${z.hp/z.maxHp*100}%;background:linear-gradient(90deg,#76ff03,#64dd17);"></div></div><p style="margin:12px 0;font-size:13px;color:var(--text-soft);">${z.intro}</p><p style="font-size:12px;color:var(--text-soft);">位置：${'距花园'+z.pos+'格'}</p></div>`,
+      `<button class="btn ghost sm" onclick="closeModal()">关闭</button> <button class="btn danger sm" onclick="UI.killZombie('${id}')">花费100阳光消灭</button>`);
+  },
+  killZombie(id){
+    const c=curChild();
+    if(c.sunlight.total<100){toast('阳光不足');return;}
+    if(!spendSunlight(100,'手动消灭僵尸'))return;
+    c.garden.zombies=c.garden.zombies.filter(z=>z.id!==id);
+    Audio.play('zombie');toast('消灭成功！');closeModal();UI.render();
+  },
+  renderPet(){
+    const c=curChild();const defs=Pet.list();
+    const petHtml=c.pets.length?c.pets.map(p=>{
+      const def=defs[p.type];
+      return `<div class="pet-card"><div class="pet-emoji">${def.emoji}</div><div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️</div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
+      <div><div class="bar-label"><span>饱食度</span><span>${p.satiety}</span></div><div class="bar-wrap"><div class="bar-fill sat" style="width:${clamp(p.satiety/200*100,0,100)}%"></div></div></div>
+      <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
+      ${p.status==='sick'?'<div style="color:var(--danger);font-size:12px;text-align:center;">⚠️ 宠物生病了，需要治疗！</div>':''}
+      ${p.satiety<50&&p.status!=='dead'?'<div style="color:var(--orange-d);font-size:12px;text-align:center;">饥饿提示：请尽快喂食</div>':''}
+      <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
+        <button class="btn orange sm" onclick="Pet.feed('${p.id}')">喂食100</button>
+        <button class="btn sky sm" onclick="Pet.water('${p.id}')">喂水50</button>
+        <button class="btn pink sm" onclick="Pet.touch('${p.id}')">抚摸50</button>
+        <button class="btn sm" onclick="Pet.walk('${p.id}')">遛宠100</button>
+        ${p.status==='sick'?'<button class="btn danger sm" onclick="Pet.heal(\''+p.id+'\')">治疗'+(Pet._healCost||150)+'</button>':''}
+      </div></div>`;
+    }).join(''):'<div style="text-align:center;color:var(--text-light);padding:20px;">还没有宠物，快去购买一只吧！🐾</div>';
+    return `<div class="card"><div class="card-title">🐾 我的宠物</div><div class="grid grid-2">${petHtml}</div></div>
+      <div class="card"><div class="card-title">🏪 宠物商店</div><div class="grid grid-3">${Object.entries(defs).map(([k,d])=>`<div class="task-card"><div style="text-align:center;font-size:40px;">${d.emoji}</div><div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-foot" style="justify-content:center;"><button class="btn orange sm" ${c.sunlight.total>=d.cost?'':'disabled'} onclick="Pet.buy('${k}')">购买 ${d.cost}☀️</button></div></div>`).join('')}</div></div>`;
+  },
+  renderShop(){
+    const c=curChild();
+    return `<div class="card"><div class="card-title">🛒 阳光商店</div><div style="margin-bottom:10px;">当前阳光余额：<b style="color:var(--orange-d);font-size:18px;">${c.sunlight.total}</b> ☀️</div>
+    <div class="grid grid-3">${Store.data.shopItems.map(it=>`<div class="shop-card"><div class="s-icon">${it.icon}</div><div style="font-weight:700;margin:6px 0;">${it.name}</div><div class="price">${it.price}☀️</div><button class="btn orange sm" style="margin-top:8px;" ${c.sunlight.total>=it.price?'':'disabled'} onclick="Shop.redeem('${it.id}')">兑换</button></div>`).join('')}</div></div>`;
+  },
+  renderBadge(){
+    const c=curChild();const defs=Store.data.achievementDefs;
+    const unlocked=new Set(c.achievements.map(a=>a.id));
+    return `<div class="card"><div class="card-title">🏆 成就徽章</div><div class="grid grid-3">${defs.map(d=>{const u=unlocked.has(d.id);const a=c.achievements.find(x=>x.id===d.id);return `<div class="badge ${u?'unlocked':'locked'}"><div class="b-icon">${d.icon}</div><div style="font-weight:700;margin:4px 0;">${d.name}</div><div style="font-size:11px;color:var(--text-soft);">${d.cond}</div>${u?`<div style="font-size:10px;color:var(--primary-d);margin-top:4px;">✨ ${new Date(a.unlockedAt).toLocaleDateString()}</div>`:'<div style="font-size:10px;color:var(--text-light);margin-top:4px;">未解锁</div>'}</div>`;}).join('')}</div></div>`;
+  },
+  renderLog(){
+    const c=curChild();
+    const sl=c.logs.sunlight.map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()}</div></div><div class="log-delta ${l.delta>0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta} ☀️</div></div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:20px;">暂无日志</div>';
+    const pl=c.logs.pet.map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()} · ${l.detail||''}</div></div></div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:20px;">暂无宠物日志</div>';
+    return `<div class="card"><div class="card-title">📋 阳光日志</div><div style="max-height:300px;overflow-y:auto;">${sl}</div></div><div class="card"><div class="card-title">🐾 宠物日志</div><div style="max-height:300px;overflow-y:auto;">${pl}</div></div>`;
+  },
+  // 作息德育打卡
+  renderDeed(){
+    return `<div class="card"><div class="card-title">🌟 作息德育打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">培养良好品德习惯，每项+5阳光。家长审核模式下需家长确认。</p><div class="grid grid-2">${Bank.deeds().map(d=>UI.taskCard(d.id,d.name,'德育习惯养成',5,d.icon)).join('')}</div></div>`;
+  },
+  // 错题本
+  renderWrong(){
+    const c=curChild();
+    const reviewList=c.wrongQuestions.filter(w=>w.retry&&!w.answered);
+    const allList=c.wrongQuestions;
+    // 薄弱知识点统计
+    const weak={};allList.forEach(w=>{const s=w.subject;weak[s]=(weak[s]||0)+1;});
+    const weakHtml=Object.entries(weak).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`<span class="stat-chip" style="background:var(--bg);color:var(--text);">${({cn:'语文',math:'数学',en:'英语'})[s]||s}：${n}题</span>`).join(' ')||'暂无数据';
+    return `<div class="card"><div class="card-title">📝 错题复习</div>
+      ${reviewList.length?`<p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">昨日错题已推送，共 ${reviewList.length} 题待复习。</p>
+      <button class="btn sm" onclick="UI.startWrongQuiz()">开始复习</button>`:`<p style="color:var(--text-light);">暂无待复习错题，继续保持！🌟</p>`}
+      </div>
+      <div class="card"><div class="card-title">🎯 薄弱知识点</div><div>${weakHtml}</div></div>
+      <div class="card"><div class="card-title">📚 全部错题记录（${allList.length}）</div>
+      <div style="max-height:240px;overflow-y:auto;">${allList.slice(-30).reverse().map(w=>`<div class="log-item"><div><div style="font-size:12px;">${w.q}</div><div class="log-time">正确：${w.a} · 你的答案：${w.userA} · ${new Date(w.time).toLocaleDateString()}</div></div><span class="log-delta neg">${w.retry?(w.answered?'已复习':'待复习'):'已收录'}</span></div>`).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无错题</div>'}</div>
+      </div>`;
+  },
+  curWrongQuiz:null,
+  startWrongQuiz(){
+    const c=curChild();
+    const list=c.wrongQuestions.filter(w=>w.retry&&!w.answered);
+    if(!list.length){toast('没有待复习的错题');return;}
+    this.curWrongQuiz=list.slice(0,Math.min(10,list.length));
+    this.renderWrongQuiz();
+  },
+  renderWrongQuiz(){
+    const q=this.curWrongQuiz;if(!q)return;const i=q.idx||0;const item=q[i];
+    const ansHtml=`<div class="quiz-ans"><input type="text" id="qInput" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextWrong()"></div>`;
+    showModal('错题复习',`<div class="quiz-box"><div style="font-size:12px;color:var(--text-soft);">第 ${i+1}/${q.length} 题</div><div class="quiz-q">${item.q}</div>${ansHtml}</div>`,
+      `<button class="btn sm" onclick="UI.nextWrong()">${i===q.length-1?'完成':'下一题'}</button>`,true);
+    setTimeout(()=>{const inp=$('#qInput');if(inp)inp.focus();},0);
+  },
+  nextWrong(){
+    const q=this.curWrongQuiz;if(!q)return;const i=q.idx||0;
+    const inp=$('#qInput');if(!inp||!inp.value.trim()){toast('请作答');return;}
+    const a=inp.value.trim();const item=q[i];const ok=a===item.a||a.includes(item.a)||item.a.includes(a);
+    item.answered=true;item.retry=false;
+    if(ok){toast('✅ 答对了，已移出错题本');Audio.play('correct');}
+    else{toast('❌ 还是答错了，继续留存');Audio.play('wrong');curChild().wrongQuestions.push({...item,id:uid(),time:nowISO(),retry:false,answered:false});}
+    Store.save();
+    q.idx=i+1;
+    if(q.idx>=q.length){closeModal();this.curWrongQuiz=null;toast('错题复习完成！');UI.render();}
+    else{this.renderWrongQuiz();}
+  },
+  // 成长报表
+  renderReport(){
+    const c=curChild();
+    const logs=c.logs.sunlight;
+    // 近7天阳光收支
+    const days=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const dayLogs=logs.filter(l=>l.time.startsWith(ds));const earned=dayLogs.filter(l=>l.delta>0).reduce((s,l)=>s+l.delta,0);const spent=dayLogs.filter(l=>l.delta<0).reduce((s,l)=>s+Math.abs(l.delta),0);days.push({ds,earned,spent});}
+    const maxBar=Math.max(...days.map(d=>Math.max(d.earned,d.spent)),10);
+    const barHtml=days.map(d=>`<div style="display:flex;align-items:flex-end;gap:2px;height:80px;margin-right:6px;" title="${d.ds} 获得${d.earned} 花费${d.spent}"><div style="width:10px;background:linear-gradient(0deg,#ffd54f,#ffb300);height:${d.earned/maxBar*70+4}px;border-radius:3px;"></div><div style="width:10px;background:linear-gradient(0deg,#ef9a9a,#e57373);height:${d.spent/maxBar*70+4}px;border-radius:3px;"></div></div>`).join('');
+    // 薄弱知识点
+    const weak={};c.wrongQuestions.forEach(w=>{const s=w.subject;weak[s]=(weak[s]||0)+1;});
+    const weakHtml=Object.entries(weak).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`<div class="log-item"><span>${({cn:'语文',math:'数学',en:'英语'})[s]||s}</span><span class="log-delta neg">${n}题</span></div>`).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无错题</div>';
+    // 情绪趋势
+    const moods=c.stats.moodHistory.slice(-14);
+    const moodMap={happy:'😊',normal:'😐',sad:'😢'};
+    const moodHtml=moods.length?moods.map(m=>`<span title="${m.date}" style="font-size:20px;">${moodMap[m.mood]||'❓'}</span>`).join(' '):'<span style="color:var(--text-light);">暂无记录</span>';
+    // 证书
+    const month=new Date().getMonth()+1;
+    const monthTasks=c.achievements.length;
+    const certStyle='border:3px double var(--primary);padding:16px;text-align:center;background:linear-gradient(135deg,#fff8e1,#fffde7);border-radius:12px;margin-top:12px;';
+    return `<div class="card"><div class="card-title">📊 成长报表</div>
+      <div style="font-size:13px;margin-bottom:10px;">累计阳光：<b style="color:var(--orange-d);">${c.sunlight.total}</b> ☀️ · 等级：<b>${(Levels[c.stats.level]||Levels[0]).name}</b> · 累计专注：<b>${c.stats.focusMinutes||0}</b> 分钟</div>
+      <div style="font-size:12px;color:var(--text-soft);margin-bottom:4px;">近7天阳光收支（黄=获得，红=花费）</div>
+      <div style="display:flex;align-items:flex-end;padding:8px 0;border-bottom:1px solid var(--border);">${barHtml}</div>
+      </div>
+      <div class="card"><div class="card-title">🎯 薄弱知识点</div>${weakHtml}</div>
+      <div class="card"><div class="card-title">😊 情绪趋势（近14天）</div><div style="font-size:13px;">${moodHtml}</div></div>
+      <div class="card"><div class="card-title">🏅 ${month}月成长证书</div>
+        <div style="${certStyle}">
+          <div style="font-size:14px;color:var(--text-soft);">荣誉证书</div>
+          <div style="font-size:20px;font-weight:700;margin:8px 0;color:var(--primary-d);">${c.profile.name} 同学</div>
+          <div style="font-size:12px;">在 ${month} 月学习表现优秀</div>
+          <div style="font-size:12px;margin:4px 0;">累计获得阳光 ${c.sunlight.total} ☀️ · 解锁徽章 ${c.achievements.length} 枚</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:8px;">颁发日期：${todayStr()}</div>
+        </div>
+        <button class="btn sm" style="margin-top:8px;" onclick="window.print()">🖨️ 打印证书</button>
+      </div>`;
+  },
+  // 宠物命名弹框
+  promptName(petId,hint){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    showModal('🐾 '+hint,`<div style="text-align:center;padding:6px 0;">
+      <div style="font-size:48px;">${Pet.list()[p.type].emoji}</div>
+      <p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">当前：${p.name}</p>
+      <input type="text" id="petNameInput" maxlength="16" placeholder="输入名字（最多8个汉字）" style="padding:10px;border:2px solid var(--border);border-radius:8px;font-size:15px;text-align:center;width:200px;" value="${p.name}">
+      <p id="nameTip" style="font-size:11px;color:var(--text-light);margin-top:6px;">只能用汉字、字母、数字</p>
+      </div>`,
+      `<button class="btn ghost sm" onclick="closeModal()">跳过</button> <button class="btn sm" onclick="UI.confirmName('${petId}')">确定</button>`,true);
+    setTimeout(()=>{const inp=$('#petNameInput');if(inp){inp.focus();inp.select();}},0);
+  },
+  confirmName(petId){
+    const inp=$('#petNameInput');if(!inp)return;
+    const name=inp.value.trim();
+    const err=Pet.validateName(name);
+    if(err){const tip=$('#nameTip');if(tip){tip.textContent=err;tip.style.color='var(--danger)';}return;}
+    Pet.rename(petId,name);closeModal();toast('改名成功！');UI.render();
+  },
+  // 专注计时
+  startFocus(taskId){
+    if(State.focusing){toast('专注进行中…');return;}
+    showModal('⏱️ 专注学习',`<div style="text-align:center;padding:10px;">
+      <p style="margin-bottom:12px;">选择专注时长：</p>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        ${[5,10,15,20].map(m=>`<button class="btn sm" onclick="UI.beginFocus('${taskId}',${m})">${m}分钟</button>`).join('')}
+      </div></div>`,null,true);
+  },
+  beginFocus(taskId,mins){
+    closeModal();
+    State.focusing=true;State.focusTaskId=taskId;State.focusMins=mins;State.focusEnd=Date.now()+mins*60000;
+    UI.renderFocusTimer();
+  },
+  renderFocusTimer(){
+    if(!State.focusing)return;
+    const remain=Math.max(0,State.focusEnd-Date.now());
+    const m=Math.floor(remain/60000),s=Math.floor((remain%60000)/1000);
+    const timeStr=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    if(remain<=0){
+      State.focusing=false;
+      const c=curChild();
+      c.stats.focusMinutes=(c.stats.focusMinutes||0)+State.focusMins;
+      addSunlight(5,'专注学习完成');
+      toast('🎉 专注完成！+5阳光');
+      const m2=$('#focusMask');if(m2)m2.remove();
+      UI.render();
+      return;
+    }
+    const mask=document.createElement('div');mask.className='modal-mask';mask.id='focusMask';
+    mask.innerHTML=`<div class="modal" style="text-align:center;max-width:340px;">
+      <div style="font-size:50px;">🎯</div>
+      <div style="font-size:12px;color:var(--text-soft);margin:6px 0;">专注学习进行中</div>
+      <div style="font-size:40px;font-weight:700;color:var(--primary-d);margin:10px 0;">${timeStr}</div>
+      <p style="font-size:12px;color:var(--text-light);">娱乐板块已锁定，请安心学习～</p>
+      <button class="btn ghost sm" style="margin-top:10px;" onclick="UI.quitFocus()">提前退出（无奖励）</button>
+      </div>`;
+    document.body.appendChild(mask);
+    setTimeout(()=>{const m=$('#focusMask');if(m)m.remove();if(State.focusing)UI.renderFocusTimer();},1000);
+  },
+  quitFocus(){
+    confirmModal('确定提前退出专注模式？退出无阳光奖励。',()=>{
+      State.focusing=false;
+      const m=$('#focusMask');if(m)m.remove();
+      UI.render();
+    });
+  },
+  renderParent(){
+    if(State.mode!=='parent')return `<div class="card"><p>请先切换到家长模式</p></div>`;
+    const c=curChild();const children=Store.data.children;
+    return `<div class="card"><div class="card-title">👨‍👩‍👧 孩子管理</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${Object.entries(children).map(([id,ch])=>`<button class="btn ${id===d_settings().currentChildId?'':'ghost'} sm" onclick="UI.switchChild('${id}')">${ch.profile.avatar} ${ch.profile.name}</button>`).join('')}</div>
+      <button class="btn sm" onclick="UI.addChild()">➕ 新增孩子</button>
+      ${d_settings().currentChildId!==Object.keys(children)[0]?`<button class="btn danger sm" onclick="UI.delChild()" style="margin-left:8px;">删除当前孩子</button>`:''}
+      <div style="margin-top:10px;">当前：${c.profile.name} · ${Bank.gradeNames[c.grade]}</div>
+      <div style="margin-top:10px;"><label>修改年级：</label><select onchange="UI.setGrade(this.value)">${Object.entries(Bank.gradeNames).map(([k,v])=>`<option value="${k}" ${c.grade===k?'selected':''}>${v}</option>`).join('')}</select></div>
+      </div>
+      <div class="card"><div class="card-title">⚙️ 系统设置</div>
+        <div class="form-row"><label>家长密码</label><input type="text" id="cfgPwd" value="${d_settings().parentPassword}"></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <label><input type="checkbox" id="cfgZombie" ${d_settings().zombieEnabled?'checked':''}> 僵尸模式</label>
+          <label><input type="checkbox" id="cfgDecay" ${d_settings().petDecayEnabled?'checked':''}> 宠物衰减</label>
+          <label><input type="checkbox" id="cfgReview" ${d_settings().reviewMode?'checked':''}> 家长审核模式</label>
+        </div>
+        <p style="font-size:12px;color:var(--text-soft);margin-top:4px;">审核模式开启后，练字/阅读/运动/家务/德育需家长确认才算完成</p>
+        <button class="btn sm" style="margin-top:10px;" onclick="UI.saveSettings()">保存设置</button>
+      </div>
+      ${d_settings().reviewMode?`<div class="card"><div class="card-title">⏳ 待审核任务</div>${(()=>{const pending=[];Object.entries(Store.data.children).forEach(([cid,ch])=>{Object.entries(ch.today.tasks||{}).forEach(([tid,t])=>{if(t.pendingReview)pending.push({cid,ch,tid,t});});});if(!pending.length)return'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无待审核任务</div>';return pending.map(x=>`<div class="log-item"><span>${x.ch.profile.name}：${x.tid}</span><div><button class="btn sm" onclick="UI.approveChild('${x.cid}','${x.tid}')">✅ 通过</button> <button class="btn danger sm" onclick="UI.rejectChild('${x.cid}','${x.tid}')">❌ 驳回</button></div></div>`).join('');})()}</div>`:''}
+      <div class="card"><div class="card-title">🌟 德育任务管理</div>${Store.data.deedDefs.map(d=>`<div class="log-item"><span>${d.icon} ${d.name}</span><button class="btn danger sm" onclick="UI.delDeed('${d.id}')">删除</button></div>`).join('')}
+        <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newDeedName" placeholder="名称"><input id="newDeedIcon" placeholder="图标" value="✨"><button class="btn sm" onclick="UI.addDeed()">添加</button></div>
+      </div>
+      <div class="card"><div class="card-title">🛒 商店管理</div><div id="shopMgr">${Store.data.shopItems.map(it=>`<div class="log-item"><span>${it.icon} <input type="text" value="${it.name}" style="width:90px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').name=this.value;Store.save()"> <input type="number" value="${it.price}" style="width:60px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').price=+this.value;Store.save()">☀️</span><button class="btn danger sm" onclick="UI.delShop('${it.id}')">删除</button></div>`).join('')}</div>
+        <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newShopName" placeholder="名称"><input id="newShopPrice" type="number" placeholder="价格"><input id="newShopIcon" placeholder="图标" value="🎁"><button class="btn sm" onclick="UI.addShop()">添加</button></div>
+      </div>
+      <div class="card"><div class="card-title">🏆 徽章管理</div>${Store.data.achievementDefs.map(a=>`<div class="log-item"><span>${a.icon} <input type="text" value="${a.name}" style="width:80px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.achievementDefs.find(x=>x.id==='${a.id}').name=this.value;Store.save()"> <input type="text" value="${a.cond}" style="width:120px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.achievementDefs.find(x=>x.id==='${a.id}').cond=this.value;Store.save()"></span><button class="btn danger sm" onclick="UI.delBadge('${a.id}')">删除</button></div>`).join('')}
+        <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newBadgeName" placeholder="名称"><input id="newBadgeCond" placeholder="解锁条件"><input id="newBadgeIcon" placeholder="图标" value="🎖️"><button class="btn sm" onclick="UI.addBadge()">添加</button></div>
+      </div>
+      <div class="card"><div class="card-title">🌱 植物数值</div>${Object.entries(Store.data.plantDefs).map(([k,d])=>`<div class="log-item"><span>${d.emoji} ${d.name}</span><span>攻击<input type="number" style="width:60px;" value="${d.attack}" onchange="Store.data.plantDefs['${k}'].attack=+this.value;Store.save()"> 产出<input type="number" style="width:60px;" value="${d.produce}" onchange="Store.data.plantDefs['${k}'].produce=+this.value;Store.save()"></span></div>`).join('')}</div>
+      <div class="card"><div class="card-title">🐾 宠物衰减数值</div>
+        <div class="log-item"><span>每日饱食度衰减</span><input type="number" style="width:60px;" value="30" onchange="Pet._decaySat=+this.value;Store.save()"></div>
+        <div class="log-item"><span>每日亲密度衰减</span><input type="number" style="width:60px;" value="20" onchange="Pet._decayInt=+this.value;Store.save()"></div>
+        <div class="log-item"><span>生病治疗费用</span><input type="number" style="width:60px;" value="150" onchange="Pet._healCost=+this.value;Store.save()"></div>
+        <p style="font-size:12px;color:var(--text-soft);margin-top:6px;">修改后次日生效。当前：饱食-${Pet._decaySat||30} 亲密-${Pet._decayInt||20} 治疗${Pet._healCost||150}阳光</p>
+      </div>
+      <div class="card"><div class="card-title">💾 数据管理</div>
+        <button class="btn sm" onclick="Sync.showExport()">📤 导出数据</button>
+        <button class="btn sm" onclick="document.getElementById('importFile').click()">📥 导入数据</button>
+        <input type="file" id="importFile" style="display:none;" accept=".json" onchange="Sync.importData(this.files[0])">
+        <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">⚠️ 建议定期备份，清理浏览器缓存会丢失本地数据。<br>导出支持单孩子/全部孩子；导入支持合并/覆盖两种模式。跨设备迁移学习档案请用导出导入。</p>
+      </div>`;
+  },
+  // 家长操作方法
+  switchChild(id){d_settings().currentChildId=id;Store.save();UI.render();},
+  addChild(){
+    const name=prompt('孩子姓名：');if(!name)return;
+    const id='c_'+uid();
+    Store.data.children[id]={profile:{name,avatar:'🙂',grade:'grade1'},grade:'grade1',today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},sunlight:{total:0},garden:{grid:Store.emptyGrid(),zombies:[Store.newZombie()],undoFree:true},pets:[],achievements:[],logs:{sunlight:[],pet:[]},wrongQuestions:[],stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[]}};
+    Store.fixChild(Store.data.children[id]);
+    d_settings().currentChildId=id;Store.save();UI.render();toast('已添加孩子');
+  },
+  delChild(){
+    if(Object.keys(Store.data.children).length<=1){toast('至少保留一个孩子');return;}
+    confirmModal('确定删除'+curChild().profile.name+'？所有数据将丢失。',()=>{delete Store.data.children[d_settings().currentChildId];d_settings().currentChildId=Object.keys(Store.data.children)[0];Store.save();UI.render();});
+  },
+  setGrade(g){const c=curChild();c.grade=g;c.profile.grade=g;c.today={date:todayStr(),sunlight:0,tasks:{},quizRecords:{}};Store.save();toast('年级已切换，任务已刷新');UI.render();},
+  saveSettings(){
+    d_settings().parentPassword=$('#cfgPwd').value||'8888';
+    d_settings().zombieEnabled=$('#cfgZombie').checked;
+    d_settings().petDecayEnabled=$('#cfgDecay').checked;
+    d_settings().reviewMode=$('#cfgReview')?.checked||false;
+    Store.save();toast('设置已保存');
+  },
+  addDeed(){
+    const name=$('#newDeedName').value.trim();const icon=$('#newDeedIcon').value||'✨';
+    if(!name){toast('请填写名称');return;}
+    Store.data.deedDefs.push({id:'deed_'+uid(),name,icon});
+    Store.save();UI.render();
+  },
+  delDeed(id){Store.data.deedDefs=Store.data.deedDefs.filter(x=>x.id!==id);Store.save();UI.render();},
+  approveChild(cid,tid){d_settings().currentChildId=cid;approveTask(tid);},
+  rejectChild(cid,tid){const ch=Store.data.children[cid];if(ch&&ch.today.tasks[tid]){delete ch.today.tasks[tid];}Store.save();UI.render();toast('已驳回');},
+  addShop(){
+    const name=$('#newShopName').value.trim();const price=+$('#newShopPrice').value;const icon=$('#newShopIcon').value||'🎁';
+    if(!name||!price){toast('请填写名称和价格');return;}
+    Store.data.shopItems.push({id:uid(),name,icon,price,action:'custom'});
+    Store.save();UI.render();
+  },
+  delShop(id){Store.data.shopItems=Store.data.shopItems.filter(x=>x.id!==id);Store.save();UI.render();},
+  addBadge(){
+    const name=$('#newBadgeName').value.trim();const cond=$('#newBadgeCond').value.trim();const icon=$('#newBadgeIcon').value||'🎖️';
+    if(!name){toast('请填写名称');return;}
+    Store.data.achievementDefs.push({id:uid(),name,icon,cond:cond||'自定义',custom:true});
+    Store.save();UI.render();
+  },
+  delBadge(id){Store.data.achievementDefs=Store.data.achievementDefs.filter(x=>x.id!==id);curChild().achievements=curChild().achievements.filter(a=>a.id!==id);Store.save();UI.render();}
+};
+
+/* ============ App 全局对象 ============ */
+const App = {
+  toggleMode(){
+    if(State.mode==='child'){
+      // 进入家长模式需密码
+      showModal('家长密码',`<div style="text-align:center;padding:10px;"><p style="margin-bottom:10px;">请输入家长密码</p><input type="password" id="pwdInput" style="padding:10px;border:2px solid var(--border);border-radius:8px;font-size:16px;text-align:center;width:160px;" onkeydown="if(event.key==='Enter')App.checkPwd()"></div>`,
+        `<button class="btn ghost sm" onclick="closeModal()">取消</button> <button class="btn sm" onclick="App.checkPwd()">进入</button>`,true);
+      setTimeout(()=>$('#pwdInput')?.focus(),50);
+    }else{
+      State.mode='child';State.view='dashboard';UI.render();
+    }
+  },
+  checkPwd(){
+    const v=$('#pwdInput').value;
+    if(v===d_settings().parentPassword){State.mode='parent';State.view='parent';closeModal();UI.render();toast('已进入家长模式');}
+    else{toast('密码错误');}
+  }
+};
+
+/* ============ Init ============ */
+function init(){
+  Store.load();
+  Sync.init();
+  dailyReset();
+  // 更新lastActiveDate
+  const c=curChild();
+  if(c.stats.lastActiveDate!==todayStr()){c.stats.lastActiveDate=todayStr();Store.save();}
+  UI.render();
+  // 首次交互激活音频
+  document.addEventListener('click',()=>Audio.init(),{once:true});
+}
+init();
+
+// 暴露到全局
+window.App=App;window.UI=UI;window.Router=Router;window.Store=Store;
+window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=undoTask;
+window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
+window.Pet=Pet;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;
+
+})();
+</script>
+</body>
+</html>
