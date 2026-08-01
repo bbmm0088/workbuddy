@@ -81,12 +81,12 @@ input,select,textarea{font-family:inherit;outline:none;}
 
 /* 答题 */
 .quiz-box{display:flex;flex-direction:column;gap:14px;}
-.quiz-q{font-size:15px;font-weight:600;background:var(--bg);padding:12px;border-radius:var(--radius-sm);}
-.quiz-ans{display:flex;gap:8px;flex-wrap:wrap;}
-.quiz-ans input{flex:1;min-width:120px;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:15px;}
+.quiz-q{font-size:18px;font-weight:600;background:var(--bg);padding:14px;border-radius:var(--radius-sm);line-height:1.6;}
+.quiz-ans{display:flex;gap:12px;flex-wrap:wrap;}
+.quiz-ans input{flex:1;min-width:120px;padding:12px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:18px;}
 .quiz-ans input:focus{border-color:var(--primary);}
-.opt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
-.opt-btn{padding:12px;border-radius:var(--radius-sm);background:var(--bg);font-size:14px;font-weight:600;border:2px solid transparent;}
+.opt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.opt-btn{padding:14px;border-radius:var(--radius-sm);background:var(--bg);font-size:17px;font-weight:600;border:2px solid transparent;line-height:1.4;}
 .opt-btn:hover{background:var(--bg2);}
 .opt-btn.sel{background:var(--sky);color:#fff;}
 .opt-btn.correct{background:var(--primary);color:#fff;}
@@ -1350,10 +1350,10 @@ const Router = {
     {id:'parent',icon:'⚙️',name:'家长',childOnly:true}
   ],
   navigate(v){
-    // 学习优先锁：未完成60%作业时，孩子模式不能进娱乐板块
+    // 学习优先锁：未完成30%作业时，孩子模式不能进花园/宠物/商店/徽章
     const funViews=['garden','pet','shop','badge'];
-    if(State.mode==='child'&&!State.focusing&&funViews.includes(v)&&dailyRate(curChild())<0.6){
-      toast('📚 请先完成今日60%的学习任务，再玩耍哦～');
+    if(State.mode==='child'&&!State.focusing&&funViews.includes(v)&&dailyRate(curChild())<0.3){
+      toast('📚 请先完成今日30%的学习任务，再玩耍哦～');
       return;
     }
     State.view=v;UI.render();
@@ -1421,7 +1421,7 @@ const UI = {
             <div><div style="font-size:18px;font-weight:700;">${c.profile.name}</div><div style="color:var(--text-soft);">${Bank.gradeNames[c.grade]} · ${lvDef.emoji} ${lvDef.name}</div></div>
           </div>
           <div class="progress-bar" style="height:22px;margin-bottom:6px;"><div class="progress-fill" style="width:${rate}%;font-size:12px;">${rate}%</div></div>
-          <div style="font-size:12px;color:var(--text-soft);">总进度：${done}/${tasks.length} ${rate<60?'· 完成不足60%，娱乐板块已锁定':''}</div>
+          <div style="font-size:12px;color:var(--text-soft);">总进度：${done}/${tasks.length} ${rate<30?'· 完成不足30%，娱乐板块已锁定':''}</div>
         </div>
         <div class="card"><div class="card-title">😊 今日心情</div>${moodHtml}</div>
         <div class="card"><div class="card-title">📊 分科进度</div>${catBars}</div>
@@ -1681,13 +1681,13 @@ const UI = {
     // 听写模式：题目区只显示朗读按钮+提示，不显示答案文字
     let qArea;
     if(isDictation){
-      qArea=`<div style="text-align:center;padding:10px;"><div style="font-size:15px;font-weight:600;margin-bottom:10px;">${item.q}</div>${speakBtn}<div style="font-size:12px;color:var(--text-soft);margin-top:8px;">💡 提示：${item.hint||''}</div></div>`;
+      qArea=`<div style="text-align:center;padding:10px;"><div style="font-size:18px;font-weight:600;margin-bottom:10px;">${item.q}</div>${speakBtn}<div style="font-size:12px;color:var(--text-soft);margin-top:8px;">💡 提示：${item.hint||''}</div></div>`;
     }else{
       qArea=`<div class="quiz-q">${item.q} ${readQBtn} ${speakBtn}</div>`;
     }
     const body=`
       <div class="quiz-box">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-soft);">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-soft);">
           <span>第 ${i+1} / ${q.questions.length} 题</span>
           <span>已答 ${q.answers.filter(a=>a!==null).length} 题</span>
         </div>
