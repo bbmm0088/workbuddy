@@ -360,19 +360,55 @@ const Bank = {
   gradeNames:{gradeK:'幼小衔接',grade1:'一年级',grade2:'二年级',grade3:'三年级',grade4:'四年级',grade5:'五年级',grade6:'六年级'},
   // 数学：动态生成
   mathGen:{
-    oralAdd:(grade)=>{const max={gradeK:10,grade1:20,grade2:50,grade3:100,grade4:100,grade5:100,grade6:100}[grade]||100;const a=rnd(max+1),b=rnd(max-a+1);return{q:a+' + '+b+' = ?',a:String(a+b)};},
-    oralSub:(grade)=>{const max={gradeK:10,grade1:20,grade2:50,grade3:100,grade4:100,grade5:100,grade6:100}[grade]||100;const a=rnd(max+1),b=rnd(a+1);return{q:a+' - '+b+' = ?',a:String(a-b)};},
-    mul:(grade)=>{const t={grade2:9,grade3:9,grade4:12,grade5:12,grade6:12}[grade]||9;const a=1+rnd(t),b=1+rnd(t);return{q:a+' × '+b+' = ?',a:String(a*b)};},
-    thinking:(grade)=>{const bank=[
-      '小明有5个苹果，吃了2个，又买了3个，现在有几个？|6',
-      '一排树共8棵，每两棵间隔2米，从第1到第8棵共多远？|14',
-      '鸡兔同笼，共5个头14条腿，几只鸡几只兔？|2鸡3兔',
-      '一根绳子对折再对折量一下是3米，绳子原来多长？|12',
-      '1+2+3+...+10=?|55',
-      '钟表3点整，时针分针成多少度？|90度',
-      '有5元和10元共8张总65元，各几张？|3张5元5张10元',
-      '一个数加5后乘3再减6得18，这个数是？|3'
-    ];const it=bank[rnd(bank.length)].split('|');return{q:it[0],a:it[1]};}
+    oralAdd:(grade)=>{const max={gradeK:10,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(max-a+1);return{q:a+' + '+b+' = ?',a:String(a+b)};},
+    oralSub:(grade)=>{const max={gradeK:10,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(a+1);return{q:a+' - '+b+' = ?',a:String(a-b)};},
+    mul:(grade)=>{if(grade==='grade2'){const a=1+rnd(9),b=1+rnd(9);return{q:a+' × '+b+' = ?',a:String(a*b)};}if(grade==='grade3'){const a=10+rnd(90),b=1+rnd(9);return{q:a+' × '+b+' = ?',a:String(a*b)};}const t={grade4:99,grade5:99,grade6:99}[grade]||99;const c=1+rnd(t),d=1+rnd(t);return{q:c+' × '+d+' = ?',a:String(c*d)};},
+    thinking:(grade)=>{
+      // 苏教版思维训练：按年级分级选题
+      const lowBank=[ // 幼小衔接/1-2年级：基础应用题
+        '小明有5个苹果，吃了2个，又买了3个，现在有几个？|6',
+        '同学们排队做操，小明前面有5人，后面有4人，这排共几人？|10人',
+        '小华有18块糖，比小红多6块，两人共有几块糖？|30块',
+        '一根绳子对折再对折量一下是3米，绳子原来多长？|12米',
+        '1+2+3+...+10=?|55',
+        '一个数加5后乘3再减6得18，这个数是？|3',
+        '同学们站成一排，从左数小明第5个，从右数第6个，共几人？|10人',
+        '一根木棒锯成4段需要12分钟，锯成8段需要几分钟？|28分钟',
+        '小明今年8岁，爸爸今年36岁，爸爸年龄是小明的几倍？|4.5倍',
+        '有5元和10元共8张总65元，各几张？|3张5元5张10元'
+      ];
+      const midBank=[ // 3-4年级：植树/排队/图形
+        '一条路长100米，每隔5米种一棵树（两端都种），要种几棵？|21棵',
+        '钟表3点整，时针分针成多少度？|90度',
+        '1+3+5+...+19=?|100',
+        '2+4+6+...+20=?|110',
+        '一块正方形地周长36米，面积是多少？|81平方米',
+        '三年前爸爸比小明大25岁，今年小明8岁，爸爸今年几岁？|33岁',
+        '三角形三个角中，两个角分别是40度和60度，第三个角几度？|80度',
+        '小明从一楼到三楼用了12秒，到六楼要用几秒？|30秒',
+        '一个数减7后乘4再加8得36，这个数是？|14',
+        '鸡兔同笼，共10个头28条腿，鸡兔各几只？|6鸡4兔',
+        '找规律填数：2, 5, 11, 23, ?, 95|47',
+        '甲是乙的3倍，甲乙之和是48，甲是多少？|36'
+      ];
+      const highBank=[ // 5-6年级：鸡兔同笼/分数/百分数
+        '鸡兔同笼，共12个头40条腿，鸡兔各几只？|4鸡8兔',
+        '5年前妈妈比小芳大24岁，今年小芳10岁，妈妈几岁？|34岁',
+        '一根绳子每次剪去一半，剪了3次后剩2米，原来多长？|16米',
+        '数一数：下图中共有多少个长方形？(长边4段短边3段)|60个',
+        '一张桌子坐6人，2张桌子拼起来坐10人，10张桌子拼起来坐几人？|42人',
+        '某商品先涨价10%再降价10%，现价是原价的百分之几？|99%',
+        '甲乙两车从两地相向而行，甲速60km/h乙速40km/h，3小时后相遇，两地相距多远？|300千米',
+        '一个水池单开进水管4小时满，单开排水管6小时排完，同时开几小时满？|12小时',
+        '某班50人考试，及格率96%，几人不及格？|2人',
+        '圆的半径扩大2倍，面积扩大几倍？|4倍'
+      ];
+      let bank;
+      if(grade==='gradeK'||grade==='grade1'||grade==='grade2')bank=lowBank;
+      else if(grade==='grade3'||grade==='grade4')bank=midBank;
+      else bank=highBank;
+      const it=bank[rnd(bank.length)].split('|');return{q:it[0],a:it[1]};
+    }
   },
   // 语文：拼音、古诗、字
   chinese:{
@@ -389,11 +425,15 @@ const Bank = {
         {q:'g',a:'哥',opts:['哥','科','喝','佛']},
         {q:'k',a:'科',opts:['科','哥','喝','佛']}
       ],
-      calligraphy:[{char:'一',radical:'横',strokes:1},{char:'二',radical:'横',strokes:2},{char:'三',radical:'横',strokes:3},{char:'十',radical:'十',strokes:2},{char:'口',radical:'口',strokes:3},{char:'人',radical:'人',strokes:2}],
+      calligraphy:[{char:'一',radical:'横',strokes:1},{char:'二',radical:'横',strokes:2},{char:'三',radical:'横',strokes:3},{char:'十',radical:'十',strokes:2},{char:'口',radical:'口',strokes:3},{char:'人',radical:'人',strokes:2},{char:'大',radical:'大',strokes:3},{char:'小',radical:'小',strokes:3}],
       poetry:[
-        {title:'咏鹅',author:'骆宾王',content:'鹅，鹅，鹅，曲项向天歌。白毛浮绿水，红掌拨清波。',pinyin:'é,é,é,qū xiàng xiàng tiān gē。bái máo fú lǜ shuǐ,hóng zhǎng bō qīng bō。',analysis:'诗人用白描手法，生动写出鹅在水中游动的姿态。'}
+        {title:'咏鹅',author:'骆宾王',content:'鹅，鹅，鹅，曲项向天歌。白毛浮绿水，红掌拨清波。',pinyin:'é,é,é,qū xiàng xiàng tiān gē。bái máo fú lǜ shuǐ,hóng zhǎng bō qīng bō。',analysis:'诗人用白描手法，生动写出鹅在水中游动的姿态。'},
+        {title:'画',author:'王维',content:'远看山有色，近听水无声。春去花还在，人来鸟不惊。',pinyin:'yuǎn kàn shān yǒu sè,jìn tīng shuǐ wú shēng。chūn qù huā hái zài,rén lái niǎo bù jīng。',analysis:'一首谜语诗，描写画中山水花鸟，妙在"无声""不惊"。'},
+        {title:'悯农',author:'李绅',content:'锄禾日当午，汗滴禾下土。谁知盘中餐，粒粒皆辛苦。',pinyin:'chú hé rì dāng wǔ,hàn dī hé xià tǔ。shuí zhī pán zhōng cān,lì lì jiē xīn kǔ。',analysis:'写农民劳作辛苦，教育人们珍惜粮食。'},
+        {title:'古朗月行',author:'李白',content:'小时不识月，呼作白玉盘。又疑瑶台镜，飞在青云端。',pinyin:'xiǎo shí bù shí yuè,hū zuò bái yù pán。yòu yí yáo tái jìng,fēi zài qīng yún duān。',analysis:'以儿童眼光写月亮，想象丰富，天真烂漫。'},
+        {title:'风',author:'李峤',content:'解落三秋叶，能开二月花。过江千尺浪，入竹万竿斜。',pinyin:'jiě luò sān qiū yè,néng kāi èr yuè huā。guò jiāng qiān chǐ làng,rù zhú wàn gān xié。',analysis:'全诗无一"风"字，却句句写风，巧妙生动。'}
       ],
-      reading:[{book:'猜猜我有多爱你',author:'山姆·麦克布雷尼'},{book:'好饿的毛毛虫',author:'艾瑞·卡尔'}]
+      reading:[{book:'猜猜我有多爱你',author:'山姆·麦克布雷尼'},{book:'好饿的毛毛虫',author:'艾瑞·卡尔'},{book:'爷爷一定有办法',author:'菲比·吉尔曼'},{book:'逃家小兔',author:'玛格丽特·怀兹·布朗'}]
     },
     grade1:{
       pinyin:[
@@ -408,13 +448,15 @@ const Bank = {
         {q:'ei',a:'欸',opts:['欸','爱','熬','欧']},
         {q:'ao',a:'熬',opts:['熬','爱','欸','欧']}
       ],
-      calligraphy:[{char:'日',radical:'日',strokes:4},{char:'月',radical:'月',strokes:4},{char:'水',radical:'水',strokes:4},{char:'火',radical:'火',strokes:4},{char:'山',radical:'山',strokes:3},{char:'石',radical:'石',strokes:5}],
+      calligraphy:[{char:'日',radical:'日',strokes:4},{char:'月',radical:'月',strokes:4},{char:'水',radical:'水',strokes:4},{char:'火',radical:'火',strokes:4},{char:'山',radical:'山',strokes:3},{char:'石',radical:'石',strokes:5},{char:'田',radical:'田',strokes:5},{char:'禾',radical:'禾',strokes:5}],
       poetry:[
         {title:'静夜思',author:'李白',content:'床前明月光，疑是地上霜。举头望明月，低头思故乡。',pinyin:'chuáng qián míng yuè guāng,yí shì dì shàng shuāng。jǔ tóu wàng míng yuè,dī tóu sī gù xiāng。',analysis:'描写游子月夜思乡之情，"疑"字写出月光如霜的错觉。'},
         {title:'春晓',author:'孟浩然',content:'春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。',pinyin:'chūn mián bù jué xiǎo,chù chù wén tí niǎo。yè lái fēng yǔ shēng,huā luò zhī duō shǎo。',analysis:'描写春日清晨景象，含蓄表达惜春之情。'},
-        {title:'池上',author:'白居易',content:'小娃撑小艇，偷采白莲回。不解藏踪迹，浮萍一道开。',pinyin:'xiǎo wá chēng xiǎo tǐng,tōu cǎi bái lián huí。bù jiě cáng zōng jì,fú píng yī dào kāi。',analysis:'写儿童偷采莲蓬的趣事，天真可爱。'}
+        {title:'池上',author:'白居易',content:'小娃撑小艇，偷采白莲回。不解藏踪迹，浮萍一道开。',pinyin:'xiǎo wá chēng xiǎo tǐng,tōu cǎi bái lián huí。bù jiě cáng zōng jì,fú píng yī dào kāi。',analysis:'写儿童偷采莲蓬的趣事，天真可爱。'},
+        {title:'寻隐者不遇',author:'贾岛',content:'松下问童子，言师采药去。只在此山中，云深不知处。',pinyin:'sōng xià wèn tóng zǐ,yán shī cǎi yào qù。zhǐ zài cǐ shān zhōng,yún shēn bù zhī chù。',analysis:'一问一答，写出隐者高逸，云深不知处意境悠远。'},
+        {title:'画鸡',author:'唐寅',content:'头上红冠不用裁，满身雪白走将来。平生不敢轻言语，一叫千门万户开。',pinyin:'tóu shàng hóng guān bù yòng cái,mǎn shēn xuě bái zǒu jiāng lái。píng shēng bù gǎn qīng yán yǔ,yī jiào qiān mén wàn hù kāi。',analysis:'写公鸡威武神气，"一叫千门万户开"气势非凡。'}
       ],
-      reading:[{book:'小猪唏哩呼噜',author:'孙幼军'},{book:'一年级大个子二年级小个子',author:'古田足日'}]
+      reading:[{book:'小猪唏哩呼噜',author:'孙幼军'},{book:'一年级大个子二年级小个子',author:'古田足日'},{book:'蚯蚓的日记',author:'朵琳·克罗宁'},{book:'落叶跳舞',author:'伊东宽'}]
     },
     grade2:{
       pinyin:[
@@ -429,13 +471,15 @@ const Bank = {
         {q:'uai',a:'歪',opts:['歪','蛙','窝','威']},
         {q:'ue',a:'约',opts:['约','蛙','窝','歪']}
       ],
-      calligraphy:[{char:'树',radical:'木',strokes:9},{char:'林',radical:'木',strokes:8},{char:'森',radical:'木',strokes:12},{char:'说',radical:'言',strokes:9},{char:'话',radical:'言',strokes:8},{char:'读',radical:'言',strokes:10}],
+      calligraphy:[{char:'树',radical:'木',strokes:9},{char:'林',radical:'木',strokes:8},{char:'森',radical:'木',strokes:12},{char:'说',radical:'言',strokes:9},{char:'话',radical:'言',strokes:8},{char:'读',radical:'言',strokes:10},{char:'听',radical:'口',strokes:7},{char:'写',radical:'冖',strokes:5}],
       poetry:[
         {title:'登鹳雀楼',author:'王之涣',content:'白日依山尽，黄河入海流。欲穷千里目，更上一层楼。',pinyin:'bái rì yī shān jìn,huáng hé rù hǎi liú。yù qióng qiān lǐ mù,gèng shàng yī céng lóu。',analysis:'前两句写景，后两句寓理，启示人要不断进取。'},
         {title:'望庐山瀑布',author:'李白',content:'日照香炉生紫烟，遥看瀑布挂前川。飞流直下三千尺，疑是银河落九天。',pinyin:'rì zhào xiāng lú shēng zǐ yān,yáo kàn pù bù guà qián chuān。fēi liú zhí xià sān qiān chǐ,yí shì yín hé luò jiǔ tiān。',analysis:'用夸张比喻写瀑布壮观，"飞流直下"气势磅礴。'},
-        {title:'草',author:'白居易',content:'离离原上草，一岁一枯荣。野火烧不尽，春风吹又生。',pinyin:'lí lí yuán shàng cǎo,yī suì yī kū róng。yě huǒ shāo bù jìn,chūn fēng chuī yòu shēng。',analysis:'赞颂野草顽强生命力，"烧不尽""吹又生"对仗精妙。'}
+        {title:'草',author:'白居易',content:'离离原上草，一岁一枯荣。野火烧不尽，春风吹又生。',pinyin:'lí lí yuán shàng cǎo,yī suì yī kū róng。yě huǒ shāo bù jìn,chūn fēng chuī yòu shēng。',analysis:'赞颂野草顽强生命力，"烧不尽""吹又生"对仗精妙。'},
+        {title:'绝句',author:'杜甫',content:'两个黄鹂鸣翠柳，一行白鹭上青天。窗含西岭千秋雪，门泊东吴万里船。',pinyin:'liǎng gè huáng lí míng cuì liǔ,yī xíng bái lù shàng qīng tiān。chuāng hán xī lǐng qiān qiū xuě,mén bó dōng wú wàn lǐ chuán。',analysis:'四句四景，色彩鲜明，对仗工整，意境开阔。'},
+        {title:'悯农',author:'李绅',content:'春种一粒粟，秋收万颗子。四海无闲田，农夫犹饿死。',pinyin:'chūn zhòng yī lì sù,qiū shōu wàn kē zǐ。sì hǎi wú xián tián,nóng fū yóu è sǐ。',analysis:'揭露社会不公，对农民寄予深切同情。'}
       ],
-      reading:[{book:'神笔马良',author:'洪汛涛'},{book:'大头儿子小头爸爸',author:'郑春华'}]
+      reading:[{book:'神笔马良',author:'洪汛涛'},{book:'大头儿子小头爸爸',author:'郑春华'},{book:'了不起的狐狸爸爸',author:'罗尔德·达尔'},{book:'没头脑和不高兴',author:'任溶溶'}]
     },
     grade3:{
       pinyin:[
@@ -448,51 +492,59 @@ const Bank = {
         {q:'üan',a:'冤',opts:['冤','弯','温','汪']},
         {q:'üe',a:'约',opts:['约','冤','弯','温']}
       ],
-      calligraphy:[{char:'春',radical:'日',strokes:9},{char:'夏',radical:'夂',strokes:10},{char:'秋',radical:'禾',strokes:9},{char:'冬',radical:'夂',strokes:5},{char:'海',radical:'水',strokes:10},{char:'蓝',radical:'艹',strokes:13}],
+      calligraphy:[{char:'春',radical:'日',strokes:9},{char:'夏',radical:'夂',strokes:10},{char:'秋',radical:'禾',strokes:9},{char:'冬',radical:'夂',strokes:5},{char:'海',radical:'水',strokes:10},{char:'蓝',radical:'艹',strokes:13},{char:'绿',radical:'纟',strokes:11},{char:'红',radical:'纟',strokes:6}],
       poetry:[
         {title:'山行',author:'杜牧',content:'远上寒山石径斜，白云生处有人家。停车坐爱枫林晚，霜叶红于二月花。',pinyin:'yuǎn shàng hán shān shí jìng xié,bái yún shēng chù yǒu rén jiā。tíng chē zuò ài fēng lín wǎn,shuāng yè hóng yú èr yuè huā。',analysis:'写秋山美景，"霜叶红于二月花"是千古名句。'},
         {title:'望天门山',author:'李白',content:'天门中断楚江开，碧水东流至此回。两岸青山相对出，孤帆一片日边来。',pinyin:'tiān mén zhōng duàn chǔ jiāng kāi,bì shuǐ dōng liú zhì cǐ huí。liǎng àn qīng shān xiāng duì chū,gū fān yī piàn rì biān lái。',analysis:'描绘长江流经天门山的壮阔景象。'},
-        {title:'饮湖上初晴后雨',author:'苏轼',content:'水光潋滟晴方好，山色空蒙雨亦奇。欲把西湖比西子，淡妆浓抹总相宜。',pinyin:'shuǐ guāng liàn yàn qíng fāng hǎo,shān sè kōng méng yǔ yì qí。yù bǎ xī hú bǐ xī zǐ,dàn zhuāng nóng mǒ zǒng xiāng yí。',analysis:'以美人喻西湖，晴雨皆美，比喻新颖。'}
+        {title:'饮湖上初晴后雨',author:'苏轼',content:'水光潋滟晴方好，山色空蒙雨亦奇。欲把西湖比西子，淡妆浓抹总相宜。',pinyin:'shuǐ guāng liàn yàn qíng fāng hǎo,shān sè kōng méng yǔ yì qí。yù bǎ xī hú bǐ xī zǐ,dàn zhuāng nóng mǒ zǒng xiāng yí。',analysis:'以美人喻西湖，晴雨皆美，比喻新颖。'},
+        {title:'元日',author:'王安石',content:'爆竹声中一岁除，春风送暖入屠苏。千门万户曈曈日，总把新桃换旧符。',pinyin:'bào zhú shēng zhōng yī suì chú,chūn fēng sòng nuǎn rù tú sū。qiān mén wàn hù tóng tóng rì,zǒng bǎ xīn táo huàn jiù fú。',analysis:'写春节热闹景象，"新桃换旧符"寓意辞旧迎新。'},
+        {title:'清明',author:'杜牧',content:'清明时节雨纷纷，路上行人欲断魂。借问酒家何处有？牧童遥指杏花村。',pinyin:'qīng míng shí jié yǔ fēn fēn,lù shàng xíng rén yù duàn hún。jiè wèn jiǔ jiā hé chù yǒu？mù tóng yáo zhǐ xìng huā cūn。',analysis:'写清明雨景与行人愁思，"遥指杏花村"余味无穷。'}
       ],
-      reading:[{book:'稻草人',author:'叶圣陶'},{book:'格林童话',author:'格林兄弟'}]
+      reading:[{book:'稻草人',author:'叶圣陶'},{book:'格林童话',author:'格林兄弟'},{book:'安徒生童话',author:'安徒生'},{book:'伊索寓言',author:'伊索'}]
     },
     grade4:{
-      calligraphy:[{char:'潮',radical:'水',strokes:15},{char:'塔',radical:'土',strokes:12},{char:'敬',radical:'攵',strokes:12},{char:'额',radical:'页',strokes:15},{char:'雀',radical:'隹',strokes:11},{char:'幕',radical:'巾',strokes:13}],
+      calligraphy:[{char:'潮',radical:'水',strokes:15},{char:'塔',radical:'土',strokes:12},{char:'敬',radical:'攵',strokes:12},{char:'额',radical:'页',strokes:15},{char:'雀',radical:'隹',strokes:11},{char:'幕',radical:'巾',strokes:13},{char:'境',radical:'土',strokes:14},{char:'镜',radical:'金',strokes:16}],
       poetry:[
         {title:'题西林壁',author:'苏轼',content:'横看成岭侧成峰，远近高低各不同。不识庐山真面目，只缘身在此山中。',pinyin:'héng kàn chéng lǐng cè chéng fēng,yuǎn jìn gāo dī gè bù tóng。bù shí lú shān zhēn miàn mù,zhǐ yuán shēn zài cǐ shān zhōng。',analysis:'写景寓理，"当局者迷"的哲理。'},
         {title:'望洞庭',author:'刘禹锡',content:'湖光秋月两相和，潭面无风镜未磨。遥望洞庭山水翠，白银盘里一青螺。',pinyin:'hú guāng qiū yuè liǎng xiāng hé,tán miàn wú fēng jìng wèi mó。yáo wàng dòng tíng shān shuǐ cuì,bái yín pán lǐ yī qīng luó。',analysis:'以白银盘青螺喻洞庭山水，比喻奇巧。'},
-        {title:'忆江南',author:'白居易',content:'江南好，风景旧曾谙。日出江花红胜火，春来江水绿如蓝。能不忆江南？',pinyin:'jiāng nán hǎo,fēng jǐng jiù céng ān。rì chū jiāng huā hóng shèng huǒ,chūn lái jiāng shuǐ lǜ rú lán。néng bù yì jiāng nán？',analysis:'追忆江南春色，色彩鲜明。'}
+        {title:'忆江南',author:'白居易',content:'江南好，风景旧曾谙。日出江花红胜火，春来江水绿如蓝。能不忆江南？',pinyin:'jiāng nán hǎo,fēng jǐng jiù céng ān。rì chū jiāng huā hóng shèng huǒ,chūn lái jiāng shuǐ lǜ rú lán。néng bù yì jiāng nán？',analysis:'追忆江南春色，色彩鲜明。'},
+        {title:'浪淘沙',author:'刘禹锡',content:'九曲黄河万里沙，浪淘风簸自天涯。如今直上银河去，同到牵牛织女家。',pinyin:'jiǔ qū huáng hé wàn lǐ shā,làng táo fēng bǒ zì tiān yá。rú jīn zhí shàng yín hé qù,tóng dào qiān niú zhī nǚ jiā。',analysis:'写黄河雄浑气势，想象奔放，直上银河浪漫瑰丽。'},
+        {title:'江雪',author:'柳宗元',content:'千山鸟飞绝，万径人踪灭。孤舟蓑笠翁，独钓寒江雪。',pinyin:'qiān shān niǎo fēi jué,wàn jìng rén zōng miè。gū zhōu suō lì wēng,dú diào hán jiāng xuě。',analysis:'写雪中孤舟独钓，"绝""灭"二字写出天地寂寥，意境孤高。'}
       ],
-      reading:[{book:'西游记（少儿版）',author:'吴承恩'},{book:'爱的教育',author:'亚米契斯'}]
+      reading:[{book:'西游记（少儿版）',author:'吴承恩'},{book:'爱的教育',author:'亚米契斯'},{book:'昆虫记（少儿版）',author:'法布尔'},{book:'中国神话故事',author:'聂作平'}]
     },
     grade5:{
-      calligraphy:[{char:'鹰',radical:'鸟',strokes:18},{char:'瀑',radical:'水',strokes:18},{char:'徽',radical:'彳',strokes:17},{char:'襄',radical:'衣',strokes:17},{char:'彝',radical:'彐',strokes:18},{char:'爵',radical:'爪',strokes:17}],
+      calligraphy:[{char:'鹰',radical:'鸟',strokes:18},{char:'瀑',radical:'水',strokes:18},{char:'徽',radical:'彳',strokes:17},{char:'襄',radical:'衣',strokes:17},{char:'彝',radical:'彐',strokes:18},{char:'爵',radical:'爪',strokes:17},{char:'魂',radical:'鬼',strokes:14},{char:'峻',radical:'山',strokes:10}],
       poetry:[
         {title:'枫桥夜泊',author:'张继',content:'月落乌啼霜满天，江枫渔火对愁眠。姑苏城外寒山寺，夜半钟声到客船。',pinyin:'yuè luò wū tí shuāng mǎn tiān,jiāng fēng yú huǒ duì chóu mián。gū sū chéng wài hán shān sì,yè bàn zhōng shēng dào kè chuán。',analysis:'写夜泊愁思，钟声烘托孤寂。'},
         {title:'渔歌子',author:'张志和',content:'西塞山前白鹭飞，桃花流水鳜鱼肥。青箬笠，绿蓑衣，斜风细雨不须归。',pinyin:'xī sài shān qián bái lù fēi,táo huā liú shuǐ guì yú féi。qīng ruò lì,lǜ suō yī,xié fēng xì yǔ bù xū guī。',analysis:'写江南水乡渔父生活，意境优美。'},
-        {title:'泊船瓜洲',author:'王安石',content:'京口瓜洲一水间，钟山只隔数重山。春风又绿江南岸，明月何时照我还。',pinyin:'jīng kǒu guā zhōu yī shuǐ jiān,zhōng shān zhǐ gé shù chóng shān。chūn fēng yòu lǜ jiāng nán àn,míng yuè hé shí zhào wǒ huán。',analysis:'"绿"字传神，写思乡之情。'}
+        {title:'泊船瓜洲',author:'王安石',content:'京口瓜洲一水间，钟山只隔数重山。春风又绿江南岸，明月何时照我还。',pinyin:'jīng kǒu guā zhōu yī shuǐ jiān,zhōng shān zhǐ gé shù chóng shān。chūn fēng yòu lǜ jiāng nán àn,míng yuè hé shí zhào wǒ huán。',analysis:'"绿"字传神，写思乡之情。'},
+        {title:'秋思',author:'张籍',content:'洛阳城里见秋风，欲作家书意万重。复恐匆匆说不尽，行人临发又开封。',pinyin:'luò yáng chéng lǐ jiàn qiū fēng,yù zuò jiā shū yì wàn chóng。fù kǒng cōng cōng shuō bù jìn,xíng rén lín fā yòu kāi fēng。',analysis:'写思乡写信之细，"又开封"写出万千牵挂。'},
+        {title:'长相思',author:'纳兰性德',content:'山一程，水一程，身向榆关那畔行，夜深千帐灯。风一更，雪一更，聒碎乡心梦不成，故园无此声。',pinyin:'shān yī chéng,shuǐ yī chéng,shēn xiàng yú guān nà pàn xíng,yè shēn qiān zhàng dēng。fēng yī gēng,xuě yī gēng,guō suì xiāng xīn mèng bù chéng,gù yuán wú cǐ shēng。',analysis:'写行军途中思乡之苦，"故园无此声"催人泪下。'}
       ],
-      reading:[{book:'草房子',author:'曹文轩'},{book:'窗边的小豆豆',author:'黑柳彻子'}]
+      reading:[{book:'草房子',author:'曹文轩'},{book:'窗边的小豆豆',author:'黑柳彻子'},{book:'夏洛的网',author:'E·B·怀特'},{book:'城南旧事',author:'林海音'}]
     },
     grade6:{
-      calligraphy:[{char:'鼎',radical:'鼎',strokes:12},{char:'瀚',radical:'水',strokes:19},{char:'曦',radical:'日',strokes:20},{char:'璨',radical:'玉',strokes:18},{char:'巍',radical:'山',strokes:20},{char:'裹',radical:'衣',strokes:14}],
+      calligraphy:[{char:'鼎',radical:'鼎',strokes:12},{char:'瀚',radical:'水',strokes:19},{char:'曦',radical:'日',strokes:20},{char:'璨',radical:'玉',strokes:18},{char:'巍',radical:'山',strokes:20},{char:'裹',radical:'衣',strokes:14},{char:'哲',radical:'口',strokes:10},{char:'誉',radical:'言',strokes:13}],
       poetry:[
         {title:'春夜喜雨',author:'杜甫',content:'好雨知时节，当春乃发生。随风潜入夜，润物细无声。野径云俱黑，江船火独明。晓看红湿处，花重锦官城。',pinyin:'hǎo yǔ zhī shí jié,dāng chūn nǎi fā shēng。suí fēng qián rù yè,rùn wù xì wú shēng。yě jìng yún jù hēi,jiāng chuán huǒ dú míng。xiǎo kàn hóng shī chù,huā zhòng jǐn guān chéng。',analysis:'写春雨润物，体物入微。'},
         {title:'水调歌头',author:'苏轼',content:'明月几时有？把酒问青天。不知天上宫阙，今夕是何年。但愿人长久，千里共婵娟。',pinyin:'míng yuè jǐ shí yǒu？bǎ jiǔ wèn qīng tiān。bù zhī tiān shàng gōng què,jīn xī shì hé nián。dàn yuàn rén cháng jiǔ,qiān lǐ gòng chán juān。',analysis:'中秋怀人名作，"千里共婵娟"传诵千古。'},
-        {title:'示儿',author:'陆游',content:'死去元知万事空，但悲不见九州同。王师北定中原日，家祭无忘告乃翁。',pinyin:'sǐ qù yuán zhī wàn shì kōng,dàn bēi bù jiàn jiǔ zhōu tóng。wáng shī běi dìng zhōng yuán rì,jiā jì wú wàng gào nǎi wēng。',analysis:'临终遗嘱，爱国之情深沉。'}
+        {title:'示儿',author:'陆游',content:'死去元知万事空，但悲不见九州同。王师北定中原日，家祭无忘告乃翁。',pinyin:'sǐ qù yuán zhī wàn shì kōng,dàn bēi bù jiàn jiǔ zhōu tóng。wáng shī běi dìng zhōng yuán rì,jiā jì wú wàng gào nǎi wēng。',analysis:'临终遗嘱，爱国之情深沉。'},
+        {title:'卜算子·送鲍浩然之浙东',author:'王观',content:'水是眼波横，山是眉峰聚。欲问行人去那边？眉眼盈盈处。才始送春归，又送君归去。若到江南赶上春，千万和春住。',pinyin:'shuǐ shì yǎn bō héng,shān shì méi fēng jù。yù wèn xíng rén qù nà biān？méi yǎn yíng yíng chù。cái shǐ sòng chūn guī,yòu sòng jūn guī qù。ruò dào jiāng nán gǎn shàng chūn,qiān wàn hé chūn zhù。',analysis:'以眉眼喻山水，构思巧妙，送别中含惜春之情。'},
+        {title:'己亥杂诗',author:'龚自珍',content:'九州生气恃风雷，万马齐喑究可哀。我劝天公重抖擞，不拘一格降人才。',pinyin:'jiǔ zhōu shēng qì shì fēng léi,wàn mǎ qí yīn jiū kě āi。wǒ quàn tiān gōng chóng dǒu sǒu,bù jū yī gé jiàng rén cái。',analysis:'期盼社会变革，"不拘一格降人才"振聋发聩。'}
       ],
-      reading:[{book:'鲁滨逊漂流记',author:'笛福'},{book:'三国演义（少儿版）',author:'罗贯中'}]
+      reading:[{book:'鲁滨逊漂流记',author:'笛福'},{book:'三国演义（少儿版）',author:'罗贯中'},{book:'汤姆·索亚历险记',author:'马克·吐温'},{book:'小王子',author:'圣埃克苏佩里'}]
     }
   },
   // 英语
   english:{
-    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə'},{en:'cat',cn:'猫',phonetic:'kæt'},{en:'dog',cn:'狗',phonetic:'dɒɡ'},{en:'egg',cn:'蛋',phonetic:'eɡ'},{en:'fish',cn:'鱼',phonetic:'fɪʃ'},{en:'milk',cn:'牛奶',phonetic:'mɪlk'},{en:'sun',cn:'太阳',phonetic:'sʌn'}],sentences:[{en:'Hello!',cn:'你好！'},{en:'Good morning.',cn:'早上好。'},{en:'Thank you.',cn:'谢谢。'},{en:'Goodbye.',cn:'再见。'}]},
-    grade1:{words:[{en:'book',cn:'书',phonetic:'bʊk'},{en:'pen',cn:'笔',phonetic:'pen'},{en:'school',cn:'学校',phonetic:'skuːl'},{en:'teacher',cn:'老师',phonetic:'ˈtiːtʃə'},{en:'student',cn:'学生',phonetic:'ˈstjuːdənt'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'green',cn:'绿色',phonetic:'ɡriːn'}],sentences:[{en:'I am a student.',cn:'我是一名学生。'},{en:'What is your name?',cn:'你叫什么名字？'},{en:'Nice to meet you.',cn:'很高兴认识你。'},{en:'Stand up, please.',cn:'请起立。'}]},
-    grade2:{words:[{en:'family',cn:'家庭',phonetic:'ˈfæməli'},{en:'father',cn:'爸爸',phonetic:'ˈfɑːðə'},{en:'mother',cn:'妈妈',phonetic:'ˈmʌðə'},{en:'brother',cn:'兄弟',phonetic:'ˈbrʌðə'},{en:'sister',cn:'姐妹',phonetic:'ˈsɪstə'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'home',cn:'家',phonetic:'həʊm'},{en:'love',cn:'爱',phonetic:'lʌv'}],sentences:[{en:'This is my family.',cn:'这是我的家庭。'},{en:'I love my mom.',cn:'我爱我的妈妈。'},{en:'He is my brother.',cn:'他是我的兄弟。'},{en:'She is my friend.',cn:'她是我的朋友。'}]},
-    grade3:{words:[{en:'weather',cn:'天气',phonetic:'ˈweðə'},{en:'sunny',cn:'晴朗',phonetic:'ˈsʌni'},{en:'rainy',cn:'下雨',phonetic:'ˈreɪni'},{en:'windy',cn:'有风',phonetic:'ˈwɪndi'},{en:'cloudy',cn:'多云',phonetic:'ˈklaʊdi'},{en:'snowy',cn:'下雪',phonetic:'ˈsnəʊi'},{en:'hot',cn:'热',phonetic:'hɒt'},{en:'cold',cn:'冷',phonetic:'kəʊld'}],sentences:[{en:'How is the weather?',cn:'天气怎么样？'},{en:'It is sunny today.',cn:'今天是晴天。'},{en:'I like rainy days.',cn:'我喜欢雨天。'},{en:'It is very cold.',cn:'很冷。'}]},
-    grade4:{words:[{en:'subject',cn:'科目',phonetic:'ˈsʌbdʒɪkt'},{en:'math',cn:'数学',phonetic:'mæθ'},{en:'English',cn:'英语',phonetic:'ˈɪŋɡlɪʃ'},{en:'science',cn:'科学',phonetic:'ˈsaɪəns'},{en:'music',cn:'音乐',phonetic:'ˈmjuːzɪk'},{en:'art',cn:'美术',phonetic:'ɑːt'},{en:'history',cn:'历史',phonetic:'ˈhɪstri'},{en:'geography',cn:'地理',phonetic:'dʒiˈɒɡrəfi'}],sentences:[{en:'What is your favorite subject?',cn:'你最喜欢的科目是什么？'},{en:'I like English best.',cn:'我最喜欢英语。'},{en:'Math is interesting.',cn:'数学很有趣。'},{en:'We have music on Monday.',cn:'我们周一有音乐课。'}]},
-    grade5:{words:[{en:'holiday',cn:'假期',phonetic:'ˈhɒlədeɪ'},{en:'travel',cn:'旅行',phonetic:'ˈtrævl'},{en:'mountain',cn:'山',phonetic:'ˈmaʊntən'},{en:'river',cn:'河',phonetic:'ˈrɪvə'},{en:'forest',cn:'森林',phonetic:'ˈfɒrɪst'},{en:'beach',cn:'海滩',phonetic:'biːtʃ'},{en:'city',cn:'城市',phonetic:'ˈsɪti'},{en:'village',cn:'村庄',phonetic:'ˈvɪlɪdʒ'}],sentences:[{en:'Where did you go on holiday?',cn:'你假期去哪了？'},{en:'I went to Beijing.',cn:'我去了北京。'},{en:'The mountain is very high.',cn:'那座山很高。'},{en:'I love the beach.',cn:'我爱海滩。'}]},
-    grade6:{words:[{en:'environment',cn:'环境',phonetic:'ɪnˈvaɪrənmənt'},{en:'protect',cn:'保护',phonetic:'prəˈtekt'},{en:'future',cn:'未来',phonetic:'ˈfjuːtʃə'},{en:'dream',cn:'梦想',phonetic:'driːm'},{en:'success',cn:'成功',phonetic:'səkˈses'},{en:'challenge',cn:'挑战',phonetic:'ˈtʃælɪndʒ'},{en:'knowledge',cn:'知识',phonetic:'ˈnɒlɪdʒ'},{en:'experience',cn:'经验',phonetic:'ɪkˈspɪəriəns'}],sentences:[{en:'We should protect the environment.',cn:'我们应该保护环境。'},{en:'What is your dream?',cn:'你的梦想是什么？'},{en:'My dream is to be a doctor.',cn:'我的梦想是当医生。'},{en:'Knowledge is power.',cn:'知识就是力量。'}]}
+    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə'},{en:'cat',cn:'猫',phonetic:'kæt'},{en:'dog',cn:'狗',phonetic:'dɒɡ'},{en:'egg',cn:'蛋',phonetic:'eɡ'},{en:'fish',cn:'鱼',phonetic:'fɪʃ'},{en:'milk',cn:'牛奶',phonetic:'mɪlk'},{en:'sun',cn:'太阳',phonetic:'sʌn'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'bird',cn:'鸟',phonetic:'bɜːd'},{en:'cake',cn:'蛋糕',phonetic:'keɪk'}],sentences:[{en:'Hello!',cn:'你好！'},{en:'Good morning.',cn:'早上好。'},{en:'Thank you.',cn:'谢谢。'},{en:'Goodbye.',cn:'再见。'},{en:'I like apples.',cn:'我喜欢苹果。'},{en:'What is this?',cn:'这是什么？'}]},
+    grade1:{words:[{en:'book',cn:'书',phonetic:'bʊk'},{en:'pen',cn:'笔',phonetic:'pen'},{en:'school',cn:'学校',phonetic:'skuːl'},{en:'teacher',cn:'老师',phonetic:'ˈtiːtʃə'},{en:'student',cn:'学生',phonetic:'ˈstjuːdənt'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'green',cn:'绿色',phonetic:'ɡriːn'},{en:'yellow',cn:'黄色',phonetic:'ˈjeləʊ'},{en:'pencil',cn:'铅笔',phonetic:'ˈpensl'},{en:'ruler',cn:'尺子',phonetic:'ˈruːlə'},{en:'eraser',cn:'橡皮',phonetic:'ɪˈreɪzə'}],sentences:[{en:'I am a student.',cn:'我是一名学生。'},{en:'What is your name?',cn:'你叫什么名字？'},{en:'Nice to meet you.',cn:'很高兴认识你。'},{en:'Stand up, please.',cn:'请起立。'},{en:'Open your book.',cn:'打开你的书。'},{en:'My name is Li Ming.',cn:'我的名字是李明。'}]},
+    grade2:{words:[{en:'family',cn:'家庭',phonetic:'ˈfæməli'},{en:'father',cn:'爸爸',phonetic:'ˈfɑːðə'},{en:'mother',cn:'妈妈',phonetic:'ˈmʌðə'},{en:'brother',cn:'兄弟',phonetic:'ˈbrʌðə'},{en:'sister',cn:'姐妹',phonetic:'ˈsɪstə'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'home',cn:'家',phonetic:'həʊm'},{en:'love',cn:'爱',phonetic:'lʌv'},{en:'grandma',cn:'奶奶/姥姥',phonetic:'ˈɡrænmɑː'},{en:'grandpa',cn:'爷爷/姥爷',phonetic:'ˈɡrænpɑː'},{en:'uncle',cn:'叔叔',phonetic:'ˈʌŋkl'},{en:'aunt',cn:'阿姨',phonetic:'ɑːnt'}],sentences:[{en:'This is my family.',cn:'这是我的家庭。'},{en:'I love my mom.',cn:'我爱我的妈妈。'},{en:'He is my brother.',cn:'他是我的兄弟。'},{en:'She is my friend.',cn:'她是我的朋友。'},{en:'My father is tall.',cn:'我爸爸很高。'},{en:'Where is your home?',cn:'你家在哪里？'}]},
+    grade3:{words:[{en:'weather',cn:'天气',phonetic:'ˈweðə'},{en:'sunny',cn:'晴朗',phonetic:'ˈsʌni'},{en:'rainy',cn:'下雨',phonetic:'ˈreɪni'},{en:'windy',cn:'有风',phonetic:'ˈwɪndi'},{en:'cloudy',cn:'多云',phonetic:'ˈklaʊdi'},{en:'snowy',cn:'下雪',phonetic:'ˈsnəʊi'},{en:'hot',cn:'热',phonetic:'hɒt'},{en:'cold',cn:'冷',phonetic:'kəʊld'},{en:'food',cn:'食物',phonetic:'fuːd'},{en:'rice',cn:'米饭',phonetic:'raɪs'},{en:'water',cn:'水',phonetic:'ˈwɔːtə'},{en:'animal',cn:'动物',phonetic:'ˈænɪml'}],sentences:[{en:'How is the weather?',cn:'天气怎么样？'},{en:'It is sunny today.',cn:'今天是晴天。'},{en:'I like rainy days.',cn:'我喜欢雨天。'},{en:'It is very cold.',cn:'很冷。'},{en:'Do you like apples?',cn:'你喜欢苹果吗？'},{en:'What is your favorite animal?',cn:'你最喜欢的动物是什么？'}]},
+    grade4:{words:[{en:'subject',cn:'科目',phonetic:'ˈsʌbdʒɪkt'},{en:'math',cn:'数学',phonetic:'mæθ'},{en:'English',cn:'英语',phonetic:'ˈɪŋɡlɪʃ'},{en:'science',cn:'科学',phonetic:'ˈsaɪəns'},{en:'music',cn:'音乐',phonetic:'ˈmjuːzɪk'},{en:'art',cn:'美术',phonetic:'ɑːt'},{en:'history',cn:'历史',phonetic:'ˈhɪstri'},{en:'geography',cn:'地理',phonetic:'dʒiˈɒɡrəfi'},{en:'morning',cn:'早上',phonetic:'ˈmɔːnɪŋ'},{en:'afternoon',cn:'下午',phonetic:'ˌɑːftəˈnuːn'},{en:'evening',cn:'晚上',phonetic:'ˈiːvnɪŋ'},{en:'dinner',cn:'晚餐',phonetic:'ˈdɪnə'}],sentences:[{en:'What is your favorite subject?',cn:'你最喜欢的科目是什么？'},{en:'I like English best.',cn:'我最喜欢英语。'},{en:'Math is interesting.',cn:'数学很有趣。'},{en:'We have music on Monday.',cn:'我们周一有音乐课。'},{en:'What time is it?',cn:'几点了？'},{en:'It is seven o\'clock.',cn:'现在是七点钟。'}]},
+    grade5:{words:[{en:'holiday',cn:'假期',phonetic:'ˈhɒlədeɪ'},{en:'travel',cn:'旅行',phonetic:'ˈtrævl'},{en:'mountain',cn:'山',phonetic:'ˈmaʊntən'},{en:'river',cn:'河',phonetic:'ˈrɪvə'},{en:'forest',cn:'森林',phonetic:'ˈfɒrɪst'},{en:'beach',cn:'海滩',phonetic:'biːtʃ'},{en:'city',cn:'城市',phonetic:'ˈsɪti'},{en:'village',cn:'村庄',phonetic:'ˈvɪlɪdʒ'},{en:'north',cn:'北方',phonetic:'nɔːθ'},{en:'south',cn:'南方',phonetic:'saʊθ'},{en:'east',cn:'东方',phonetic:'iːst'},{en:'west',cn:'西方',phonetic:'west'}],sentences:[{en:'Where did you go on holiday?',cn:'你假期去哪了？'},{en:'I went to Beijing.',cn:'我去了北京。'},{en:'The mountain is very high.',cn:'那座山很高。'},{en:'I love the beach.',cn:'我爱海滩。'},{en:'There is a river near my home.',cn:'我家附近有一条河。'},{en:'I live in a small village.',cn:'我住在一个小村庄。'}]},
+    grade6:{words:[{en:'environment',cn:'环境',phonetic:'ɪnˈvaɪrənmənt'},{en:'protect',cn:'保护',phonetic:'prəˈtekt'},{en:'future',cn:'未来',phonetic:'ˈfjuːtʃə'},{en:'dream',cn:'梦想',phonetic:'driːm'},{en:'success',cn:'成功',phonetic:'səkˈses'},{en:'challenge',cn:'挑战',phonetic:'ˈtʃælɪndʒ'},{en:'knowledge',cn:'知识',phonetic:'ˈnɒlɪdʒ'},{en:'experience',cn:'经验',phonetic:'ɪkˈspɪəriəns'},{en:'earth',cn:'地球',phonetic:'ɜːθ'},{en:'energy',cn:'能源',phonetic:'ˈenədʒi'},{en:'recycle',cn:'回收利用',phonetic:'ˌriːˈsaɪkl'},{en:'volunteer',cn:'志愿者',phonetic:'ˌvɒlənˈtɪə'}],sentences:[{en:'We should protect the environment.',cn:'我们应该保护环境。'},{en:'What is your dream?',cn:'你的梦想是什么？'},{en:'My dream is to be a doctor.',cn:'我的梦想是当医生。'},{en:'Knowledge is power.',cn:'知识就是力量。'},{en:'I want to travel around the world.',cn:'我想环游世界。'},{en:'Planting trees is good for the earth.',cn:'植树对地球有好处。'}]}
   },
   // 体育：广西中考体育标准
   sports:{
@@ -571,6 +623,62 @@ const Bank = {
       {char:'鱼',pinyin:'yú',word:'小鱼',sentence:'小鱼游啊游。'},
       {char:'虫',pinyin:'chóng',word:'昆虫',sentence:'昆虫真有趣。'},
       {char:'马',pinyin:'mǎ',word:'小马',sentence:'小马跑得快。'}
+    ],
+    grade3:[
+      {char:'春',pinyin:'chūn',word:'春天',sentence:'春天来了，花儿开了。'},
+      {char:'夏',pinyin:'xià',word:'夏天',sentence:'夏天的太阳很热。'},
+      {char:'秋',pinyin:'qiū',word:'秋天',sentence:'秋天树叶黄了。'},
+      {char:'冬',pinyin:'dōng',word:'冬天',sentence:'冬天下雪了。'},
+      {char:'海',pinyin:'hǎi',word:'大海',sentence:'大海很蓝很宽。'},
+      {char:'蓝',pinyin:'lán',word:'蓝色',sentence:'天空是蓝色的。'},
+      {char:'绿',pinyin:'lǜ',word:'绿色',sentence:'小草是绿色的。'},
+      {char:'红',pinyin:'hóng',word:'红色',sentence:'红旗是红色的。'},
+      {char:'黄',pinyin:'huáng',word:'黄色',sentence:'香蕉是黄色的。'},
+      {char:'紫',pinyin:'zǐ',word:'紫色',sentence:'葡萄是紫色的。'},
+      {char:'晨',pinyin:'chén',word:'早晨',sentence:'早晨空气真好。'},
+      {char:'晚',pinyin:'wǎn',word:'晚上',sentence:'晚上星星亮了。'}
+    ],
+    grade4:[
+      {char:'潮',pinyin:'cháo',word:'潮水',sentence:'潮水涨起来了。'},
+      {char:'塔',pinyin:'tǎ',word:'宝塔',sentence:'宝塔很高很高。'},
+      {char:'敬',pinyin:'jìng',word:'尊敬',sentence:'我们要尊敬老师。'},
+      {char:'额',pinyin:'é',word:'额头',sentence:'他用手摸了摸额头。'},
+      {char:'雀',pinyin:'què',word:'麻雀',sentence:'麻雀在树上跳来跳去。'},
+      {char:'幕',pinyin:'mù',word:'夜幕',sentence:'夜幕降临了。'},
+      {char:'境',pinyin:'jìng',word:'环境',sentence:'我们要保护环境。'},
+      {char:'镜',pinyin:'jìng',word:'镜子',sentence:'镜子里有我的脸。'},
+      {char:'稳',pinyin:'wěn',word:'稳定',sentence:'桌子放得很稳。'},
+      {char:'隐',pinyin:'yǐn',word:'隐藏',sentence:'小兔隐藏在草丛里。'},
+      {char:'筑',pinyin:'zhù',word:'建筑',sentence:'工人在建筑高楼。'},
+      {char:'繁',pinyin:'fán',word:'繁华',sentence:'这是一条繁华的街道。'}
+    ],
+    grade5:[
+      {char:'鹰',pinyin:'yīng',word:'老鹰',sentence:'老鹰在天空盘旋。'},
+      {char:'瀑',pinyin:'pù',word:'瀑布',sentence:'瀑布从山上飞泻而下。'},
+      {char:'徽',pinyin:'huī',word:'国徽',sentence:'国徽庄严而神圣。'},
+      {char:'襄',pinyin:'xiāng',word:'襄阳',sentence:'襄阳是一座古城。'},
+      {char:'彝',pinyin:'yí',word:'彝族',sentence:'彝族人民能歌善舞。'},
+      {char:'爵',pinyin:'jué',word:'爵位',sentence:'古代的爵位世代相传。'},
+      {char:'魂',pinyin:'hún',word:'灵魂',sentence:'民族魂是宝贵的精神。'},
+      {char:'魄',pinyin:'pò',word:'气魄',sentence:'这座山很有气魄。'},
+      {char:'峻',pinyin:'jùn',word:'险峻',sentence:'山势非常险峻。'},
+      {char:'峡',pinyin:'xiá',word:'峡谷',sentence:'峡谷又深又长。'},
+      {char:'推',pinyin:'tuī',word:'推动',sentence:'科技进步推动了社会。'},
+      {char:'拆',pinyin:'chāi',word:'拆除',sentence:'工人拆除了旧围墙。'}
+    ],
+    grade6:[
+      {char:'鼎',pinyin:'dǐng',word:'钟鼎',sentence:'钟鼎是古代的器具。'},
+      {char:'瀚',pinyin:'hàn',word:'浩瀚',sentence:'浩瀚的大海无边无际。'},
+      {char:'曦',pinyin:'xī',word:'晨曦',sentence:'晨曦照亮了大地。'},
+      {char:'璨',pinyin:'càn',word:'璀璨',sentence:'夜空中星光璀璨。'},
+      {char:'巍',pinyin:'wēi',word:'巍峨',sentence:'巍峨的高山耸入云天。'},
+      {char:'裹',pinyin:'guǒ',word:'包裹',sentence:'妈妈包裹好礼物。'},
+      {char:'哲',pinyin:'zhé',word:'哲学',sentence:'哲学是一门智慧的学问。'},
+      {char:'誉',pinyin:'yù',word:'荣誉',sentence:'他获得了很高的荣誉。'},
+      {char:'殉',pinyin:'xùn',word:'殉职',sentence:'英雄为事业殉职。'},
+      {char:'葬',pinyin:'zàng',word:'埋葬',sentence:'人们埋葬了烈士。'},
+      {char:'协',pinyin:'xié',word:'协作',sentence:'同学们协作完成了任务。'},
+      {char:'奏',pinyin:'zòu',word:'演奏',sentence:'乐队演奏了动人的乐曲。'}
     ]
   }
 };
@@ -1259,7 +1367,10 @@ const UI = {
   },
   // 答题系统
   curQuiz:null,
+  _quizOriginView:null,
   startQuiz(taskId){
+    // 记录测试来源视图，退出时返回该页面
+    this._quizOriginView=State.view;
     const c=curChild();const grade=c.grade;
     let questions=[];
     let title='';
@@ -1379,7 +1490,8 @@ const UI = {
   selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
   exitQuiz(){
     confirmModal('确定要退出测试吗？已答内容将不会保存。',()=>{
-      this.curQuiz=null;closeModal();toast('已退出测试');UI.render();
+      this.curQuiz=null;closeModal();toast('已退出测试');
+      this.backToQuizOrigin();
     });
   },
   prevQuiz(){if(this.curQuiz.idx>0){this.curQuiz.idx--;this.renderQuiz();}},
@@ -1411,7 +1523,14 @@ const UI = {
     completeTask(q.taskId,reward,q.title+(perfect?'（满分）':''),perfect,perfect?bonus:0);
     closeModal();
     this.curQuiz=null;
-    showModal('测试结果',`<div style="text-align:center;padding:20px;"><div style="font-size:50px;">${perfect?'🎉':'💪'}</div><div style="font-size:20px;font-weight:700;margin:10px 0;">${correct} / ${total}</div><p style="color:var(--text-soft);white-space:pre-line;">${msg}</p><p style="margin-top:10px;color:var(--primary-d);font-weight:700;">获得 ${reward+bonus} 阳光 ☀️</p></div>`,`<button class="btn sm" onclick="closeModal();UI.render();">好的</button>`);
+    const originView=this._quizOriginView||'dashboard';
+    showModal('测试结果',`<div style="text-align:center;padding:20px;"><div style="font-size:50px;">${perfect?'🎉':'💪'}</div><div style="font-size:20px;font-weight:700;margin:10px 0;">${correct} / ${total}</div><p style="color:var(--text-soft);white-space:pre-line;">${msg}</p><p style="margin-top:10px;color:var(--primary-d);font-weight:700;">获得 ${reward+bonus} 阳光 ☀️</p></div>`,`<button class="btn sm" onclick="UI.backToQuizOrigin()">好的</button>`);
+  },
+  backToQuizOrigin(){
+    closeModal();
+    if(this._quizOriginView){State.view=this._quizOriginView;}
+    this._quizOriginView=null;
+    UI.render();
   },
   showCallig(){
     const c=curChild();const chars=Bank.chinese[c.grade]?.calligraphy||[{char:'永',radical:'水',strokes:5}];
