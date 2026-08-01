@@ -1095,8 +1095,13 @@ function todayTaskList(c){
   Bank.chores.forEach(ch=>list.push({id:ch.id,cat:'家务',name:ch.name,icon:ch.icon,reward:10,review:true}));
   // 作息德育
   Bank.deeds().forEach(d=>list.push({id:d.id,cat:'德育',name:d.name,icon:d.icon,reward:5,review:true}));
-  // 家长自定义作业任务
-  (Store.data.customTasks||[]).forEach(t=>list.push({id:t.id,cat:t.cat||'自定义',name:t.name,icon:t.icon||'📝',reward:t.reward,review:!!t.review,custom:true}));
+  // 家长自定义作业任务（按归属过滤：共有任务或当前孩子的专属任务）
+  (Store.data.customTasks||[]).forEach(t=>{
+    // scope='all' 或未设置 → 所有孩子可见
+    // scope='child' → 只在 t.childId === 当前孩子ID 时可见
+    if(t.scope==='child'&&t.childId&&t.childId!==d_settings().currentChildId)return;
+    list.push({id:t.id,cat:t.cat||'自定义',name:t.name,icon:t.icon||'📝',reward:t.reward,review:!!t.review,custom:true});
+  });
   return list;
 }
 function dailyReset(){
@@ -1365,7 +1370,7 @@ const UI = {
     $('#topProgress').textContent=rate+'%';
     const plantCount=c.garden.grid.flat().filter(x=>x).length;
     $('#topStats').innerHTML=`
-      <span class="stat-chip">${c.profile.avatarImg?`<img src="${c.profile.avatarImg}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;">`:(c.profile.avatar||'🙂')} ${c.profile.name}</span>
+      <span class="stat-chip" style="cursor:pointer;" onclick="UI.switchChildMenu()" title="点击切换宝贝">${c.profile.avatarImg?`<img src="${c.profile.avatarImg}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;">`:(c.profile.avatar||'🙂')} ${c.profile.name} ▾</span>
       <span class="stat-chip">📅 ${Bank.gradeNames[c.grade]}</span>
       <span class="stat-chip">${(Levels[c.stats.level]||Levels[0]).emoji} ${(Levels[c.stats.level]||Levels[0]).name}</span>
       <span class="stat-chip">☀️ 今日<b>${c.today.sunlight}</b></span>
@@ -1522,12 +1527,17 @@ const UI = {
   },
   // 家长模式下显示的迷你添加表单
   customTaskInlineForm(cat){
+    const children=Store.data.children;
     return `<div class="card" style="border:2px dashed var(--primary);">
       <div class="card-title" style="font-size:13px;">➕ 添加${cat}自定义作业 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长模式专属）</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <input id="inlineCtIcon" placeholder="图标" value="📝" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;">
-        <input id="inlineCtName" placeholder="任务名称（如：写日记/做卷子）" style="flex:1;min-width:120px;padding:6px;border:1px solid var(--border);border-radius:6px;">
-        <input id="inlineCtReward" type="number" placeholder="阳光" value="10" style="width:70px;padding:6px;border:1px solid var(--border);border-radius:6px;">☀️
+        <input id="inlineCtName" placeholder="任务名称（如：写日记/做卷子）" style="flex:1;min-width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+        <select id="inlineCtScope" style="padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <option value="all">🌐 共有</option>
+          ${Object.entries(children).map(([cid,ch])=>`<option value="${cid}">${ch.profile.name}专属</option>`).join('')}
+        </select>
+        <input id="inlineCtReward" type="number" placeholder="阳光" value="10" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;">☀️
         <label style="font-size:11px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="inlineCtReview"> 需审核</label>
         <button class="btn sm" onclick="UI.addCustomTaskInline('${cat}')">添加</button>
       </div>
@@ -2225,29 +2235,39 @@ const UI = {
       <div class="card"><div class="card-title">🛒 商店管理</div><div id="shopMgr">${Store.data.shopItems.map(it=>`<div class="log-item"><span>${it.icon} <input type="text" value="${it.name}" style="width:90px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').name=this.value;Store.save()"> <input type="number" value="${it.price}" style="width:60px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').price=+this.value;Store.save()">☀️</span><button class="btn danger sm" onclick="UI.delShop('${it.id}')">删除</button></div>`).join('')}</div>
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newShopName" placeholder="名称"><input id="newShopPrice" type="number" placeholder="价格"><input id="newShopIcon" placeholder="图标" value="🎁"><button class="btn sm" onclick="UI.addShop()">添加</button></div>
       </div>
-      <div class="card"><div class="card-title">📝 作业任务管理 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长自定义作业，可设阳光值）</span></div>
-        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">这里添加的自定义作业会出现在孩子的任务列表中，每个任务可独立设置阳光奖励。</p>
-        ${(Store.data.customTasks||[]).map(t=>`<div class="log-item">
+      <div class="card"><div class="card-title">📝 作业任务管理 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长自定义作业，可设阳光值和归属）</span></div>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">共有任务对所有孩子可见，专属任务只对指定孩子显示。</p>
+        ${(Store.data.customTasks||[]).map(t=>{
+          const childName=t.scope==='child'&&t.childId?Store.data.children[t.childId]?.profile?.name||'已删除孩子':'';
+          return `<div class="log-item">
           <span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
             <input type="text" value="${t.icon||'📝'}" style="width:40px;border:1px solid var(--border);border-radius:4px;padding:2px;text-align:center;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').icon=this.value;Store.save()">
-            <input type="text" value="${t.name}" style="width:120px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').name=this.value;Store.save()">
+            <input type="text" value="${t.name}" style="width:100px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').name=this.value;Store.save()">
             <select style="border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').cat=this.value;Store.save()">
               ${['语文','数学','英语','运动','家务','德育','自定义'].map(c=>`<option value="${c}" ${t.cat===c?'selected':''}>${c}</option>`).join('')}
             </select>
-            <input type="number" value="${t.reward}" style="width:55px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').reward=+this.value||10;Store.save()">☀️
+            <select style="border:1px solid var(--border);border-radius:4px;padding:2px;font-size:11px;" onchange="UI.setCustomTaskScope('${t.id}',this.value)">
+              <option value="all" ${t.scope!=='child'?'selected':''}>🌐 共有</option>
+              ${Object.entries(Store.data.children).map(([cid,ch])=>`<option value="${cid}" ${t.scope==='child'&&t.childId===cid?'selected':''}>${ch.profile.name}专属</option>`).join('')}
+            </select>
+            <input type="number" value="${t.reward}" style="width:50px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').reward=+this.value||10;Store.save()">☀️
             <label style="font-size:11px;"><input type="checkbox" ${t.review?'checked':''} onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').review=this.checked;Store.save()"> 审核</label>
           </span>
           <button class="btn danger sm" onclick="UI.delCustomTask('${t.id}')">删除</button>
-        </div>`).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;font-size:12px;">暂无自定义作业</div>'}
+        </div>`;}).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;font-size:12px;">暂无自定义作业</div>'}
         <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;">
           <div style="font-size:12px;font-weight:600;margin-bottom:6px;">➕ 添加新作业任务</div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
             <input id="newCtIcon" placeholder="图标" value="📝" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;">
-            <input id="newCtName" placeholder="任务名称（如：写日记）" style="flex:1;min-width:120px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+            <input id="newCtName" placeholder="任务名称（如：写日记）" style="flex:1;min-width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;">
             <select id="newCtCat" style="padding:6px;border:1px solid var(--border);border-radius:6px;">
               ${['语文','数学','英语','运动','家务','德育','自定义'].map(c=>`<option value="${c}">${c}</option>`).join('')}
             </select>
-            <input id="newCtReward" type="number" placeholder="阳光" value="10" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+            <select id="newCtScope" style="padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+              <option value="all">🌐 共有任务</option>
+              ${Object.entries(Store.data.children).map(([cid,ch])=>`<option value="${cid}">${ch.profile.name}专属</option>`).join('')}
+            </select>
+            <input id="newCtReward" type="number" placeholder="阳光" value="10" style="width:55px;padding:6px;border:1px solid var(--border);border-radius:6px;">
             <label style="font-size:11px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="newCtReview"> 需审核</label>
             <button class="btn sm" onclick="UI.addCustomTask()">添加</button>
           </div>
@@ -2272,6 +2292,17 @@ const UI = {
   },
   // 家长操作方法
   switchChild(id){d_settings().currentChildId=id;Store.save();UI.render();},
+  // 孩子切换菜单（孩子模式也能用）
+  switchChildMenu(){
+    const children=Store.data.children;
+    const curId=d_settings().currentChildId;
+    const items=Object.entries(children).map(([id,ch])=>{
+      const av=ch.profile.avatarImg?`<img src="${ch.profile.avatarImg}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">`:(ch.profile.avatar||'🙂');
+      return `<button class="btn ${id===curId?'':'ghost'} sm" style="margin:2px;font-size:13px;" onclick="UI.switchChild('${id}');closeModal()">${av} ${ch.profile.name}${id===curId?' ✓':''}</button>`;
+    }).join('');
+    const body=`<div style="text-align:center;padding:10px 0;"><p style="font-size:13px;color:var(--text-soft);margin-bottom:10px;">选择当前宝贝</p><div style="display:flex;flex-direction:column;gap:4px;align-items:center;">${items}</div></div>`;
+    showModal('切换宝贝',body,`<button class="btn ghost sm" onclick="closeModal()">关闭</button>`,false);
+  },
   addChild(){
     const name=prompt('孩子姓名：');if(!name)return;
     const id='c_'+uid();
@@ -2308,11 +2339,22 @@ const UI = {
       const cat=$('#newCtCat')?.value||'自定义';
       const reward=+$('#newCtReward')?.value||10;
       const review=$('#newCtReview')?.checked||false;
+      // scope: 'all'（共有）或 childId（某孩子专属）
+      const scopeVal=$('#newCtScope')?.value||'all';
+      const scope=scopeVal==='all'?'all':'child';
+      const childId=scopeVal==='all'?null:scopeVal;
       if(!Store.data.customTasks)Store.data.customTasks=[];
-      Store.data.customTasks.push({id:'ct_'+uid(),name,icon,cat,reward,review,custom:true});
-      Store.save();UI.render();toast('已添加自定义作业：'+name);
+      Store.data.customTasks.push({id:'ct_'+uid(),name,icon,cat,reward,review,custom:true,scope,childId});
+      Store.save();UI.render();toast('已添加'+(scope==='all'?'共有':'专属')+'作业：'+name);
       return;
     }
+  },
+  // 修改已有任务的归属范围
+  setCustomTaskScope(taskId,val){
+    const t=Store.data.customTasks.find(x=>x.id===taskId);if(!t)return;
+    if(val==='all'){t.scope='all';t.childId=null;}
+    else{t.scope='child';t.childId=val;}
+    Store.save();UI.render();
   },
   // 科目页面底部的迷你添加表单（家长模式专用）
   addCustomTaskInline(cat){
@@ -2323,9 +2365,12 @@ const UI = {
     const icon=$('#inlineCtIcon')?.value||'📝';
     const reward=+$('#inlineCtReward')?.value||10;
     const review=$('#inlineCtReview')?.checked||false;
+    const scopeVal=$('#inlineCtScope')?.value||'all';
+    const scope=scopeVal==='all'?'all':'child';
+    const childId=scopeVal==='all'?null:scopeVal;
     if(!Store.data.customTasks)Store.data.customTasks=[];
-    Store.data.customTasks.push({id:'ct_'+uid(),name,icon,cat,reward,review,custom:true});
-    Store.save();UI.render();toast(`已添加${cat}作业：${name}（+${reward}☀️）`);
+    Store.data.customTasks.push({id:'ct_'+uid(),name,icon,cat,reward,review,custom:true,scope,childId});
+    Store.save();UI.render();toast(`已添加${scope==='all'?'共有':'专属'}${cat}作业：${name}（+${reward}☀️）`);
   },
   delCustomTask(id){
     Store.data.customTasks=(Store.data.customTasks||[]).filter(x=>x.id!==id);
