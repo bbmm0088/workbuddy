@@ -107,6 +107,12 @@ input,select,textarea{font-family:inherit;outline:none;}
 .zombie .z-hp{font-size:10px;}
 .zombie .z-bar{width:34px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;}
 .zombie .z-bar i{display:block;height:100%;background:#76ff03;border-radius:2px;}
+/* 僵尸在花园网格内 */
+.cell-zombie{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;z-index:3;pointer-events:auto;}
+.cell-zombie .z-bar{width:26px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;}
+.cell-zombie .z-bar i{display:block;height:100%;background:#76ff03;border-radius:2px;}
+.cell-zombie .z-hp{font-size:9px;color:#fff;text-shadow:0 0 2px #000;}
+.cell:has(.cell-zombie){background:repeating-linear-gradient(90deg,#616161 0 50%,#424242 50% 100%) !important;}
 
 /* 宠物 */
 .pet-card{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px;align-items:center;}
@@ -224,16 +230,35 @@ const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
 
 function toast(msg,ms=1800){const r=$('#toastRoot');const t=document.createElement('div');t.className='toast';t.textContent=msg;r.appendChild(t);setTimeout(()=>t.remove(),ms);}
 function sunFloat(x,y,txt){const f=document.createElement('div');f.className='sun-float';f.textContent=txt;f.style.left=x+'px';f.style.top=y+'px';document.body.appendChild(f);setTimeout(()=>f.remove(),1200);}
-// 语音朗读（Web Speech API）
+// 语音朗读（Web Speech API）— 增强版：确保语音已加载，兼容移动端
+let _voicesReady=false;
+function _loadVoices(){
+  if(!('speechSynthesis'in window))return;
+  const v=window.speechSynthesis.getVoices();
+  if(v&&v.length>0)_voicesReady=true;
+}
+if('speechSynthesis'in window){
+  _loadVoices();
+  window.speechSynthesis.onvoiceschanged=()=>{_loadVoices();};
+}
 function speak(text,lang){
   try{
-    if(!('speechSynthesis'in window))return;
+    if(!('speechSynthesis'in window)){toast('当前浏览器不支持语音朗读');return;}
+    if(!text||!text.trim())return;
     window.speechSynthesis.cancel();
+    _loadVoices();
     const u=new SpeechSynthesisUtterance(text);
     u.lang=lang||(/[\u4e00-\u9fa5]/.test(text)?'zh-CN':'en-US');
-    u.rate=0.9;u.pitch=1.1;
+    u.rate=0.85;u.pitch=1.1;u.volume=1;
+    // 尝试匹配对应语言的语音引擎
+    const voices=window.speechSynthesis.getVoices()||[];
+    const match=voices.find(v=>v.lang===u.lang)||voices.find(v=>v.lang.startsWith(u.lang.split('-')[0]));
+    if(match)u.voice=match;
+    u.onerror=function(e){console.warn('speak error',e);};
     window.speechSynthesis.speak(u);
-  }catch(e){}
+    // 某些浏览器需要 resume 唤醒
+    if(window.speechSynthesis.paused)window.speechSynthesis.resume();
+  }catch(e){console.warn('speak fail',e);toast('朗读失败，请重试');}
 }
 
 /* ============ Store 模块 ============ */
@@ -1304,19 +1329,31 @@ const UI = {
     const answered=q.answers[i];
     const isDictation=!!item.dictation;
     const speakBtn=item.speakText?`<button class="btn sky sm" data-speak="${encodeURIComponent(item.speakText)}" data-lang="${item.speakLang||''}" title="点击朗读">🔊 朗读</button>`:'';
+    // 低年级（幼小衔接/1/2年级）增加读题功能
+    const grade=curChild().grade;
+    const isLowGrade=(grade==='gradeK'||grade==='grade1'||grade==='grade2');
+    // 读题按钮：朗读完整题干
+    const readQBtn=isLowGrade&&!isDictation?`<button class="btn ghost sm" data-speak="${encodeURIComponent(item.q.replace(/["""]/g,''))}" data-lang="${item.speakLang||(/[\u4e00-\u9fa5]/.test(item.q)?'zh-CN':'en-US')}" title="读题">📢 读题</button>`:'';
     let ansHtml='';
     if(isInput){
       ansHtml=`<input type="text" id="qInput" value="${answered||''}" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextQuiz()">`;
     }else{
-      // 选择题：选项如果是英文单词也支持朗读（整体题干已含）
-      ansHtml=`<div class="opt-grid">${item.opts.map(o=>`<button class="opt-btn ${answered===o?'sel':''}" onclick="UI.selectQuiz('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')}</div>`;
+      // 低年级选择题：每个选项可朗读
+      if(isLowGrade){
+        ansHtml=`<div class="opt-grid">${item.opts.map(o=>{
+          const oLang=/[\u4e00-\u9fa5]/.test(o)?'zh-CN':'en-US';
+          return `<div style="display:flex;align-items:center;gap:2px;"><button class="opt-btn ${answered===o?'sel':''}" style="flex:1;" onclick="UI.selectQuiz('${o.replace(/'/g,"\\'")}')">${o}</button><button class="btn sky sm" style="padding:2px 4px;font-size:11px;min-width:28px;" data-speak="${encodeURIComponent(o)}" data-lang="${oLang}" title="朗读选项">🔊</button></div>`;
+        }).join('')}</div>`;
+      }else{
+        ansHtml=`<div class="opt-grid">${item.opts.map(o=>`<button class="opt-btn ${answered===o?'sel':''}" onclick="UI.selectQuiz('${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')}</div>`;
+      }
     }
     // 听写模式：题目区只显示朗读按钮+提示，不显示答案文字
     let qArea;
     if(isDictation){
       qArea=`<div style="text-align:center;padding:10px;"><div style="font-size:15px;font-weight:600;margin-bottom:10px;">${item.q}</div>${speakBtn}<div style="font-size:12px;color:var(--text-soft);margin-top:8px;">💡 提示：${item.hint||''}</div></div>`;
     }else{
-      qArea=`<div class="quiz-q">${item.q} ${speakBtn}</div>`;
+      qArea=`<div class="quiz-q">${item.q} ${readQBtn} ${speakBtn}</div>`;
     }
     const body=`
       <div class="quiz-box">
@@ -1336,11 +1373,13 @@ const UI = {
     if(isInput)setTimeout(()=>{const inp=$('#qInput');if(inp){inp.focus();inp.oninput=(e)=>{this.curQuiz.answers[i]=e.target.value;};}},0);
     // 听写题自动朗读一次
     if(isDictation&&item.speakText){setTimeout(()=>speak(item.speakText,item.speakLang||''),300);}
+    // 低年级非听写题自动读题一次
+    if(isLowGrade&&!isDictation){setTimeout(()=>speak(item.q.replace(/[""""]/g,''),item.speakLang||(/[\u4e00-\u9fa5]/.test(item.q)?'zh-CN':'en-US')),300);}
   },
   selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
   exitQuiz(){
     confirmModal('确定要退出测试吗？已答内容将不会保存。',()=>{
-      this.curQuiz=null;closeModal();toast('已退出测试');
+      this.curQuiz=null;closeModal();toast('已退出测试');UI.render();
     });
   },
   prevQuiz(){if(this.curQuiz.idx>0){this.curQuiz.idx--;this.renderQuiz();}},
@@ -1391,20 +1430,38 @@ const UI = {
   },
   renderGarden(){
     const c=curChild();const defs=Garden.plantList();
+    // 计算僵尸在网格中的列位置（从右侧第1列开始向左排）
+    const zombiesByPos={};
+    c.garden.zombies.forEach((z,idx)=>{
+      const col=8-(z.pos||0); // pos=0 -> col=8（最右列），pos越大越靠左
+      const row=idx%5; // 分散到不同行
+      if(!zombiesByPos[col])zombiesByPos[col]=[];
+      zombiesByPos[col].push({z,row});
+    });
     let gridHtml='';
     for(let r=0;r<5;r++){for(let col=0;col<9;col++){
       const cell=c.garden.grid[r][col];
       const def=cell?defs[cell.type]:null;
-      gridHtml+=`<div class="cell ${cell?'has-plant':''}" onclick="UI.clickCell(${r},${col})" onmouseover="UI.cellTip(${r},${col},event)" onmouseout="UI.hideTip()">${cell?(def.emoji+''):''}</div>`;
+      // 检查该格是否有僵尸
+      let zombieInCell='';
+      if(zombiesByPos[col]){
+        const zm=zombiesByPos[col].find(x=>x.row===r);
+        if(zm){
+          const z=zm.z;
+          zombieInCell=`<div class="cell-zombie" onclick="event.stopPropagation();UI.zombieInfo('${z.id}')" title="${z.intro||'点击查看僵尸详情'}"><div style="font-size:20px;animation:zWalk .8s ease;">🧟</div><div class="z-bar"><i style="width:${z.hp/z.maxHp*100}%"></i></div><div class="z-hp">${z.hp}</div></div>`;
+        }
+      }
+      gridHtml+=`<div class="cell ${cell?'has-plant':''}" onclick="UI.clickCell(${r},${col})" onmouseover="UI.cellTip(${r},${col},event)" onmouseout="UI.hideTip()">${cell?(def.emoji+''):''}${zombieInCell}</div>`;
     }}
-    // 僵尸行
-    const zHtml=c.garden.zombies.map(z=>`<div class="zombie" onclick="UI.zombieInfo('${z.id}')"><div class="z-emoji">🧟</div><div class="z-bar"><i style="width:${z.hp/z.maxHp*100}%"></i></div><div class="z-hp">${z.hp}/${z.maxHp}</div></div>`).join('');
+    // 僵尸汇总信息栏（仅在有僵尸时显示）
+    const zCount=c.garden.zombies.length;
+    const zSummary=zCount>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(74,74,74,.85);border-radius:8px;color:#fff;font-size:12px;display:flex;align-items:center;gap:8px;">🧟 <b>${zCount}</b> 只僵尸入侵花园！<span style="margin-left:auto;font-size:11px;opacity:.8;">点击僵尸查看详情/消灭</span></div>`:'<div style="margin-top:6px;padding:6px 10px;background:rgba(76,175,80,.2);border-radius:8px;color:#2e7d32;font-size:12px;">✅ 花园安全，暂无僵尸入侵</div>';
     return `<div class="card"><div class="card-title">🌻 我的花园 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showGardenHelp()">📖 玩法介绍</button></div>
-      <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>
-      <div class="zombie-row">${zHtml||'<span style="color:#fff;font-size:12px;">暂无僵尸，花园很安全～</span>'}</div></div>
-      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击僵尸。</p></div>
+      <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>${zSummary}</div>
+      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击僵尸。僵尸从右侧入侵，完成任务可阻止前进。</p></div>
       <div class="card"><div class="card-title">🛒 植物商店</div>
-      <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>`<div class="task-card"><div style="text-align:center;font-size:32px;">${d.emoji}</div><div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-desc" style="text-align:center;">${d.desc}</div><div class="t-foot" style="justify-content:center;"><span class="reward-tag">${d.cost}☀️</span></div></div>`).join('')}</div></div>`;
+      <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>`<div class="task-card"><div style="text-align:center;font-size:32px;">${d.emoji}</div><div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-desc" style="text-align:center;">${d.desc}</div><div class="t-foot" style="justify-content:center;"><span class="reward-tag">${d.cost}☀️</span></div></div>`).join('')}</div></div>
+      <div class="card"><div class="card-title">📋 花园日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.sunlight.filter(l=>/花园|植物|僵尸|种植|移除|消灭/.test(l.action)).map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()}</div></div>${l.delta?`<div class="log-delta ${l.delta>0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta} ☀️</div>`:''}</div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无花园日志</div>'}</div></div>`;
   },
   showGardenHelp(){
     showModal('🌻 花园玩法介绍',`<div style="line-height:1.7;font-size:13px;">
@@ -1500,7 +1557,8 @@ const UI = {
       <div class="card"><div class="card-title">🏪 宠物商店</div><div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const cardImg=d.img?`<img src="${d.img}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto;display:block;">`:`<div style="font-size:50px;">${d.emoji}</div>`;
         return `<div class="task-card"><div style="text-align:center;">${cardImg}</div><div class="t-title" style="justify-content:center;margin-top:4px;">${d.name}</div><div class="t-desc" style="text-align:center;font-size:11px;min-height:36px;">${d.desc||''}</div><div class="t-foot" style="justify-content:center;"><button class="btn orange sm" ${c.sunlight.total>=d.cost?'':'disabled'} onclick="Pet.buy('${k}')">购买 ${d.cost}☀️</button></div></div>`;
-      }).join('')}</div></div>`;
+      }).join('')}</div></div>
+      <div class="card"><div class="card-title">📋 宠物日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.pet.map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()} · ${l.detail||''}</div></div></div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无宠物日志</div>'}</div></div>`;
   },
   showPetHelp(){
     showModal('🐾 宠物养成介绍',`<div style="line-height:1.7;font-size:13px;">
@@ -1544,8 +1602,7 @@ const UI = {
   renderLog(){
     const c=curChild();
     const sl=c.logs.sunlight.map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()}</div></div><div class="log-delta ${l.delta>0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta} ☀️</div></div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:20px;">暂无日志</div>';
-    const pl=c.logs.pet.map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()} · ${l.detail||''}</div></div></div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:20px;">暂无宠物日志</div>';
-    return `<div class="card"><div class="card-title">📋 阳光日志</div><div style="max-height:300px;overflow-y:auto;">${sl}</div></div><div class="card"><div class="card-title">🐾 宠物日志</div><div style="max-height:300px;overflow-y:auto;">${pl}</div></div>`;
+    return `<div class="card"><div class="card-title">📋 阳光日志</div><div style="max-height:400px;overflow-y:auto;">${sl}</div></div>`;
   },
   // 作息德育打卡
   renderDeed(){
@@ -1597,7 +1654,7 @@ const UI = {
   },
   exitWrongQuiz(){
     confirmModal('确定要退出错题复习吗？',()=>{
-      this.curWrongQuiz=null;closeModal();toast('已退出错题复习');
+      this.curWrongQuiz=null;closeModal();toast('已退出错题复习');UI.render();
     });
   },
   nextWrong(){
