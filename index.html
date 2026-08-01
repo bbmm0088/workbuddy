@@ -296,7 +296,13 @@ const Store = {
       const pDefs=Garden.defaultDefs();
       Object.keys(pDefs).forEach(k=>{
         if(!d.plantDefs[k]) d.plantDefs[k]=pDefs[k];
-        else if(pDefs[k].img)d.plantDefs[k].img=pDefs[k].img;
+        else{
+          // 强制更新所有字段（cost/desc/attack/bomb/img等），确保新配置生效
+          const old=d.plantDefs[k];
+          Object.keys(pDefs[k]).forEach(f=>{
+            old[f]=pDefs[k][f];
+          });
+        }
       });
     }
     // 合并宠物定义：确保已有宠物的 img 字段被更新（兼容旧数据）
