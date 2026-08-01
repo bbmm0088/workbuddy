@@ -798,6 +798,35 @@ const Garden = {
     const c=curChild();const def=this.plantList()[type];if(!def)return false;
     if(c.garden.grid[row][col])return false;
     if(!spendSunlight(def.cost,'种植'+def.name))return false;
+    // 樱桃炸弹：种植立即爆炸，炸毁周围3x3范围所有僵尸，炸弹自身消失
+    if(def.bomb){
+      Audio.play('plant');
+      const before=c.garden.zombies.length;
+      if(before>0){
+        // 计算3x3范围所有格子索引
+        const bombTiles=new Set();
+        for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+          const nr=row+dr,nc=col+dc;
+          if(nr>=0&&nr<5&&nc>=0&&nc<9)bombTiles.add(nr*9+nc);
+        }
+        c.garden.zombies=c.garden.zombies.filter(z=>{
+          const zr=z.row!==undefined?z.row:0;
+          return !bombTiles.has(zr*9+z.pos);
+        });
+        const killed=before-c.garden.zombies.length;
+        if(killed>0){
+          c.logs.sunlight.unshift({time:nowISO(),action:`🍒 樱桃炸弹爆炸，炸飞 ${killed} 只僵尸！`,delta:0,balance:c.sunlight.total});
+          toast(`🍒 爆炸！炸飞 ${killed} 只僵尸！`,'🎉');
+        }else{
+          toast('🍒 樱桃炸弹爆炸！周围没有僵尸');
+        }
+      }else{
+        toast('🍒 樱桃炸弹爆炸！周围没有僵尸');
+      }
+      Audio.play('zombie');
+      Store.save();
+      return true;
+    }
     c.garden.grid[row][col]={type,plantedAt:nowISO(),hp:def.block?200:100};
     Audio.play('plant');Store.save();return true;
   },
@@ -817,35 +846,15 @@ const Garden = {
 // 每日结算：产阳光+攻击僵尸+僵尸移动（遍历所有孩子时使用，日志直接写入对应孩子）
 function gardenSettleFor(c){
   const defs=Garden.plantList();
-  let produce=0,totalAttack=0,hasWallnut=false,bombCells=[];
+  let produce=0,totalAttack=0,hasWallnut=false;
   for(let r=0;r<5;r++)for(let col=0;col<9;col++){
     const cell=c.garden.grid[r][col];if(!cell)continue;
     const d=defs[cell.type];if(!d)continue;
     if(d.produce)produce+=d.produce;
     if(d.attack)totalAttack+=d.attack;
     if(d.block){hasWallnut=true;cell.hp-=100;if(cell.hp<=0)c.garden.grid[r][col]=null;}
-    if(d.bomb){bombCells.push({r,col});cell.hp-=100;if(cell.hp<=0)c.garden.grid[r][col]=null;}
   }
   if(produce>0){c.sunlight.total+=produce;c.today.sunlight+=produce;c.logs.sunlight.unshift({time:nowISO(),action:'花园产出阳光',delta:produce,balance:c.sunlight.total});}
-  // 樱桃炸弹：炸毁 3x3 范围内（中心+四围共9格）的所有僵尸，炸弹自身消耗消失
-  if(bombCells.length>0&&c.garden.zombies.length>0){
-    const before=c.garden.zombies.length;
-    // 收集所有炸弹爆炸范围的格子
-    const bombTiles=new Set();
-    bombCells.forEach(({r,col})=>{
-      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-        const nr=r+dr,nc=col+dc;
-        if(nr>=0&&nr<5&&nc>=0&&nc<9)bombTiles.add(nr*9+nc);
-      }
-    });
-    // 移除爆炸范围内的僵尸
-    c.garden.zombies=c.garden.zombies.filter(z=>{
-      // 僵尸位置由 pos 决定列：pos=4 表示在 col=4 处出现
-      return !bombTiles.has(z.row*9+z.pos);
-    });
-    const killed=before-c.garden.zombies.length;
-    if(killed>0)c.logs.sunlight.unshift({time:nowISO(),action:`樱桃炸弹炸飞 ${killed} 只僵尸`,delta:0,balance:c.sunlight.total});
-  }
   // 普通攻击型植物：攻击第一只僵尸
   if(c.garden.zombies.length>0&&totalAttack>0){c.garden.zombies[0].hp-=totalAttack;if(c.garden.zombies[0].hp<=0)c.garden.zombies.shift();}
   if(d_settings().zombieEnabled){
