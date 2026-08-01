@@ -326,6 +326,7 @@ const Store = {
     }
     if(!d.achievementDefs) d.achievementDefs=Ach.defaultDefs();
     if(d.settings.reviewMode===undefined) d.settings.reviewMode=false;
+    if(!d.settings.hiddenTasks) d.settings.hiddenTasks=[];
     if(!d.deedDefs) d.deedDefs=Bank.defaultDeeds();
     if(!d.customTasks) d.customTasks=[];
     Object.keys(d.children).forEach(cid=>this.fixChild(d.children[cid]));
@@ -364,7 +365,7 @@ const Store = {
     const childId='c_'+uid();
     return{
       version:'1.0',
-      settings:{parentPassword:'8888',zombieEnabled:true,petDecayEnabled:true,reviewMode:false,lastResetDate:todayStr(),currentChildId:childId},
+      settings:{parentPassword:'8888',zombieEnabled:true,petDecayEnabled:true,reviewMode:false,lastResetDate:todayStr(),currentChildId:childId,hiddenTasks:[]},
       children:{
         [childId]:{
           profile:{name:'小明',avatar:'🦁',grade:'grade1'},
@@ -1067,6 +1068,7 @@ function dailyRate(c){
 }
 function todayTaskList(c){
   const grade=c.grade;const list=[];
+  const hidden=new Set(d_settings().hiddenTasks||[]);
   // 语文
   if(Bank.chinese[grade]){
     list.push({id:'cn_pinyin',cat:'语文',name:'拼音测试',reward:10,perfectReward:10});
@@ -1102,7 +1104,8 @@ function todayTaskList(c){
     if(t.scope==='child'&&t.childId&&t.childId!==d_settings().currentChildId)return;
     list.push({id:t.id,cat:t.cat||'自定义',name:t.name,icon:t.icon||'📝',reward:t.reward,review:!!t.review,custom:true});
   });
-  return list;
+  // 过滤被家长隐藏的内置任务
+  return hidden.size?list.filter(t=>!hidden.has(t.id)):list;
 }
 function dailyReset(){
   const today=todayStr();
@@ -1552,6 +1555,7 @@ const UI = {
     const c=curChild();const task=c.today.tasks[id];
     const taskDef=todayTaskList(c).find(x=>x.id===id);
     const needReview=taskDef?.review;
+    const isCustom=taskDef?.custom;
     const done=task?.completed;
     const pending=task?.pendingReview;
     const isQuiz=id.startsWith('cn_pinyin')||id.startsWith('cn_poetry')||id.startsWith('math_')||id.startsWith('en_')||id==='cn_literacy'||id==='cn_dictation'||id==='en_dictation';
@@ -1573,7 +1577,9 @@ const UI = {
     }else{
       btns=`<button class="btn sm" onclick="completeTask('${id}',${reward},'${name}')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯 专注</button>`;
     }
-    return `<div class="task-card ${done?'done':''} ${pending?'':''}"><div class="t-title">${icon} ${name} ${perfectReward?'<span class="reward-tag">满分+'+perfectReward+'</span>':''}</div><div class="t-desc">${desc}</div><div class="t-foot"><span class="reward-tag">+${reward}☀️</span><div>${btns}</div></div></div>`;
+    // 家长模式下显示删除按钮
+    const delBtn=State.mode==='parent'?(isCustom?`<button class="btn danger sm" onclick="UI.delCustomTaskConfirm('${id}')" title="删除此自定义作业">🗑️ 删除</button>`:`<button class="btn ghost sm" style="color:var(--danger);font-size:11px;" onclick="UI.hideTask('${id}')" title="隐藏此内置作业">🚫 隐藏</button>`):'';
+    return `<div class="task-card ${done?'done':''} ${pending?'':''}"><div class="t-title">${icon} ${name} ${perfectReward?'<span class="reward-tag">满分+'+perfectReward+'</span>':''}</div><div class="t-desc">${desc}</div><div class="t-foot"><span class="reward-tag">+${reward}☀️</span><div>${btns} ${delBtn}</div></div></div>`;
   },
   // 答题系统
   curQuiz:null,
@@ -2228,6 +2234,18 @@ const UI = {
         <p style="font-size:12px;color:var(--text-soft);margin-top:4px;">审核模式开启后，练字/阅读/运动/家务/德育需家长确认才算完成</p>
         <button class="btn sm" style="margin-top:10px;" onclick="UI.saveSettings()">保存设置</button>
       </div>
+      ${(d_settings().hiddenTasks||[]).length?`<div class="card"><div class="card-title">🚫 已隐藏任务 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（点击恢复显示）</span></div><div style="display:flex;gap:4px;flex-wrap:wrap;">${(d_settings().hiddenTasks||[]).map(id=>{
+        // 尝试从任务定义中查找名称
+        let name=id;
+        // 临时取消隐藏来获取名称
+        const oldHidden=d_settings().hiddenTasks;
+        d_settings().hiddenTasks=[];
+        const allTasks=todayTaskList(c);
+        d_settings().hiddenTasks=oldHidden;
+        const t=allTasks.find(x=>x.id===id);
+        if(t)name=t.name;
+        return `<button class="btn ghost sm" onclick="UI.restoreTask('${id}')">🔄 ${name}</button>`;
+      }).join('')}</div></div>`:''}
       ${d_settings().reviewMode?`<div class="card"><div class="card-title">⏳ 待审核任务</div>${(()=>{const pending=[];Object.entries(Store.data.children).forEach(([cid,ch])=>{Object.entries(ch.today.tasks||{}).forEach(([tid,t])=>{if(t.pendingReview)pending.push({cid,ch,tid,t});});});if(!pending.length)return'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无待审核任务</div>';return pending.map(x=>`<div class="log-item"><span>${x.ch.profile.name}：${x.tid}</span><div><button class="btn sm" onclick="UI.approveChild('${x.cid}','${x.tid}')">✅ 通过</button> <button class="btn danger sm" onclick="UI.rejectChild('${x.cid}','${x.tid}')">❌ 驳回</button></div></div>`).join('');})()}</div>`:''}
       <div class="card"><div class="card-title">🌟 德育任务管理</div>${Store.data.deedDefs.map(d=>`<div class="log-item"><span>${d.icon} ${d.name}</span><button class="btn danger sm" onclick="UI.delDeed('${d.id}')">删除</button></div>`).join('')}
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newDeedName" placeholder="名称"><input id="newDeedIcon" placeholder="图标" value="✨"><button class="btn sm" onclick="UI.addDeed()">添加</button></div>
@@ -2377,6 +2395,27 @@ const UI = {
     // 同时清除各孩子当日该任务的完成记录
     Object.values(Store.data.children).forEach(c=>{if(c.today&&c.today.tasks)delete c.today.tasks[id];});
     Store.save();UI.render();
+  },
+  // 删除自定义作业（带确认）
+  delCustomTaskConfirm(id){
+    const t=(Store.data.customTasks||[]).find(x=>x.id===id);
+    const name=t?t.name:'该任务';
+    confirmModal('确定删除「'+name+'」？已完成的记录也会清除。',()=>{this.delCustomTask(id);toast('已删除：'+name);});
+  },
+  // 隐藏内置作业（不删除定义，只从列表中隐藏）
+  hideTask(id){
+    const t=todayTaskList(curChild()).find(x=>x.id===id);
+    const name=t?t.name:id;
+    confirmModal('确定隐藏「'+name+'」？隐藏后孩子不再看到此任务。可在家长模式→系统设置中恢复。',()=>{
+      if(!d_settings().hiddenTasks)d_settings().hiddenTasks=[];
+      if(!d_settings().hiddenTasks.includes(id))d_settings().hiddenTasks.push(id);
+      Store.save();UI.render();toast('已隐藏：'+name);
+    });
+  },
+  // 恢复隐藏的内置任务
+  restoreTask(id){
+    d_settings().hiddenTasks=(d_settings().hiddenTasks||[]).filter(x=>x!==id);
+    Store.save();UI.render();toast('已恢复任务');
   },
   approveChild(cid,tid){d_settings().currentChildId=cid;approveTask(tid);},
   rejectChild(cid,tid){const ch=Store.data.children[cid];if(ch&&ch.today.tasks[tid]){delete ch.today.tasks[tid];}Store.save();UI.render();toast('已驳回');},
