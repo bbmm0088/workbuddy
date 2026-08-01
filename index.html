@@ -335,8 +335,11 @@ const Store = {
     if(!c.garden) c.garden={grid:this.emptyGrid(),zombies:[],undoFree:true};
     if(!c.garden.grid||c.garden.grid.length!==5) c.garden.grid=this.emptyGrid();
     if(!c.garden.zombies) c.garden.zombies=[];
-    // 为已有僵尸补充图片字段（兼容旧数据）
-    c.garden.zombies.forEach(z=>{z.img='images/zombie.png?v=2';});
+    // 为已有僵尸补充图片和位置字段（兼容旧数据）
+    c.garden.zombies.forEach((z,idx)=>{
+      z.img='images/zombie.png?v=2';
+      if(z.row===undefined)z.row=idx%5;
+    });
     if(c.garden.zombies.length===0&&d_settings().zombieEnabled) c.garden.zombies.push(this.newZombie());
     if(!c.pets) c.pets=[];
     if(!c.achievements) c.achievements=[];
@@ -350,7 +353,7 @@ const Store = {
     if(!c.undoCount) c.undoCount=0;
   },
   emptyGrid(){const g=[];for(let r=0;r<5;r++){g.push(new Array(9).fill(null));}return g;},
-  newZombie(){return{id:uid(),hp:100,maxHp:100,pos:4,img:'images/zombie.png?v=2',intro:'普通僵尸：行动缓慢，喜欢啃食植物。'};},
+  newZombie(){return{id:uid(),hp:100,maxHp:100,pos:0,row:Math.floor(Math.random()*5),img:'images/zombie.png?v=2',intro:'普通僵尸：行动缓慢，喜欢啃食植物。'};},
   defaultData(){
     const childId='c_'+uid();
     return{
@@ -777,12 +780,12 @@ function spendSunlight(amount,reason){
 const Garden = {
   defaultDefs(){
     return{
-      sunflower:{name:'向日葵',emoji:'🌻',cost:50,produce:5,attack:0,desc:'每日产出5阳光'},
-      sunshroom:{name:'阳光菇',emoji:'🍄',cost:25,produce:2,attack:0,desc:'每日产出2阳光'},
+      sunflower:{name:'向日葵',emoji:'🌻',img:'images/sunflower.png?v=1',cost:50,produce:5,attack:0,desc:'每日产出5阳光'},
+      sunshroom:{name:'阳光菇',emoji:'🍄',img:'images/mushroom.png?v=1',cost:25,produce:2,attack:0,desc:'每日产出2阳光'},
       peashooter:{name:'豌豆射手',emoji:'🟢',img:'images/peashooter.png?v=2',cost:100,produce:0,attack:10,desc:'每日攻击僵尸10血'},
       snowpea:{name:'寒冰射手',emoji:'💙',img:'images/snowpea.png?v=2',cost:175,produce:0,attack:15,desc:'每日攻击僵尸15血'},
       firepea:{name:'火焰豌豆',emoji:'🔥',img:'images/firepea.png?v=2',cost:200,produce:0,attack:20,desc:'每日攻击僵尸20血'},
-      cherrybomb:{name:'樱桃炸弹',emoji:'🍒',img:'images/cherrybomb.png?v=2',cost:150,produce:0,attack:25,desc:'每日攻击僵尸25血'},
+      cherrybomb:{name:'樱桃炸弹',emoji:'🍒',img:'images/cherrybomb.png?v=2',cost:250,produce:0,attack:0,bomb:true,desc:'炸毁周围4格内所有僵尸'},
       wallnut:{name:'坚果墙',emoji:'🥜',img:'images/wallnut.png?v=2',cost:50,produce:0,attack:0,block:true,desc:'阻挡僵尸前进1天'}
     };
   },
@@ -814,21 +817,42 @@ const Garden = {
 // 每日结算：产阳光+攻击僵尸+僵尸移动（遍历所有孩子时使用，日志直接写入对应孩子）
 function gardenSettleFor(c){
   const defs=Garden.plantList();
-  let produce=0,totalAttack=0,hasWallnut=false;
+  let produce=0,totalAttack=0,hasWallnut=false,bombCells=[];
   for(let r=0;r<5;r++)for(let col=0;col<9;col++){
     const cell=c.garden.grid[r][col];if(!cell)continue;
     const d=defs[cell.type];if(!d)continue;
     if(d.produce)produce+=d.produce;
     if(d.attack)totalAttack+=d.attack;
     if(d.block){hasWallnut=true;cell.hp-=100;if(cell.hp<=0)c.garden.grid[r][col]=null;}
+    if(d.bomb){bombCells.push({r,col});cell.hp-=100;if(cell.hp<=0)c.garden.grid[r][col]=null;}
   }
   if(produce>0){c.sunlight.total+=produce;c.today.sunlight+=produce;c.logs.sunlight.unshift({time:nowISO(),action:'花园产出阳光',delta:produce,balance:c.sunlight.total});}
+  // 樱桃炸弹：炸毁 3x3 范围内（中心+四围共9格）的所有僵尸，炸弹自身消耗消失
+  if(bombCells.length>0&&c.garden.zombies.length>0){
+    const before=c.garden.zombies.length;
+    // 收集所有炸弹爆炸范围的格子
+    const bombTiles=new Set();
+    bombCells.forEach(({r,col})=>{
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        const nr=r+dr,nc=col+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<9)bombTiles.add(nr*9+nc);
+      }
+    });
+    // 移除爆炸范围内的僵尸
+    c.garden.zombies=c.garden.zombies.filter(z=>{
+      // 僵尸位置由 pos 决定列：pos=4 表示在 col=4 处出现
+      return !bombTiles.has(z.row*9+z.pos);
+    });
+    const killed=before-c.garden.zombies.length;
+    if(killed>0)c.logs.sunlight.unshift({time:nowISO(),action:`樱桃炸弹炸飞 ${killed} 只僵尸`,delta:0,balance:c.sunlight.total});
+  }
+  // 普通攻击型植物：攻击第一只僵尸
   if(c.garden.zombies.length>0&&totalAttack>0){c.garden.zombies[0].hp-=totalAttack;if(c.garden.zombies[0].hp<=0)c.garden.zombies.shift();}
   if(d_settings().zombieEnabled){
     const rate=dailyRate(c);
     const tasks=todayTaskList(c);
     const doneCount=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
-    if(rate<0.5&&!hasWallnut)c.garden.zombies.forEach(z=>{z.pos=Math.max(0,z.pos-1);});
+    if(rate<0.5&&!hasWallnut)c.garden.zombies.forEach(z=>{z.pos=Math.min(8,z.pos+1);});
     // 保底：当日完成任意2项任务，不再新增僵尸
     if(rate<0.3&&c.garden.zombies.length<5&&doneCount<2)c.garden.zombies.push(Store.newZombie());
   }
@@ -1642,7 +1666,7 @@ const UI = {
     const zombiesByPos={};
     c.garden.zombies.forEach((z,idx)=>{
       const col=8-(z.pos||0); // pos=0 -> col=8（最右列），pos越大越靠左
-      const row=idx%5; // 分散到不同行
+      const row=z.row!==undefined?z.row:idx%5; // 僵尸自己的行（0-4），否则分散
       if(!zombiesByPos[col])zombiesByPos[col]=[];
       zombiesByPos[col].push({z,row});
     });
@@ -1693,12 +1717,13 @@ const UI = {
         <li>🟢 <b>豌豆射手</b>（100☀️）每日攻击僵尸 10 血</li>
         <li>💙 <b>寒冰射手</b>（175☀️）每日攻击 15 血</li>
         <li>🔥 <b>火焰豌豆</b>（200☀️）每日攻击 20 血</li>
-        <li>🍒 <b>樱桃炸弹</b>（150☀️）每日攻击 25 血</li>
+        <li>🍒 <b>樱桃炸弹</b>（250☀️）炸毁周围四格所有僵尸</li>
         <li>🥜 <b>坚果墙</b>（50☀️）阻挡僵尸前进 1 天</li>
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🧟 僵尸规则</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>初始 1 只，血量 100，上限 5 只</li>
+        <li>僵尸出现在最右侧一格（col=8），随完成率下降逐步向左前进</li>
         <li><b>完成率＜50%</b>：僵尸前进一格</li>
         <li><b>完成率＜30%</b>：新增 1 只僵尸</li>
         <li><b>完成率≥80%</b>：僵尸冻结不动</li>
