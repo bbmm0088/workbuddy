@@ -113,6 +113,11 @@ input,select,textarea{font-family:inherit;outline:none;}
 .cell-zombie .z-bar i{display:block;height:100%;background:#76ff03;border-radius:2px;}
 .cell-zombie .z-hp{font-size:9px;color:#fff;text-shadow:0 0 2px #000;}
 .cell:has(.cell-zombie){background:repeating-linear-gradient(90deg,#616161 0 50%,#424242 50% 100%) !important;}
+/* 植物和僵尸图片样式 */
+.cell-plant-img{width:90%;max-height:90%;object-fit:contain;pointer-events:none;animation:plantSway 3s ease-in-out infinite;transform-origin:bottom center;}
+.cell-plant-emoji{font-size:22px;pointer-events:none;}
+.cell-zombie-img{width:38px;height:38px;object-fit:contain;pointer-events:none;animation:zWalk .8s ease;}
+@keyframes plantSway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
 
 /* 宠物 */
 .pet-card{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px;align-items:center;}
@@ -283,6 +288,14 @@ const Store = {
     if(!d.settings.currentChildId) d.settings.currentChildId=Object.keys(d.children)[0]||'';
     if(!d.shopItems) d.shopItems=Shop.defaultItems();
     if(!d.plantDefs) d.plantDefs=Garden.defaultDefs();
+    else{
+      // 合并植物定义：确保已有植物的 img 字段被更新（兼容旧数据）
+      const pDefs=Garden.defaultDefs();
+      Object.keys(pDefs).forEach(k=>{
+        if(!d.plantDefs[k]) d.plantDefs[k]=pDefs[k];
+        else if(pDefs[k].img)d.plantDefs[k].img=pDefs[k].img;
+      });
+    }
     // 合并宠物定义：确保已有宠物的 img 字段被更新（兼容旧数据）
     if(!d.petDefs) d.petDefs=Pet.defaultDefs();
     else{
@@ -309,6 +322,8 @@ const Store = {
     if(!c.garden) c.garden={grid:this.emptyGrid(),zombies:[],undoFree:true};
     if(!c.garden.grid||c.garden.grid.length!==5) c.garden.grid=this.emptyGrid();
     if(!c.garden.zombies) c.garden.zombies=[];
+    // 为已有僵尸补充图片字段（兼容旧数据）
+    c.garden.zombies.forEach(z=>{if(!z.img)z.img='images/zombie.png';});
     if(c.garden.zombies.length===0&&d_settings().zombieEnabled) c.garden.zombies.push(this.newZombie());
     if(!c.pets) c.pets=[];
     if(!c.achievements) c.achievements=[];
@@ -322,7 +337,7 @@ const Store = {
     if(!c.undoCount) c.undoCount=0;
   },
   emptyGrid(){const g=[];for(let r=0;r<5;r++){g.push(new Array(9).fill(null));}return g;},
-  newZombie(){return{id:uid(),hp:100,maxHp:100,pos:4,intro:'普通僵尸：行动缓慢，喜欢啃食植物。'};},
+  newZombie(){return{id:uid(),hp:100,maxHp:100,pos:4,img:'images/zombie.png',intro:'普通僵尸：行动缓慢，喜欢啃食植物。'};},
   defaultData(){
     const childId='c_'+uid();
     return{
@@ -751,11 +766,11 @@ const Garden = {
     return{
       sunflower:{name:'向日葵',emoji:'🌻',cost:50,produce:5,attack:0,desc:'每日产出5阳光'},
       sunshroom:{name:'阳光菇',emoji:'🍄',cost:25,produce:2,attack:0,desc:'每日产出2阳光'},
-      peashooter:{name:'豌豆射手',emoji:'🟢',cost:100,produce:0,attack:10,desc:'每日攻击僵尸10血'},
-      snowpea:{name:'寒冰射手',emoji:'💙',cost:175,produce:0,attack:15,desc:'每日攻击僵尸15血'},
+      peashooter:{name:'豌豆射手',emoji:'🟢',img:'images/peashooter.png',cost:100,produce:0,attack:10,desc:'每日攻击僵尸10血'},
+      snowpea:{name:'寒冰射手',emoji:'💙',img:'images/snowpea.png',cost:175,produce:0,attack:15,desc:'每日攻击僵尸15血'},
       firepea:{name:'火焰豌豆',emoji:'🔥',cost:200,produce:0,attack:20,desc:'每日攻击僵尸20血'},
-      cherrybomb:{name:'樱桃炸弹',emoji:'🍒',cost:150,produce:0,attack:25,desc:'每日攻击僵尸25血'},
-      wallnut:{name:'坚果墙',emoji:'🥜',cost:50,produce:0,attack:0,block:true,desc:'阻挡僵尸前进1天'}
+      cherrybomb:{name:'樱桃炸弹',emoji:'🍒',img:'images/cherrybomb.png',cost:150,produce:0,attack:25,desc:'每日攻击僵尸25血'},
+      wallnut:{name:'坚果墙',emoji:'🥜',img:'images/wallnut.png',cost:50,produce:0,attack:0,block:true,desc:'阻挡僵尸前进1天'}
     };
   },
   plantList(){return Store.data.plantDefs;},
@@ -1561,16 +1576,22 @@ const UI = {
     for(let r=0;r<5;r++){for(let col=0;col<9;col++){
       const cell=c.garden.grid[r][col];
       const def=cell?defs[cell.type]:null;
+      // 植物渲染：有图片用图片，否则用emoji
+      let plantHtml='';
+      if(cell&&def){
+        plantHtml=def.img?`<img src="${def.img}" class="cell-plant-img" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><span class="cell-plant-emoji" style="display:none;">${def.emoji}</span>`:`<span class="cell-plant-emoji">${def.emoji}</span>`;
+      }
       // 检查该格是否有僵尸
       let zombieInCell='';
       if(zombiesByPos[col]){
         const zm=zombiesByPos[col].find(x=>x.row===r);
         if(zm){
           const z=zm.z;
-          zombieInCell=`<div class="cell-zombie" onclick="event.stopPropagation();UI.zombieInfo('${z.id}')" title="${z.intro||'点击查看僵尸详情'}"><div style="font-size:20px;animation:zWalk .8s ease;">🧟</div><div class="z-bar"><i style="width:${z.hp/z.maxHp*100}%"></i></div><div class="z-hp">${z.hp}</div></div>`;
+          const zombieImg=z.img?`<img src="${z.img}" class="cell-zombie-img" alt="僵尸" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><span style="display:none;font-size:20px;">🧟</span>`:`<span style="font-size:20px;">🧟</span>`;
+          zombieInCell=`<div class="cell-zombie" onclick="event.stopPropagation();UI.zombieInfo('${z.id}')" title="${z.intro||'点击查看僵尸详情'}">${zombieImg}<div class="z-bar"><i style="width:${z.hp/z.maxHp*100}%"></i></div><div class="z-hp">${z.hp}</div></div>`;
         }
       }
-      gridHtml+=`<div class="cell ${cell?'has-plant':''}" onclick="UI.clickCell(${r},${col})" onmouseover="UI.cellTip(${r},${col},event)" onmouseout="UI.hideTip()">${cell?(def.emoji+''):''}${zombieInCell}</div>`;
+      gridHtml+=`<div class="cell ${cell?'has-plant':''}" onclick="UI.clickCell(${r},${col})" onmouseover="UI.cellTip(${r},${col},event)" onmouseout="UI.hideTip()">${plantHtml}${zombieInCell}</div>`;
     }}
     // 僵尸汇总信息栏（仅在有僵尸时显示）
     const zCount=c.garden.zombies.length;
@@ -1579,7 +1600,10 @@ const UI = {
       <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>${zSummary}</div>
       <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击僵尸。僵尸从右侧入侵，完成任务可阻止前进。</p></div>
       <div class="card"><div class="card-title">🛒 植物商店</div>
-      <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>`<div class="task-card"><div style="text-align:center;font-size:32px;">${d.emoji}</div><div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-desc" style="text-align:center;">${d.desc}</div><div class="t-foot" style="justify-content:center;"><span class="reward-tag">${d.cost}☀️</span></div></div>`).join('')}</div></div>
+      <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
+        const plantImg=d.img?`<img src="${d.img}" style="width:60px;height:60px;object-fit:contain;margin:0 auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:32px;">${d.emoji}</div>`:`<div style="font-size:32px;">${d.emoji}</div>`;
+        return `<div class="task-card">${plantImg}<div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-desc" style="text-align:center;">${d.desc}</div><div class="t-foot" style="justify-content:center;"><span class="reward-tag">${d.cost}☀️</span></div></div>`;
+      }).join('')}</div></div>
       <div class="card"><div class="card-title">📋 花园日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.sunlight.filter(l=>/花园|植物|僵尸|种植|移除|消灭/.test(l.action)).map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()}</div></div>${l.delta?`<div class="log-delta ${l.delta>0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta} ☀️</div>`:''}</div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无花园日志</div>'}</div></div>`;
   },
   showGardenHelp(){
@@ -1644,7 +1668,8 @@ const UI = {
   },
   zombieInfo(id){
     const c=curChild();const z=c.garden.zombies.find(x=>x.id===id);if(!z)return;
-    showModal('僵尸信息',`<div style="text-align:center;"><div style="font-size:60px;">🧟</div><div style="margin:8px 0;">血量：${z.hp}/${z.maxHp}</div><div class="progress-bar" style="height:14px;"><div class="progress-fill" style="width:${z.hp/z.maxHp*100}%;background:linear-gradient(90deg,#76ff03,#64dd17);"></div></div><p style="margin:12px 0;font-size:13px;color:var(--text-soft);">${z.intro}</p><p style="font-size:12px;color:var(--text-soft);">位置：${'距花园'+z.pos+'格'}</p></div>`,
+    const zImg=z.img?`<img src="${z.img}" style="width:120px;height:120px;object-fit:contain;margin:0 auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:60px;">🧟</div>`:`<div style="font-size:60px;">🧟</div>`;
+    showModal('僵尸信息',`<div style="text-align:center;">${zImg}<div style="margin:8px 0;">血量：${z.hp}/${z.maxHp}</div><div class="progress-bar" style="height:14px;"><div class="progress-fill" style="width:${z.hp/z.maxHp*100}%;background:linear-gradient(90deg,#76ff03,#64dd17);"></div></div><p style="margin:12px 0;font-size:13px;color:var(--text-soft);">${z.intro}</p><p style="font-size:12px;color:var(--text-soft);">位置：${'距花园'+z.pos+'格'}</p></div>`,
       `<button class="btn ghost sm" onclick="closeModal()">关闭</button> <button class="btn danger sm" onclick="UI.killZombie('${id}')">花费100阳光消灭</button>`);
   },
   killZombie(id){
