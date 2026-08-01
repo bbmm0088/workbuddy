@@ -1331,6 +1331,7 @@ const Router = {
     {id:'sport',icon:'⚽',name:'运动',childOnly:false},
     {id:'chore',icon:'🧹',name:'家务',childOnly:false},
     {id:'deed',icon:'🌟',name:'德育',childOnly:false},
+    {id:'custom',icon:'📝',name:'自定义',childOnly:false},
     {id:'wrong',icon:'📝',name:'错题本',childOnly:false},
     {id:'garden',icon:'🌻',name:'花园',childOnly:false},
     {id:'pet',icon:'🐾',name:'宠物',childOnly:false},
@@ -1424,11 +1425,21 @@ const UI = {
     math(){const c=curChild();const ids=['math_add','math_sub'];if(c.grade!=='gradeK'&&c.grade!=='grade1')ids.push('math_mul');ids.push('math_think');return UI.renderSubject('math','数学',ids);},
     english(){return UI.renderSubject('english','英语',['en_word','en_dictation','en_sent']);},
     sport(){const c=curChild();const items=Bank.sports[c.grade]||[];
+      const ids=items.map((s,si)=>'sport_'+si);
+      const customs=(Store.data.customTasks||[]).filter(t=>t.cat==='运动').map(t=>t.id);
       return `<div class="card"><div class="card-title">⚽ 运动打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">参考广西中考体育标准，每项独立打卡各 +10 阳光</p>
-      <div class="grid grid-2">${items.map((s,si)=>UI.taskCard('sport_'+si,s.name,'目标：'+s.target,10,'🏃')).join('')}</div>
-      </div>`;},
-    chore(){return `<div class="card"><div class="card-title">🧹 家务打卡</div><div class="grid grid-2">${Bank.chores.map(ch=>UI.taskCard(ch.id,ch.name,'完成家务任务',10,ch.icon)).join('')}</div></div>`;},
+      <div class="grid grid-2">${ids.concat(customs).map(id=>UI.taskCardById(id)).join('')}</div>
+      </div>${State.mode==='parent'?UI.customTaskInlineForm('运动'):''}`;},
+    chore(){
+      const ids=Bank.chores.map(ch=>ch.id);
+      const customs=(Store.data.customTasks||[]).filter(t=>t.cat==='家务').map(t=>t.id);
+      return `<div class="card"><div class="card-title">🧹 家务打卡</div><div class="grid grid-2">${ids.concat(customs).map(id=>UI.taskCardById(id)).join('')}</div></div>${State.mode==='parent'?UI.customTaskInlineForm('家务'):''}`;
+    },
     deed(){return UI.renderDeed();},
+    custom(){
+      const ids=(Store.data.customTasks||[]).filter(t=>t.cat==='自定义'||!t.cat).map(t=>t.id);
+      return `<div class="card"><div class="card-title">📝 自定义作业</div>${ids.length?`<div class="grid grid-2">${ids.map(id=>UI.taskCardById(id)).join('')}</div>`:'<div style="color:var(--text-light);text-align:center;padding:20px;font-size:13px;">暂无自定义分类作业<br><span style="font-size:11px;">可在下方添加</span></div>'}</div>${State.mode==='parent'?UI.customTaskInlineForm('自定义'):''}`;
+    },
     wrong(){return UI.renderWrong();},
     garden(){return UI.renderGarden();},
     pet(){return UI.renderPet();},
@@ -1441,12 +1452,28 @@ const UI = {
   setMood(k){curChild().today.mood=k;Store.save();UI.render();},
   renderSubject(subj,title,ids){
     const c=curChild();
+    // 追加该科目的自定义作业（cat 与 title 匹配，或 cat 为"自定义"时只在自定义页面显示）
+    const customs=(Store.data.customTasks||[]).filter(t=>t.cat===title).map(t=>t.id);
+    const allIds=ids.concat(customs);
     let extra='';
     if(subj==='chinese'){
       const poetry=Bank.chinese[c.grade]?.poetry||[];
       extra=`<div class="card"><div class="card-title">📜 今日古诗</div>${poetry.length?`<div style="background:linear-gradient(135deg,#fff8e1,#ffe0b2);padding:14px;border-radius:12px;"><div style="font-weight:700;font-size:16px;">《${poetry[0].title}》</div><div style="color:var(--text-soft);font-size:12px;">— ${poetry[0].author}</div><div style="margin:8px 0;font-size:15px;line-height:1.8;">${poetry[0].content}</div><div style="font-size:12px;color:var(--primary-d);">拼音：${poetry[0].pinyin}</div><details style="margin-top:6px;font-size:12px;"><summary>📖 解析</summary><p style="padding:6px 0;">${poetry[0].analysis}</p></details></div>`:'暂无'}</div>`;
     }
-    return `<div class="card"><div class="card-title">${title} 任务</div><div class="grid grid-2">${ids.map(id=>UI.taskCardById(id)).join('')}</div></div>${extra}`;
+    return `<div class="card"><div class="card-title">${title} 任务</div><div class="grid grid-2">${allIds.map(id=>UI.taskCardById(id)).join('')}</div></div>${extra}${State.mode==='parent'?UI.customTaskInlineForm(title):''}`;
+  },
+  // 家长模式下显示的迷你添加表单
+  customTaskInlineForm(cat){
+    return `<div class="card" style="border:2px dashed var(--primary);">
+      <div class="card-title" style="font-size:13px;">➕ 添加${cat}自定义作业 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长模式专属）</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <input id="inlineCtIcon" placeholder="图标" value="📝" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;">
+        <input id="inlineCtName" placeholder="任务名称（如：写日记/做卷子）" style="flex:1;min-width:120px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+        <input id="inlineCtReward" type="number" placeholder="阳光" value="10" style="width:70px;padding:6px;border:1px solid var(--border);border-radius:6px;">☀️
+        <label style="font-size:11px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="inlineCtReview"> 需审核</label>
+        <button class="btn sm" onclick="UI.addCustomTaskInline('${cat}')">添加</button>
+      </div>
+    </div>`;
   },
   taskCardById(id){
     const tasks=todayTaskList(curChild());
@@ -1455,6 +1482,8 @@ const UI = {
   },
   taskCard(id,name,desc,reward,icon,perfectReward){
     const c=curChild();const task=c.today.tasks[id];
+    const taskDef=todayTaskList(c).find(x=>x.id===id);
+    const needReview=taskDef?.review;
     const done=task?.completed;
     const pending=task?.pendingReview;
     const isQuiz=id.startsWith('cn_pinyin')||id.startsWith('cn_poetry')||id.startsWith('math_')||id.startsWith('en_')||id==='cn_literacy'||id==='cn_dictation'||id==='en_dictation';
@@ -1470,6 +1499,9 @@ const UI = {
       btns=`<button class="btn sm" onclick="UI.showCallig()">查看字帖</button> <button class="btn sm" onclick="completeTask('${id}',${reward},'练字练习')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
     }else if(id==='cn_reading'){
       btns=`<button class="btn sm" onclick="UI.showReading()">阅读书目</button> <button class="btn orange sm" onclick="completeTask('${id}',${reward},'课外阅读')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
+    }else if(needReview&&State.mode==='child'&&d_settings().reviewMode){
+      // 需家长审核的自定义/打卡类作业（孩子模式下需申请审核）
+      btns=`<button class="btn orange sm" onclick="completeTask('${id}',${reward},'${name}')">申请审核 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯 专注</button>`;
     }else{
       btns=`<button class="btn sm" onclick="completeTask('${id}',${reward},'${name}')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯 专注</button>`;
     }
@@ -1917,7 +1949,9 @@ const UI = {
   },
   // 作息德育打卡
   renderDeed(){
-    return `<div class="card"><div class="card-title">🌟 作息德育打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">培养良好品德习惯，每项+5阳光。家长审核模式下需家长确认。</p><div class="grid grid-2">${Bank.deeds().map(d=>UI.taskCard(d.id,d.name,'德育习惯养成',5,d.icon)).join('')}</div></div>`;
+    const ids=Bank.deeds().map(d=>d.id);
+    const customs=(Store.data.customTasks||[]).filter(t=>t.cat==='德育').map(t=>t.id);
+    return `<div class="card"><div class="card-title">🌟 作息德育打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">培养良好品德习惯，每项+5阳光。家长审核模式下需家长确认。</p><div class="grid grid-2">${ids.concat(customs).map(id=>UI.taskCardById(id)).join('')}</div></div>${State.mode==='parent'?UI.customTaskInlineForm('德育'):''}`;
   },
   // 错题本
   renderWrong(){
@@ -2204,15 +2238,33 @@ const UI = {
   },
   delDeed(id){Store.data.deedDefs=Store.data.deedDefs.filter(x=>x.id!==id);Store.save();UI.render();},
   addCustomTask(){
-    const name=$('#newCtName').value.trim();
+    // 兼容家长管理页面的表单（带 #newCtName 等元素）
+    const nameEl=$('#newCtName');
+    if(nameEl){
+      const name=nameEl.value.trim();
+      if(!name){toast('请填写任务名称');return;}
+      const icon=$('#newCtIcon')?.value||'📝';
+      const cat=$('#newCtCat')?.value||'自定义';
+      const reward=+$('#newCtReward')?.value||10;
+      const review=$('#newCtReview')?.checked||false;
+      if(!Store.data.customTasks)Store.data.customTasks=[];
+      Store.data.customTasks.push({id:'ct_'+uid(),name,icon,cat,reward,review,custom:true});
+      Store.save();UI.render();toast('已添加自定义作业：'+name);
+      return;
+    }
+  },
+  // 科目页面底部的迷你添加表单（家长模式专用）
+  addCustomTaskInline(cat){
+    const nameEl=$('#inlineCtName');
+    if(!nameEl)return;
+    const name=nameEl.value.trim();
     if(!name){toast('请填写任务名称');return;}
-    const icon=$('#newCtIcon').value||'📝';
-    const cat=$('#newCtCat').value||'自定义';
-    const reward=+$('#newCtReward').value||10;
-    const review=$('#newCtReview').checked;
+    const icon=$('#inlineCtIcon')?.value||'📝';
+    const reward=+$('#inlineCtReward')?.value||10;
+    const review=$('#inlineCtReview')?.checked||false;
     if(!Store.data.customTasks)Store.data.customTasks=[];
     Store.data.customTasks.push({id:'ct_'+uid(),name,icon,cat,reward,review,custom:true});
-    Store.save();UI.render();toast('已添加自定义作业：'+name);
+    Store.save();UI.render();toast(`已添加${cat}作业：${name}（+${reward}☀️）`);
   },
   delCustomTask(id){
     Store.data.customTasks=(Store.data.customTasks||[]).filter(x=>x.id!==id);
