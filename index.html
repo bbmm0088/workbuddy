@@ -1365,7 +1365,7 @@ const UI = {
     $('#topProgress').textContent=rate+'%';
     const plantCount=c.garden.grid.flat().filter(x=>x).length;
     $('#topStats').innerHTML=`
-      <span class="stat-chip">👤 ${c.profile.name}</span>
+      <span class="stat-chip">${c.profile.avatarImg?`<img src="${c.profile.avatarImg}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;">`:(c.profile.avatar||'🙂')} ${c.profile.name}</span>
       <span class="stat-chip">📅 ${Bank.gradeNames[c.grade]}</span>
       <span class="stat-chip">${(Levels[c.stats.level]||Levels[0]).emoji} ${(Levels[c.stats.level]||Levels[0]).name}</span>
       <span class="stat-chip">☀️ 今日<b>${c.today.sunlight}</b></span>
@@ -1406,7 +1406,10 @@ const UI = {
         <div class="card">
           <div class="card-title">🌟 今日学习概览</div>
           <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-            <div style="font-size:48px;">${c.profile.avatar}</div>
+            <div style="position:relative;cursor:pointer;" onclick="UI.pickAvatar()" title="点击更换头像">
+              ${c.profile.avatarImg?`<img src="${c.profile.avatarImg}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:3px solid var(--primary);">`:`<div style="font-size:48px;">${c.profile.avatar||'🙂'}</div>`}
+              <div style="position:absolute;bottom:-2px;right:-2px;background:var(--primary);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;">📷</div>
+            </div>
             <div><div style="font-size:18px;font-weight:700;">${c.profile.name}</div><div style="color:var(--text-soft);">${Bank.gradeNames[c.grade]} · ${lvDef.emoji} ${lvDef.name}</div></div>
           </div>
           <div class="progress-bar" style="height:22px;margin-bottom:6px;"><div class="progress-fill" style="width:${rate}%;font-size:12px;">${rate}%</div></div>
@@ -1450,6 +1453,61 @@ const UI = {
     parent(){return UI.renderParent();}
   },
   setMood(k){curChild().today.mood=k;Store.save();UI.render();},
+  // 头像选择弹窗：emoji 列表 + 上传图片
+  pickAvatar(){
+    const c=curChild();
+    const emojis=['🙂','👦','👧','🦁','🐰','🐱','🐶','🐼','🦊','🐯','🐨','🐸','🐵','🦉','🐧','🐔','🦄','🐲','🌟','🌈','🎨','📚','⚽','🏀','🎸','🚀','🤖','👽','🎃','🦋'];
+    const curEmoji=c.profile.avatar||'🙂';
+    const curImg=c.profile.avatarImg;
+    const emojiHtml=emojis.map(e=>`<button class="btn ${e===curEmoji&&!curImg?'':'ghost'} sm" style="font-size:24px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;" onclick="UI.setAvatar('${e}')">${e}</button>`).join('');
+    const body=`<div style="text-align:center;">
+      <div style="margin-bottom:10px;">${curImg?`<img src="${curImg}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);">`:`<span style="font-size:48px;">${curEmoji}</span>`}</div>
+      <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">选择 emoji 头像或上传自定义图片</p>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:12px;">${emojiHtml}</div>
+      <div style="border-top:1px solid var(--border);padding-top:10px;">
+        <label style="display:inline-block;cursor:pointer;">
+          <span class="btn sm" style="background:var(--primary);color:#fff;">📷 上传图片</span>
+          <input type="file" accept="image/*" style="display:none;" onchange="UI.uploadAvatar(this)">
+        </label>
+        ${curImg?`<button class="btn ghost sm" style="margin-left:8px;" onclick="UI.clearAvatarImg()">清除图片</button>`:''}
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-top:8px;">图片将压缩存储在本地，建议使用正方形小图</p>
+    </div>`;
+    showModal('选择头像',body,null,false);
+  },
+  setAvatar(emoji){
+    curChild().profile.avatar=emoji;
+    delete curChild().profile.avatarImg;
+    Store.save();closeModal();UI.render();toast('头像已更换');
+  },
+  uploadAvatar(input){
+    const file=input.files[0];if(!file)return;
+    if(file.size>2*1024*1024){toast('图片不能超过2MB');return;}
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const img=new Image();
+      img.onload=()=>{
+        // 压缩到 96x96
+        const canvas=document.createElement('canvas');
+        canvas.width=96;canvas.height=96;
+        const ctx=canvas.getContext('2d');
+        // 居中裁剪
+        const min=Math.min(img.width,img.height);
+        const sx=(img.width-min)/2,sy=(img.height-min)/2;
+        ctx.drawImage(img,sx,sy,min,min,0,0,96,96);
+        const dataUrl=canvas.toDataURL('image/jpeg',0.85);
+        curChild().profile.avatarImg=dataUrl;
+        curChild().profile.avatar='📷';
+        Store.save();closeModal();UI.render();toast('头像上传成功！');
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  },
+  clearAvatarImg(){
+    delete curChild().profile.avatarImg;
+    Store.save();closeModal();UI.render();toast('已清除自定义头像');
+  },
   renderSubject(subj,title,ids){
     const c=curChild();
     // 追加该科目的自定义作业（cat 与 title 匹配，或 cat 为"自定义"时只在自定义页面显示）
@@ -2141,9 +2199,12 @@ const UI = {
     if(State.mode!=='parent')return `<div class="card"><p>请先切换到家长模式</p></div>`;
     const c=curChild();const children=Store.data.children;
     return `<div class="card"><div class="card-title">👨‍👩‍👧 孩子管理</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${Object.entries(children).map(([id,ch])=>`<button class="btn ${id===d_settings().currentChildId?'':'ghost'} sm" onclick="UI.switchChild('${id}')">${ch.profile.avatar} ${ch.profile.name}</button>`).join('')}</div>
-      <button class="btn sm" onclick="UI.addChild()">➕ 新增孩子</button>
-      ${d_settings().currentChildId!==Object.keys(children)[0]?`<button class="btn danger sm" onclick="UI.delChild()" style="margin-left:8px;">删除当前孩子</button>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${Object.entries(children).map(([id,ch])=>`<button class="btn ${id===d_settings().currentChildId?'':'ghost'} sm" onclick="UI.switchChild('${id}')">${ch.profile.avatarImg?'📷':(ch.profile.avatar||'🙂')} ${ch.profile.name}</button>`).join('')}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <button class="btn sm" onclick="UI.pickAvatar()">📷 修改当前孩子头像</button>
+        <button class="btn sm" onclick="UI.addChild()">➕ 新增孩子</button>
+        ${d_settings().currentChildId!==Object.keys(children)[0]?`<button class="btn danger sm" onclick="UI.delChild()">删除当前孩子</button>`:''}
+      </div>
       <div style="margin-top:10px;">当前：${c.profile.name} · ${Bank.gradeNames[c.grade]}</div>
       <div style="margin-top:10px;"><label>修改年级：</label><select onchange="UI.setGrade(this.value)">${Object.entries(Bank.gradeNames).map(([k,v])=>`<option value="${k}" ${c.grade===k?'selected':''}>${v}</option>`).join('')}</select></div>
       </div>
