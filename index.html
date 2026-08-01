@@ -108,16 +108,16 @@ input,select,textarea{font-family:inherit;outline:none;}
 .zombie .z-bar{width:34px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;}
 .zombie .z-bar i{display:block;height:100%;background:#76ff03;border-radius:2px;}
 /* 僵尸在花园网格内 */
-.cell-zombie{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;z-index:3;pointer-events:auto;}
+.cell-zombie{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:1px;cursor:pointer;z-index:3;pointer-events:auto;}
 .cell-zombie .z-bar{width:80%;height:3px;background:rgba(255,255,255,.2);border-radius:2px;margin-top:2px;}
 .cell-zombie .z-bar i{display:block;height:100%;background:#76ff03;border-radius:2px;}
 .cell-zombie .z-hp{font-size:9px;color:#fff;text-shadow:0 0 2px #000;font-weight:700;}
-.cell-zombie-img{width:90%;height:90%;max-width:none;object-fit:contain;pointer-events:none;animation:zWalk .8s ease;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));}
+.cell-zombie-img{width:100%;height:100%;max-width:none;object-fit:contain;pointer-events:none;animation:zWalk .8s ease;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));position:absolute;top:0;left:0;}
 .cell:has(.cell-zombie){background:repeating-linear-gradient(90deg,#616161 0 50%,#424242 50% 100%) !important;}
 /* 植物和僵尸图片样式 */
 .cell-plant-img{width:90%;max-height:90%;object-fit:contain;pointer-events:none;animation:plantSway 3s ease-in-out infinite;transform-origin:bottom center;}
 .cell-plant-emoji{font-size:22px;pointer-events:none;}
-.cell-zombie-img{width:38px;height:38px;object-fit:contain;pointer-events:none;animation:zWalk .8s ease;}
+.cell-zombie-img{width:100%;height:100%;object-fit:contain;pointer-events:none;animation:zWalk .8s ease;}
 @keyframes plantSway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
 
 /* 宠物 */
@@ -308,11 +308,13 @@ const Store = {
         else{
           // 强制更新基础 img 字段
           d.petDefs[k].img=defs[k].img;
-          // 合并 imgs 状态图（如果新版本有，老版本没有则补上）
-          if(!d.petDefs[k].imgs)d.petDefs[k].imgs={};
-          Object.keys(defs[k].imgs||{}).forEach(state=>{
-            if(!d.petDefs[k].imgs[state])d.petDefs[k].imgs[state]=defs[k].imgs[state];
-          });
+          // 强制更新 imgs 状态图（确保新图片路径生效）
+          if(defs[k].imgs){
+            if(!d.petDefs[k].imgs)d.petDefs[k].imgs={};
+            Object.keys(defs[k].imgs).forEach(state=>{
+              d.petDefs[k].imgs[state]=defs[k].imgs[state];
+            });
+          }
         }
       });
     }
@@ -848,7 +850,17 @@ const Pet = {
         desc:'酷酷的小黑猫，眼神明亮，喜欢戴蓝色小围巾。',
         cost:100,attrs:{饱食:'高',亲密:'中',攻击:'无',防御:'低'}
       },
-      labrador:{name:'拉布拉多',emoji:'🐕',img:'images/labrador.jpg?v=2',desc:'温柔的拉布拉多，戴橙色项圈，最喜欢和主人玩耍。',cost:100,attrs:{饱食:'高',亲密:'高',攻击:'低',防御:'中'}},
+      labrador:{
+        name:'拉布拉多',emoji:'🐕',
+        img:'images/labrador.jpg?v=3',
+        imgs:{
+          normal:'images/labrador.jpg?v=3',
+          happy:'images/labrador.jpg?v=3',
+          sad:'images/labrador_sad.jpg?v=3',
+          feed:'images/labrador_feed.jpg?v=3'
+        },
+        desc:'温柔的拉布拉多，戴橙色项圈，最喜欢和主人玩耍。',cost:100,attrs:{饱食:'高',亲密:'高',攻击:'低',防御:'中'}
+      },
       tricolor:{
         name:'三花猫',emoji:'🐱',
         img:'images/tricolor.jpg?v=2',
@@ -861,7 +873,17 @@ const Pet = {
         desc:'可爱的小三花，戴粉色蝴蝶结，毛色由黄白黑相间。',
         cost:150,attrs:{饱食:'中',亲密:'高',攻击:'无',防御:'中'}
       },
-      samoyed:{name:'萨摩耶',emoji:'🐩',img:'images/samoyed.jpg?v=2',desc:'微笑天使萨摩耶，戴口水巾，笑容治愈每一天。',cost:150,attrs:{饱食:'高',亲密:'高',攻击:'无',防御:'高'}}
+      samoyed:{
+        name:'萨摩耶',emoji:'🐩',
+        img:'images/samoyed.jpg?v=3',
+        imgs:{
+          normal:'images/samoyed.jpg?v=3',
+          happy:'images/samoyed_happy.jpg?v=3',
+          sad:'images/samoyed.jpg?v=3',
+          feed:'images/samoyed_happy.jpg?v=3'
+        },
+        desc:'微笑天使萨摩耶，戴口水巾，笑容治愈每一天。',cost:150,attrs:{饱食:'高',亲密:'高',攻击:'无',防御:'高'}
+      }
     };
   },
   list(){return Store.data.petDefs;},
@@ -1484,6 +1506,9 @@ const UI = {
   },
   renderQuiz(){
     const q=this.curQuiz;if(!q)return;
+    // 关闭退出确认弹窗和旧测验弹窗（如果存在）
+    if(this._quizMask){this._quizMask.remove();this._quizMask=null;}
+    closeModal();
     const i=q.idx;const item=q.questions[i];
     const isInput=!item.opts;
     const answered=q.answers[i];
@@ -1541,11 +1566,15 @@ const UI = {
     // 直接显示退出确认弹窗（不用 confirmModal，避免覆盖 quiz modal 引用）
     const q=this.curQuiz;if(!q)return;
     const curTitle=q.title;
+    // 保存当前 quiz 弹窗引用，以便 forceExitQuiz 能同时移除
+    this._quizMask=window._curMask;
     const body=`<div style="padding:10px 0;text-align:center;font-size:14px;">确定要退出<span style="color:var(--primary-d);font-weight:700;">${curTitle}</span>吗？<br><span style="color:var(--text-soft);font-size:12px;">已答内容将不会保存。</span></div>`;
     const footer=`<button class="btn ghost sm" onclick="UI.renderQuiz()">继续答题</button> <button class="btn danger sm" onclick="UI.forceExitQuiz()">确认退出</button>`;
     showModal('退出确认',body,footer,true);
   },
   forceExitQuiz(){
+    // 先移除测验弹窗（之前保存的引用）
+    if(this._quizMask){this._quizMask.remove();this._quizMask=null;}
     this.curQuiz=null;closeModal();toast('已退出测试');this.backToQuizOrigin();
   },
   prevQuiz(){if(this.curQuiz.idx>0){this.curQuiz.idx--;this.renderQuiz();}},
@@ -1575,13 +1604,19 @@ const UI = {
     if(correct<total)msg+=`\n答错的题目已加入错题本，次日可复习。`;
     Audio.play(perfect?'correct':'wrong');
     completeTask(q.taskId,reward,q.title+(perfect?'（满分）':''),perfect,perfect?bonus:0);
+    // 清理测验弹窗引用
+    if(this._quizMask){this._quizMask.remove();this._quizMask=null;}
     closeModal();
     this.curQuiz=null;
     const originView=this._quizOriginView||'dashboard';
     showModal('测试结果',`<div style="text-align:center;padding:20px;"><div style="font-size:50px;">${perfect?'🎉':'💪'}</div><div style="font-size:20px;font-weight:700;margin:10px 0;">${correct} / ${total}</div><p style="color:var(--text-soft);white-space:pre-line;">${msg}</p><p style="margin-top:10px;color:var(--primary-d);font-weight:700;">获得 ${reward+bonus} 阳光 ☀️</p></div>`,`<button class="btn sm" onclick="UI.backToQuizOrigin()">好的</button>`);
   },
   backToQuizOrigin(){
+    // 清理所有弹窗
+    if(this._quizMask){this._quizMask.remove();this._quizMask=null;}
     closeModal();
+    const root=$('#modalRoot');
+    if(root)root.innerHTML='';
     if(this._quizOriginView){State.view=this._quizOriginView;}
     this._quizOriginView=null;
     UI.render();
@@ -1770,6 +1805,9 @@ const UI = {
           petImgSrc=def.imgs.sad;petStateLabel=p.status==='sick'?'🤒 生病了':'😟 饿了';
         }else if(p.status==='dead'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';
+        }else if(def.imgs.happy){
+          // 健康且无最近操作 → 默认显示开心图
+          petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';
         }
       }
       const imgHtml=petImgSrc?`<img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div>`:`<div class="pet-emoji">${def.emoji}</div>`;
