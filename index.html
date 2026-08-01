@@ -109,9 +109,10 @@ input,select,textarea{font-family:inherit;outline:none;}
 .zombie .z-bar i{display:block;height:100%;background:#76ff03;border-radius:2px;}
 /* 僵尸在花园网格内 */
 .cell-zombie{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;z-index:3;pointer-events:auto;}
-.cell-zombie .z-bar{width:26px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;}
+.cell-zombie .z-bar{width:80%;height:3px;background:rgba(255,255,255,.2);border-radius:2px;margin-top:2px;}
 .cell-zombie .z-bar i{display:block;height:100%;background:#76ff03;border-radius:2px;}
-.cell-zombie .z-hp{font-size:9px;color:#fff;text-shadow:0 0 2px #000;}
+.cell-zombie .z-hp{font-size:9px;color:#fff;text-shadow:0 0 2px #000;font-weight:700;}
+.cell-zombie-img{width:90%;height:90%;max-width:none;object-fit:contain;pointer-events:none;animation:zWalk .8s ease;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));}
 .cell:has(.cell-zombie){background:repeating-linear-gradient(90deg,#616161 0 50%,#424242 50% 100%) !important;}
 /* 植物和僵尸图片样式 */
 .cell-plant-img{width:90%;max-height:90%;object-fit:contain;pointer-events:none;animation:plantSway 3s ease-in-out infinite;transform-origin:bottom center;}
@@ -778,7 +779,7 @@ const Garden = {
       sunshroom:{name:'阳光菇',emoji:'🍄',cost:25,produce:2,attack:0,desc:'每日产出2阳光'},
       peashooter:{name:'豌豆射手',emoji:'🟢',img:'images/peashooter.png',cost:100,produce:0,attack:10,desc:'每日攻击僵尸10血'},
       snowpea:{name:'寒冰射手',emoji:'💙',img:'images/snowpea.png',cost:175,produce:0,attack:15,desc:'每日攻击僵尸15血'},
-      firepea:{name:'火焰豌豆',emoji:'🔥',cost:200,produce:0,attack:20,desc:'每日攻击僵尸20血'},
+      firepea:{name:'火焰豌豆',emoji:'🔥',img:'images/firepea.png',cost:200,produce:0,attack:20,desc:'每日攻击僵尸20血'},
       cherrybomb:{name:'樱桃炸弹',emoji:'🍒',img:'images/cherrybomb.png',cost:150,produce:0,attack:25,desc:'每日攻击僵尸25血'},
       wallnut:{name:'坚果墙',emoji:'🥜',img:'images/wallnut.png',cost:50,produce:0,attack:0,block:true,desc:'阻挡僵尸前进1天'}
     };
@@ -1402,7 +1403,8 @@ const UI = {
     }else if(pending){
       btns=`<button class="btn sm" disabled style="background:#ffe0b2;color:#e65100;">⏳ 审核中</button>`;
     }else if(isQuiz){
-      btns=`<button class="btn sm" onclick="UI.startQuiz('${id}')">开始测试</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯 专注</button>`;
+      // 带测试的作业：提供"开始测试"和"线下完成（家长审核）"两个选项
+      btns=`<button class="btn sm" onclick="UI.startQuiz('${id}')">开始测试</button> <button class="btn orange sm" onclick="UI.offlineComplete('${id}')" title="家长确认孩子已在纸质/书面上完成">📝 线下完成</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
     }else if(id==='cn_callig'){
       btns=`<button class="btn sm" onclick="UI.showCallig()">查看字帖</button> <button class="btn sm" onclick="completeTask('${id}',${reward},'练字练习')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
     }else if(id==='cn_reading'){
@@ -1536,10 +1538,15 @@ const UI = {
   },
   selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
   exitQuiz(){
-    confirmModal('确定要退出测试吗？已答内容将不会保存。',()=>{
-      this.curQuiz=null;closeModal();toast('已退出测试');
-      this.backToQuizOrigin();
-    });
+    // 直接显示退出确认弹窗（不用 confirmModal，避免覆盖 quiz modal 引用）
+    const q=this.curQuiz;if(!q)return;
+    const curTitle=q.title;
+    const body=`<div style="padding:10px 0;text-align:center;font-size:14px;">确定要退出<span style="color:var(--primary-d);font-weight:700;">${curTitle}</span>吗？<br><span style="color:var(--text-soft);font-size:12px;">已答内容将不会保存。</span></div>`;
+    const footer=`<button class="btn ghost sm" onclick="UI.renderQuiz()">继续答题</button> <button class="btn danger sm" onclick="UI.forceExitQuiz()">确认退出</button>`;
+    showModal('退出确认',body,footer,true);
+  },
+  forceExitQuiz(){
+    this.curQuiz=null;closeModal();toast('已退出测试');this.backToQuizOrigin();
   },
   prevQuiz(){if(this.curQuiz.idx>0){this.curQuiz.idx--;this.renderQuiz();}},
   nextQuiz(){
@@ -1620,7 +1627,7 @@ const UI = {
         if(zm){
           const z=zm.z;
           const zombieImg=z.img?`<img src="${z.img}" class="cell-zombie-img" alt="僵尸" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><span style="display:none;font-size:20px;">🧟</span>`:`<span style="font-size:20px;">🧟</span>`;
-          zombieInCell=`<div class="cell-zombie" onclick="event.stopPropagation();UI.zombieInfo('${z.id}')" title="${z.intro||'点击查看僵尸详情'}">${zombieImg}<div class="z-bar"><i style="width:${z.hp/z.maxHp*100}%"></i></div><div class="z-hp">${z.hp}</div></div>`;
+          zombieInCell=`<div class="cell-zombie" onclick="event.stopPropagation();UI.zombieInfo('${z.id}')" title="${z.intro||'点击查看僵尸详情'}">${zombieImg}<div class="z-bar"><i style="width:${z.hp/z.maxHp*100}%"></i></div></div>`;
         }
       }
       gridHtml+=`<div class="cell ${cell?'has-plant':''}" onclick="UI.clickCell(${r},${col})" onmouseover="UI.cellTip(${r},${col},event)" onmouseout="UI.hideTip()">${plantHtml}${zombieInCell}</div>`;
@@ -1631,10 +1638,12 @@ const UI = {
     return `<div class="card"><div class="card-title">🌻 我的花园 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showGardenHelp()">📖 玩法介绍</button></div>
       <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>${zSummary}</div>
       <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击僵尸。僵尸从右侧入侵，完成任务可阻止前进。</p></div>
-      <div class="card"><div class="card-title">🛒 植物商店</div>
+      <div class="card"><div class="card-title">🛒 植物商店 <span style="font-size:11px;color:var(--text-soft);font-weight:400;margin-left:8px;">点击植物卡片 → 选择格子种植</span></div>
       <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const plantImg=d.img?`<img src="${d.img}" style="width:60px;height:60px;object-fit:contain;margin:0 auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:32px;">${d.emoji}</div>`:`<div style="font-size:32px;">${d.emoji}</div>`;
-        return `<div class="task-card">${plantImg}<div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-desc" style="text-align:center;">${d.desc}</div><div class="t-foot" style="justify-content:center;"><span class="reward-tag">${d.cost}☀️</span></div></div>`;
+        const canBuy=c.sunlight.total>=d.cost;
+        const cursorStyle=canBuy?'cursor:pointer;':'cursor:not-allowed;opacity:.5;';
+        return `<div class="task-card" style="${cursorStyle}" onclick="UI.shopPlant('${k}')" title="${canBuy?'点击选择格子种植 '+d.name:'阳光不足'}">${plantImg}<div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-desc" style="text-align:center;">${d.desc}</div><div class="t-foot" style="justify-content:center;"><span class="reward-tag">${d.cost}☀️</span></div></div>`;
       }).join('')}</div></div>
       <div class="card"><div class="card-title">📋 花园日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.sunlight.filter(l=>/花园|植物|僵尸|种植|移除|消灭/.test(l.action)).map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()}</div></div>${l.delta?`<div class="log-delta ${l.delta>0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta} ☀️</div>`:''}</div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无花园日志</div>'}</div></div>`;
   },
@@ -1681,8 +1690,37 @@ const UI = {
     this.curTip=t;
   },
   hideTip(){if(this.curTip){this.curTip.remove();this.curTip=null;}},
+  // 植物商店点击：选择植物后点击格子种植
+  _shopSelectedType:null,
+  shopPlant(type){
+    const def=Garden.plantList()[type];if(!def)return;
+    const c=curChild();
+    if(c.sunlight.total<def.cost){toast('阳光不足，需要 '+def.cost+'☀️');return;}
+    // 检查是否有空格
+    let emptyCount=0;
+    for(let r=0;r<5;r++)for(let col=0;col<9;col++)if(!c.garden.grid[r][col])emptyCount++;
+    if(emptyCount===0){toast('花园已满，请先移除植物');return;}
+    this._shopSelectedType=type;
+    toast('🌱 已选中 '+def.name+'，点击花园格子种植');
+    UI.render();
+  },
   clickCell(r,col){
     const c=curChild();const cell=c.garden.grid[r][col];
+    // 如果已从商店选中植物，直接种植
+    if(this._shopSelectedType&&!cell){
+      const type=this._shopSelectedType;
+      const def=Garden.plantList()[type];
+      if(def&&c.sunlight.total>=def.cost){
+        if(Garden.plant(r,col,type)){
+          toast('🌱 '+def.name+' 种植成功！');
+          this._shopSelectedType=null;
+          UI.render();
+        }else{
+          toast('种植失败');
+        }
+        return;
+      }
+    }
     if(cell){
       // 撤销种植
       const def=Garden.plantList()[cell.type];
@@ -1921,6 +1959,26 @@ const UI = {
     Pet.rename(petId,name);closeModal();toast('改名成功！');UI.render();
   },
   // 专注计时
+  // 线下完成（家长审核模式下需要家长确认）
+  offlineComplete(taskId){
+    const task=todayTaskList(curChild()).find(t=>t.id===taskId);
+    if(!task)return;
+    const inReviewMode=d_settings().reviewMode===true;
+    if(inReviewMode){
+      // 家长审核模式：标记为待审核
+      confirmModal(`确认孩子已在书面上完成【${task.name}】？标记为待家长审核。`,()=>{
+        curChild().today.tasks[taskId]={completed:false,pendingReview:true,offline:true};
+        Log.sunlight(0,'线下完成（待审核）:'+task.name);
+        Store.save();UI.render();toast('✅ 已提交待家长审核');
+      });
+    }else{
+      // 非审核模式：直接完成（按基础奖励，不含满分奖励）
+      confirmModal(`确认孩子已在书面上完成【${task.name}】？将获得 ${task.reward} 阳光（无满分奖励）。`,()=>{
+        completeTask(taskId,task.reward,task.name+'(线下)',false,0);
+        curChild().today.tasks[taskId].offline=true;
+      });
+    }
+  },
   startFocus(taskId){
     if(State.focusing){toast('专注进行中…');return;}
     showModal('⏱️ 专注学习',`<div style="text-align:center;padding:10px;">
