@@ -122,6 +122,8 @@ input,select,textarea{font-family:inherit;outline:none;}
 /* 宠物 */
 .pet-card{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px;align-items:center;}
 .pet-emoji{font-size:48px;text-align:center;}
+.pet-img{width:100%;max-width:140px;height:140px;border-radius:50%;object-fit:cover;margin:0 auto;display:block;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.15);transition:transform .3s;}
+.pet-img:hover{transform:scale(1.05);}
 .bar-wrap{background:#fff;border-radius:10px;height:14px;overflow:hidden;position:relative;}
 .bar-fill{height:100%;border-radius:10px;transition:width .4s;}
 .bar-fill.sat{background:linear-gradient(90deg,#ffb300,#ff8f00);}
@@ -302,7 +304,15 @@ const Store = {
       const defs=Pet.defaultDefs();
       Object.keys(defs).forEach(k=>{
         if(!d.petDefs[k]) d.petDefs[k]=defs[k];
-        else d.petDefs[k].img=defs[k].img; // 强制更新 img 字段
+        else{
+          // 强制更新基础 img 字段
+          d.petDefs[k].img=defs[k].img;
+          // 合并 imgs 状态图（如果新版本有，老版本没有则补上）
+          if(!d.petDefs[k].imgs)d.petDefs[k].imgs={};
+          Object.keys(defs[k].imgs||{}).forEach(state=>{
+            if(!d.petDefs[k].imgs[state])d.petDefs[k].imgs[state]=defs[k].imgs[state];
+          });
+        }
       });
     }
     if(!d.achievementDefs) d.achievementDefs=Ach.defaultDefs();
@@ -825,9 +835,31 @@ function gardenSettleFor(c){
 const Pet = {
   defaultDefs(){
     return{
-      black_cat:{name:'小黑猫',emoji:'🐈‍⬛',img:'images/black_cat.jpg?v=2',desc:'酷酷的小黑猫，眼神明亮，喜欢戴蓝色小围巾。',cost:100,attrs:{饱食:'高',亲密:'中',攻击:'无',防御:'低'}},
+      black_cat:{
+        name:'小黑猫',emoji:'🐈‍⬛',
+        img:'images/black_cat.jpg?v=2',
+        imgs:{
+          normal:'images/black_cat.jpg?v=2',
+          happy:'images/black_cat_happy.jpg?v=2',
+          sad:'images/black_cat_sad.jpg?v=2',
+          feed:'images/black_cat_feed.jpg?v=2'
+        },
+        desc:'酷酷的小黑猫，眼神明亮，喜欢戴蓝色小围巾。',
+        cost:100,attrs:{饱食:'高',亲密:'中',攻击:'无',防御:'低'}
+      },
       labrador:{name:'拉布拉多',emoji:'🐕',img:'images/labrador.jpg?v=2',desc:'温柔的拉布拉多，戴橙色项圈，最喜欢和主人玩耍。',cost:100,attrs:{饱食:'高',亲密:'高',攻击:'低',防御:'中'}},
-      tricolor:{name:'三花猫',emoji:'🐱',img:'images/tricolor.jpg?v=2',desc:'可爱的小三花，戴粉色蝴蝶结，毛色由黄白黑相间。',cost:150,attrs:{饱食:'中',亲密:'高',攻击:'无',防御:'中'}},
+      tricolor:{
+        name:'三花猫',emoji:'🐱',
+        img:'images/tricolor.jpg?v=2',
+        imgs:{
+          normal:'images/tricolor.jpg?v=2',
+          happy:'images/tricolor_happy.jpg?v=2',
+          sad:'images/tricolor_sad.jpg?v=2',
+          feed:'images/tricolor_feed.jpg?v=2'
+        },
+        desc:'可爱的小三花，戴粉色蝴蝶结，毛色由黄白黑相间。',
+        cost:150,attrs:{饱食:'中',亲密:'高',攻击:'无',防御:'中'}
+      },
       samoyed:{name:'萨摩耶',emoji:'🐩',img:'images/samoyed.jpg?v=2',desc:'微笑天使萨摩耶，戴口水巾，笑容治愈每一天。',cost:150,attrs:{饱食:'高',亲密:'高',攻击:'无',防御:'高'}}
     };
   },
@@ -862,16 +894,16 @@ const Pet = {
   },
   feed(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;const def=this.list()[p.type];
     if(!spendSunlight(100,'喂食'+p.name))return;
-    p.satiety=clamp(p.satiety+100,0,200);this.updateStatus(p);Log.pet('喂食',p.id,'饱食+100');Audio.play('pet');Store.save();},
+    p.satiety=clamp(p.satiety+100,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);Log.pet('喂食',p.id,'饱食+100');Audio.play('pet');Store.save();UI.render();},
   water(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(!spendSunlight(50,'喂水'+p.name))return;
-    p.satiety=clamp(p.satiety+50,0,200);this.updateStatus(p);Log.pet('喂水',p.id,'饱食+50');Audio.play('pet');Store.save();},
+    p.satiety=clamp(p.satiety+50,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);Log.pet('喂水',p.id,'饱食+50');Audio.play('pet');Store.save();UI.render();},
   touch(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(!spendSunlight(50,'抚摸'+p.name))return;
-    p.intimacy=clamp(p.intimacy+50,0,200);this.updateStatus(p);Log.pet('抚摸',p.id,'亲密+50');Audio.play('pet');Store.save();},
+    p.intimacy=clamp(p.intimacy+50,0,200);p.lastTouchAt=Date.now();this.updateStatus(p);Log.pet('抚摸',p.id,'亲密+50');Audio.play('pet');Store.save();UI.render();},
   walk(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(!spendSunlight(100,'遛宠'+p.name))return;
-    p.intimacy=clamp(p.intimacy+100,0,200);this.updateStatus(p);Log.pet('遛宠',p.id,'亲密+100');Audio.play('pet');Store.save();},
+    p.intimacy=clamp(p.intimacy+100,0,200);p.lastTouchAt=Date.now();this.updateStatus(p);Log.pet('遛宠',p.id,'亲密+100');Audio.play('pet');Store.save();UI.render();},
   heal(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     const cost=this._healCost||150;
     if(!spendSunlight(cost,'治疗'+p.name))return;
@@ -1683,8 +1715,27 @@ const UI = {
     const c=curChild();const defs=Pet.list();
     const petHtml=c.pets.length?c.pets.map(p=>{
       const def=defs[p.type];
-      const imgHtml=def.img?`<img src="${def.img}" style="width:100%;max-width:120px;border-radius:50%;margin:0 auto;display:block;">`:`<div class="pet-emoji">${def.emoji}</div>`;
-      return `<div class="pet-card">${imgHtml}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️</div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
+      // 根据宠物状态选择图片
+      let petImgSrc=def.img;
+      let petStateLabel='';
+      if(def.imgs){
+        // sick（生病）或 hungry（饥饿）→ sad 图
+        // recentAction（刚被抚摸/喂食）→ happy/feed 图
+        const now=Date.now();
+        const recentFeed=p.lastFeedAt&&(now-p.lastFeedAt)<8000;
+        const recentTouch=p.lastTouchAt&&(now-p.lastTouchAt)<8000;
+        if(recentFeed&&def.imgs.feed){
+          petImgSrc=def.imgs.feed;petStateLabel='🍖 吃饱了';
+        }else if(recentTouch&&def.imgs.happy){
+          petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';
+        }else if((p.status==='sick'||p.status==='hungry')&&def.imgs.sad){
+          petImgSrc=def.imgs.sad;petStateLabel=p.status==='sick'?'🤒 生病了':'😟 饿了';
+        }else if(p.status==='dead'&&def.imgs.sad){
+          petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';
+        }
+      }
+      const imgHtml=petImgSrc?`<img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div>`:`<div class="pet-emoji">${def.emoji}</div>`;
+      return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️</div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
       <div><div class="bar-label"><span>饱食度</span><span>${p.satiety}</span></div><div class="bar-wrap"><div class="bar-fill sat" style="width:${clamp(p.satiety/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
       ${p.status==='sick'?'<div style="color:var(--danger);font-size:12px;text-align:center;">⚠️ 宠物生病了，需要治疗！</div>':''}
