@@ -2013,22 +2013,24 @@ const UI = {
   startLearn(taskId){
     this._quizOriginView=State.view;
     const c=curChild();const grade=c.grade;
+    // 幼小衔接每天5项
+    const dailyCount=grade==='gradeK'?5:10;
     let items=[];let title='';let type='';
     if(taskId==='cn_pinyin'){
       type='pinyin';
-      items=(Bank.chinese[grade]?.pinyin||[]).slice();
+      items=pick((Bank.chinese[grade]?.pinyin||[]).slice(),Math.min(dailyCount,(Bank.chinese[grade]?.pinyin||[]).length));
       title='🗣️ 拼音学习';
     }else if(taskId==='cn_literacy'){
       type='character';
-      items=(Bank.characters[grade]||[]).slice();
+      items=pick((Bank.characters[grade]||[]).slice(),Math.min(dailyCount,(Bank.characters[grade]||[]).length));
       title='📖 识字学习';
     }else if(taskId==='en_word'){
       type='word';
-      items=(Bank.english[grade]?.words||[]).slice();
+      items=pick((Bank.english[grade]?.words||[]).slice(),Math.min(dailyCount,(Bank.english[grade]?.words||[]).length));
       title='🍎 单词学习';
     }else if(taskId==='en_sent'){
       type='sentence';
-      items=(Bank.english[grade]?.sentences||[]).slice();
+      items=pick((Bank.english[grade]?.sentences||[]).slice(),Math.min(dailyCount,(Bank.english[grade]?.sentences||[]).length));
       title='💬 每日短语';
     }
     if(!items.length){toast('题库为空');return;}
@@ -2401,11 +2403,13 @@ const UI = {
     // 记录测试来源视图，退出时返回该页面
     this._quizOriginView=State.view;
     const c=curChild();const grade=c.grade;
+    // 幼小衔接每天5题，其他年级10题
+    const qCount=grade==='gradeK'?5:10;
     let questions=[];
     let title='';
     if(taskId==='cn_literacy'){
       const bank=Bank.characters[grade]||[];
-      const chosen=pick(bank,Math.min(10,bank.length));
+      const chosen=pick(bank,Math.min(qCount,bank.length));
       // 一半看字选拼音，一半看拼音选字
       questions=chosen.map((w,i)=>{
         const distractors=shuffle(bank.filter(x=>x.char!==w.char)).slice(0,3);
@@ -2418,11 +2422,11 @@ const UI = {
       title='识字测试';
     }else if(taskId==='cn_pinyin'){
       const bank=Bank.chinese[grade]?.pinyin||[];
-      questions=pick(bank,Math.min(10,bank.length)).map(q=>({q:q.q+' 读作？',opts:q.opts,a:q.a}));
+      questions=pick(bank,Math.min(qCount,bank.length)).map(q=>({q:q.q+' 读作？',opts:q.opts,a:q.a}));
       title='拼音测试';
     }else if(taskId==='cn_poetry'){
       const bank=Bank.chinese[grade]?.poetry||[];
-      const p=pick(bank,Math.min(10,Math.max(1,bank.length)));
+      const p=pick(bank,Math.min(qCount,Math.max(1,bank.length)));
       // 一半作者题，一半填空题（用其他诗人名作干扰项）
       const allAuthors=['李白','杜甫','白居易','苏轼','王安石','陆游','杜牧','孟浩然','骆宾王','张继','刘禹锡','张志和'];
       questions=p.map((po,idx)=>{
@@ -2435,30 +2439,30 @@ const UI = {
         }
       });
       title='古诗背诵测试';
-    }else if(taskId==='math_add'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.oralAdd(grade));title='加法口算';}
-    else if(taskId==='math_sub'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.oralSub(grade));title='减法口算';}
-    else if(taskId==='math_mul'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.mul(grade));title='乘法口算';}
-    else if(taskId==='math_think'){for(let i=0;i<10;i++)questions.push(Bank.mathGen.thinking(grade));title='思维训练';}
+    }else if(taskId==='math_add'){for(let i=0;i<qCount;i++)questions.push(Bank.mathGen.oralAdd(grade));title='加法口算';}
+    else if(taskId==='math_sub'){for(let i=0;i<qCount;i++)questions.push(Bank.mathGen.oralSub(grade));title='减法口算';}
+    else if(taskId==='math_mul'){for(let i=0;i<qCount;i++)questions.push(Bank.mathGen.mul(grade));title='乘法口算';}
+    else if(taskId==='math_think'){for(let i=0;i<qCount;i++)questions.push(Bank.mathGen.thinking(grade));title='思维训练';}
     else if(taskId==='en_word'){
       const bank=Bank.english[grade]?.words||[];
-      questions=pick(bank,Math.min(10,bank.length)).map(w=>({q:w.en+' ['+w.phonetic+'] 的意思是？',opts:shuffle([w.cn,...pick(bank.filter(x=>x.cn!==w.cn),3).map(x=>x.cn)]),a:w.cn,speakText:w.en,speakLang:'en-US'}));
+      questions=pick(bank,Math.min(qCount,bank.length)).map(w=>({q:w.en+' ['+w.phonetic+'] 的意思是？',opts:shuffle([w.cn,...pick(bank.filter(x=>x.cn!==w.cn),3).map(x=>x.cn)]),a:w.cn,speakText:w.en,speakLang:'en-US'}));
       title='单词测试';
     }else if(taskId==='en_dictation'){
       // 英语听写：听读音，拼写英文单词
       const bank=Bank.english[grade]?.words||[];
-      questions=pick(bank,Math.min(10,bank.length)).map(w=>({q:'🔊 听读音，拼写英文单词',a:w.en,speakText:w.en,speakLang:'en-US',dictation:true,hint:w.cn+' ['+w.phonetic+']'}));
+      questions=pick(bank,Math.min(qCount,bank.length)).map(w=>({q:'🔊 听读音，拼写英文单词',a:w.en,speakText:w.en,speakLang:'en-US',dictation:true,hint:w.cn+' ['+w.phonetic+']'}));
       title='单词听写';
     }else if(taskId==='cn_dictation'){
       // 语文生字默写：听拼音读音，写汉字
       const bank=Bank.characters[grade]||[];
-      questions=pick(bank,Math.min(10,bank.length)).map(w=>({q:'🔊 听读音，写出汉字',a:w.char,speakText:w.pinyin,speakLang:'zh-CN',dictation:true,hint:'组词：'+w.word}));
+      questions=pick(bank,Math.min(qCount,bank.length)).map(w=>({q:'🔊 听读音，写出汉字',a:w.char,speakText:w.pinyin,speakLang:'zh-CN',dictation:true,hint:'组词：'+w.word}));
       title='生字默写';
     }else if(taskId==='en_sent'){
       const bank=Bank.english[grade]?.sentences||[];
-      questions=pick(bank,Math.min(10,bank.length)).map(s=>({q:'"'+s.en+'" 的意思是？',opts:shuffle([s.cn,...pick(bank.filter(x=>x.cn!==s.cn),3).map(x=>x.cn)]),a:s.cn}));
+      questions=pick(bank,Math.min(qCount,bank.length)).map(s=>({q:'"'+s.en+'" 的意思是？',opts:shuffle([s.cn,...pick(bank.filter(x=>x.cn!==s.cn),3).map(x=>x.cn)]),a:s.cn}));
       title='短句测试';
     }
-    if(questions.length<10){toast('题库不足');}
+    if(questions.length<qCount){toast('题库不足');}
     this.curQuiz={taskId,title,questions,answers:new Array(questions.length).fill(null),idx:0};
     this.renderQuiz();
   },
