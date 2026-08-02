@@ -351,6 +351,10 @@ const Store = {
     });
     if(c.garden.zombies.length===0&&d_settings().zombieEnabled) c.garden.zombies.push(this.newZombie());
     if(!c.pets) c.pets=[];
+    // 为已有宠物补充lastDecayAt字段（兼容旧数据，从购买时间或当前时间开始计）
+    c.pets.forEach(p=>{
+      if(p.lastDecayAt===undefined)p.lastDecayAt=p.purchasedAt?new Date(p.purchasedAt).getTime():Date.now();
+    });
     if(!c.achievements) c.achievements=[];
     if(!c.logs) c.logs={sunlight:[],pet:[]};
     if(!c.wrongQuestions) c.wrongQuestions=[];
@@ -931,15 +935,41 @@ const Pet = {
   list(){return Store.data.petDefs;},
   buy(type){
     const def=this.list()[type];if(!def)return false;
-    if(!spendSunlight(def.cost,'购买'+def.name))return false;
+    if(!spendSunlight(def.cost,'领养'+def.name))return false;
     const c=curChild();
-    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,status:'healthy',purchasedAt:nowISO()};
+    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,status:'healthy',purchasedAt:nowISO(),lastDecayAt:Date.now(),canRegret:true};
     c.pets.push(pet);
-    Log.pet('购买',pet.id,def.name);
+    Log.pet('领养',pet.id,def.name);
     Audio.play('pet');Store.save();
-    // 弹出命名框
+    // 弹出命名框（含免费反悔选项）
     UI.promptName(pet.id,'给宠物起个名字吧～');
     return true;
+  },
+  // 免费反悔：购买后未反悔过的宠物可退回全额阳光
+  regret(petId){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    if(!p.canRegret){toast('该宠物已使用过反悔机会');return;}
+    const def=this.list()[p.type];
+    // 移除宠物并退还阳光
+    c.pets=c.pets.filter(x=>x.id!==petId);
+    addSunlight(def.cost,'反悔退还：'+def.name);
+    Log.pet('反悔',petId,'退还'+def.cost+'阳光');
+    Store.save();closeModal();UI.render();
+    toast('已退回'+def.name+'，返还'+def.cost+'阳光');
+  },
+  // 弃养：消耗300阳光永久放弃宠物
+  abandon(petId){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    const def=this.list()[p.type];
+    const cost=300;
+    if(c.sunlight.total<cost){toast('阳光不足，弃养需要'+cost+'阳光');return;}
+    confirmModal('确定弃养【'+p.name+'】？弃养将消耗'+cost+'阳光，此操作不可撤销。',()=>{
+      if(!spendSunlight(cost,'弃养'+p.name))return;
+      c.pets=c.pets.filter(x=>x.id!==petId);
+      Log.pet('弃养',petId,def.name);
+      Store.save();UI.render();
+      toast('已弃养'+p.name+'，消耗'+cost+'阳光');
+    });
   },
   rename(petId,newName){
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return false;
@@ -979,16 +1009,23 @@ const Pet = {
     else if(p.satiety<50){p.status='hungry';}
     else{p.status='healthy';}
   },
-  // 每日衰减
+  // 每小时衰减：消耗5饥饿度5亲密度
   decay(c){
     if(!d_settings().petDecayEnabled)return;
-    const ds=this._decaySat||30,di=this._decayInt||20;
+    const ds=5,di=5; // 每小时消耗5点
+    const now=Date.now();
     c.pets.forEach(p=>{
       if(p.status==='dead')return;
-      p.satiety=Math.max(-1,p.satiety-ds);
-      p.intimacy=Math.max(-1,p.intimacy-di);
-      this.updateStatus(p);
-      if(p.status==='dead'){c.logs.pet.unshift({time:nowISO(),action:'死亡',petId:p.id,detail:'属性耗尽'});}
+      // 计算距上次衰减经过的小时数
+      const last=p.lastDecayAt||p.purchasedAt||now;
+      const elapsedHours=Math.floor((now-last)/3600000);
+      if(elapsedHours>0){
+        p.satiety=Math.max(-1,p.satiety-ds*elapsedHours);
+        p.intimacy=Math.max(-1,p.intimacy-di*elapsedHours);
+        p.lastDecayAt=last+elapsedHours*3600000;
+        this.updateStatus(p);
+        if(p.status==='dead'){c.logs.pet.unshift({time:nowISO(),action:'死亡',petId:p.id,detail:'属性耗尽'});}
+      }
     });
     // 清理死亡宠物
     c.pets=c.pets.filter(p=>p.status!=='dead');
@@ -1126,7 +1163,7 @@ function dailyReset(){
     gardenSettleFor(c);
     // 清空当日
     c.today={date:today,sunlight:0,tasks:{},quizRecords:{},mood:''};
-    // 宠物衰减
+    // 宠物衰减（每小时衰减由定时器处理，跨天也补一次）
     Pet.decay(c);
   });
   d_settings().lastResetDate=today;
@@ -1134,6 +1171,11 @@ function dailyReset(){
 }
 // 每分钟检测跨天
 setInterval(dailyReset,60000);
+// 每分钟检测宠物每小时衰减
+setInterval(()=>{
+  Object.values(Store.data.children).forEach(c=>Pet.decay(c));
+  Store.save();
+},60000);
 
 /* ============ Sync 模块 ============ */
 const Sync = {
@@ -2041,19 +2083,20 @@ const UI = {
         <button class="btn pink sm" onclick="Pet.touch('${p.id}')">抚摸10</button>
         <button class="btn sm" onclick="Pet.walk('${p.id}')">遛宠10</button>
         ${p.status==='sick'?'<button class="btn danger sm" onclick="Pet.heal(\''+p.id+'\')">治疗'+(Pet._healCost||150)+'</button>':''}
+        <button class="btn ghost sm" onclick="Pet.abandon('${p.id}')" title="弃养宠物，消耗300阳光" style="color:var(--danger);">弃养300</button>
       </div></div>`;
-    }).join(''):'<div style="text-align:center;color:var(--text-light);padding:20px;">还没有宠物，快去购买一只吧！🐾</div>';
+    }).join(''):'<div style="text-align:center;color:var(--text-light);padding:20px;">还没有宠物，快去领养一只吧！🐾</div>';
     return `<div class="card"><div class="card-title">🐾 我的宠物 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showPetHelp()">📖 玩法介绍</button></div><div class="grid grid-2">${petHtml}</div></div>
       <div class="card"><div class="card-title">🏪 宠物商店</div><div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const cardImg=d.img?`<img src="${d.img}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto;display:block;">`:`<div style="font-size:50px;">${d.emoji}</div>`;
-        return `<div class="task-card"><div style="text-align:center;">${cardImg}</div><div class="t-title" style="justify-content:center;margin-top:4px;">${d.name}</div><div class="t-desc" style="text-align:center;font-size:11px;min-height:36px;">${d.desc||''}</div><div class="t-foot" style="justify-content:center;"><button class="btn orange sm" ${c.sunlight.total>=d.cost?'':'disabled'} onclick="Pet.buy('${k}')">购买 ${d.cost}☀️</button></div></div>`;
+        return `<div class="task-card"><div style="text-align:center;">${cardImg}</div><div class="t-title" style="justify-content:center;margin-top:4px;">${d.name}</div><div class="t-desc" style="text-align:center;font-size:11px;min-height:36px;">${d.desc||''}</div><div class="t-foot" style="justify-content:center;"><button class="btn orange sm" ${c.sunlight.total>=d.cost?'':'disabled'} onclick="Pet.buy('${k}')">领养 ${d.cost}☀️</button></div></div>`;
       }).join('')}</div></div>
       <div class="card"><div class="card-title">📋 宠物日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.pet.map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()} · ${l.detail||''}</div></div></div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无宠物日志</div>'}</div></div>`;
   },
   showPetHelp(){
     showModal('🐾 宠物养成介绍',`<div style="line-height:1.7;font-size:13px;">
       <h4 style="color:var(--primary-d);margin:8px 0 6px;">🎯 玩法目标</h4>
-      <p>购买心仪的宠物，每天喂食、互动养成，建立深厚友谊！</p>
+      <p>领养心仪的宠物，喂食、互动养成，建立深厚友谊！</p>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🐾 4 种宠物</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>🐈‍⬛ <b>小黑猫</b>（100☀️）· 酷酷的眼神，戴蓝色小围巾</li>
@@ -2068,12 +2111,17 @@ const UI = {
         <li>🤗 <b>抚摸</b>（10☀️）亲密度 +10</li>
         <li>🦮 <b>遛宠</b>（10☀️）亲密度 +10</li>
       </ul>
-      <h4 style="color:var(--primary-d);margin:12px 0 6px;">⚠️ 状态机制</h4>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">⏰ 消耗机制</h4>
       <ul style="padding-left:18px;font-size:12px;">
+        <li>宠物<b>每小时</b>自动消耗 5 饥饿度和 5 亲密度</li>
         <li>饱食度＜50 → 红字饥饿提示</li>
-        <li>饱食度≤30 或亲密度＜50 → 生病（治疗 150☀️）</li>
-        <li>饱食度或亲密度＜0 → 宠物死亡，需重新购买</li>
-        <li>每日凌晨自动衰减：饱食度 -30、亲密度 -20</li>
+        <li>饱食度≤30 或亲密度＜50 → 生病（治疗 150☀️），生病期间一直哭泣</li>
+        <li>饱食度或亲密度≤0 → 宠物死亡，需重新购买</li>
+      </ul>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">💸 领养与弃养</h4>
+      <ul style="padding-left:18px;font-size:12px;">
+        <li><b>免费反悔</b>：购买后可免费反悔一次，退还全额阳光（确认命名后失效）</li>
+        <li><b>弃养</b>：消耗 300☀️ 永久放弃宠物</li>
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">✏️ 命名规则</h4>
       <p style="font-size:12px;">购买后自动弹命名框，宠物家园点击名字可改名。最多 8 个汉字或字母数字 12 个，禁止特殊符号。</p>
@@ -2201,13 +2249,15 @@ const UI = {
   // 宠物命名弹框
   promptName(petId,hint){
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    // 购买后首次命名可反悔（退还全额阳光）
+    const regretBtn=p.canRegret?`<button class="btn ghost sm" onclick="Pet.regret('${petId}')" title="购买后可免费反悔一次，退还全额阳光">反悔退回</button>`:'';
     showModal('🐾 '+hint,`<div style="text-align:center;padding:6px 0;">
       <div style="font-size:48px;">${Pet.list()[p.type].emoji}</div>
       <p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">当前：${p.name}</p>
       <input type="text" id="petNameInput" maxlength="16" placeholder="输入名字（最多8个汉字）" style="padding:10px;border:2px solid var(--border);border-radius:8px;font-size:15px;text-align:center;width:200px;" value="${p.name}">
-      <p id="nameTip" style="font-size:11px;color:var(--text-light);margin-top:6px;">只能用汉字、字母、数字</p>
+      <p id="nameTip" style="font-size:11px;color:var(--text-light);margin-top:6px;">只能用汉字、字母、数字${p.canRegret?'<br>💡 购买后可免费反悔一次，点击"反悔退回"退还全额阳光':''}</p>
       </div>`,
-      `<button class="btn ghost sm" onclick="closeModal()">跳过</button> <button class="btn sm" onclick="UI.confirmName('${petId}')">确定</button>`,true);
+      `${regretBtn} <button class="btn ghost sm" onclick="closeModal()">跳过</button> <button class="btn sm" onclick="UI.confirmName('${petId}')">确定</button>`,true);
     setTimeout(()=>{const inp=$('#petNameInput');if(inp){inp.focus();inp.select();}},0);
   },
   confirmName(petId){
@@ -2215,7 +2265,10 @@ const UI = {
     const name=inp.value.trim();
     const err=Pet.validateName(name);
     if(err){const tip=$('#nameTip');if(tip){tip.textContent=err;tip.style.color='var(--danger)';}return;}
-    Pet.rename(petId,name);closeModal();toast('改名成功！');UI.render();
+    Pet.rename(petId,name);
+    const p=curChild().pets.find(x=>x.id===petId);
+    if(p)p.canRegret=false; // 确认命名后失去反悔机会
+    closeModal();toast('改名成功！');UI.render();
   },
   // 专注计时
   // 线下完成（家长审核模式下需要家长确认）
@@ -2384,11 +2437,12 @@ const UI = {
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newBadgeName" placeholder="名称"><input id="newBadgeCond" placeholder="解锁条件"><input id="newBadgeIcon" placeholder="图标" value="🎖️"><button class="btn sm" onclick="UI.addBadge()">添加</button></div>
       </div>
       <div class="card"><div class="card-title">🌱 植物数值</div>${Object.entries(Store.data.plantDefs).map(([k,d])=>`<div class="log-item"><span>${d.emoji} ${d.name}</span><span>攻击<input type="number" style="width:60px;" value="${d.attack}" onchange="Store.data.plantDefs['${k}'].attack=+this.value;Store.save()"> 产出<input type="number" style="width:60px;" value="${d.produce}" onchange="Store.data.plantDefs['${k}'].produce=+this.value;Store.save()"></span></div>`).join('')}</div>
-      <div class="card"><div class="card-title">🐾 宠物衰减数值</div>
-        <div class="log-item"><span>每日饱食度衰减</span><input type="number" style="width:60px;" value="30" onchange="Pet._decaySat=+this.value;Store.save()"></div>
-        <div class="log-item"><span>每日亲密度衰减</span><input type="number" style="width:60px;" value="20" onchange="Pet._decayInt=+this.value;Store.save()"></div>
-        <div class="log-item"><span>生病治疗费用</span><input type="number" style="width:60px;" value="150" onchange="Pet._healCost=+this.value;Store.save()"></div>
-        <p style="font-size:12px;color:var(--text-soft);margin-top:6px;">修改后次日生效。当前：饱食-${Pet._decaySat||30} 亲密-${Pet._decayInt||20} 治疗${Pet._healCost||150}阳光</p>
+      <div class="card"><div class="card-title">🐾 宠物数值设置</div>
+        <div class="log-item"><span>每小时饱食度消耗</span><span style="color:var(--orange-d);font-weight:700;">5</span></div>
+        <div class="log-item"><span>每小时亲密度消耗</span><span style="color:var(--orange-d);font-weight:700;">5</span></div>
+        <div class="log-item"><span>弃养消耗阳光</span><span style="color:var(--orange-d);font-weight:700;">300</span></div>
+        <div class="log-item"><span>生病治疗费用</span><input type="number" style="width:60px;" value="${Pet._healCost||150}" onchange="Pet._healCost=+this.value;Store.save()"></div>
+        <p style="font-size:12px;color:var(--text-soft);margin-top:6px;">宠物每小时自动消耗5饥饿度和5亲密度。治疗费用${Pet._healCost||150}阳光。购买后可免费反悔一次（确认命名后失效）。</p>
       </div>
       <div class="card"><div class="card-title">💾 数据管理</div>
         <button class="btn sm" onclick="Sync.showExport()">📤 导出数据</button>
