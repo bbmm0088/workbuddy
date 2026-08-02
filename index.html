@@ -2291,7 +2291,21 @@ const UI = {
         <button class="btn sm" onclick="UI.addChild()">➕ 新增孩子</button>
         ${d_settings().currentChildId!==Object.keys(children)[0]?`<button class="btn danger sm" onclick="UI.delChild()">删除当前孩子</button>`:''}
       </div>
-      <div style="margin-top:10px;">当前：${c.profile.name} · ${Bank.gradeNames[c.grade]}</div>
+      <div style="margin-top:10px;">当前：${c.profile.name} · ${Bank.gradeNames[c.grade]} · 余额 ${c.sunlight.total} ☀️ · 今日 ${c.today.sunlight} ☀️</div>
+      <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">💰 阳光补偿/调整</div>
+        <p style="font-size:11px;color:var(--text-soft);margin-bottom:6px;">给孩子增加或减少阳光余额（如更新后清零可在此补偿）</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <input id="adjSunAmount" type="number" placeholder="数量" value="300" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+          <input id="adjSunReason" placeholder="原因（如：更新补偿/额外奖励）" style="flex:1;min-width:120px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+          <button class="btn sm" style="background:var(--primary);color:#fff;" onclick="UI.adjustSunlight(1)">➕ 增加</button>
+          <button class="btn danger sm" onclick="UI.adjustSunlight(-1)">➖ 减少</button>
+          <button class="btn ghost sm" onclick="UI.setSunlightDirect()">✏️ 直接设置</button>
+        </div>
+        <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">
+          ${[50,100,200,300,500].map(v=>`<button class="btn ghost sm" style="font-size:11px;" onclick="document.getElementById('adjSunAmount').value=${v}">+${v}</button>`).join('')}
+        </div>
+      </div>
       <div style="margin-top:10px;"><label>修改年级：</label><select onchange="UI.setGrade(this.value)">${Object.entries(Bank.gradeNames).map(([k,v])=>`<option value="${k}" ${c.grade===k?'selected':''}>${v}</option>`).join('')}</select></div>
       </div>
       <div class="card"><div class="card-title">⚙️ 系统设置</div>
@@ -2380,6 +2394,33 @@ const UI = {
   },
   // 家长操作方法
   switchChild(id){d_settings().currentChildId=id;Store.save();UI.render();},
+  // 阳光补偿/调整（dir=1增加, dir=-1减少）
+  adjustSunlight(dir){
+    const c=curChild();
+    const amount=parseInt($('#adjSunAmount')?.value||'0');
+    if(!amount||amount<=0){toast('请输入有效数量');return;}
+    const reason=($('#adjSunReason')?.value||'').trim()||'家长调整';
+    const actual=dir>0?amount:-amount;
+    if(dir<0&&c.sunlight.total<amount){
+      toast('余额不足（当前'+c.sunlight.total+'），将扣至0');
+    }
+    Log.sunlight(reason,actual);
+    if(dir>0)c.today.sunlight+=amount;
+    Store.save();UI.render();
+    toast((dir>0?'➕ 已增加':'➖ 已减少')+' '+amount+' 阳光：'+reason);
+  },
+  // 直接设置阳光余额
+  setSunlightDirect(){
+    const c=curChild();
+    const amount=parseInt($('#adjSunAmount')?.value||'0');
+    if(isNaN(amount)||amount<0){toast('请输入有效数量');return;}
+    const reason=($('#adjSunReason')?.value||'').trim()||'家长设置';
+    const old=c.sunlight.total;
+    c.sunlight.total=amount;
+    c.logs.sunlight.unshift({time:nowISO(),action:reason+'（'+old+'→'+amount+'）',delta:amount-old,balance:amount});
+    Store.save();UI.render();
+    toast('✏️ 阳光余额已设置为 '+amount+'（原 '+old+'）');
+  },
   // 孩子切换菜单（孩子模式也能用）
   switchChildMenu(){
     const children=Store.data.children;
