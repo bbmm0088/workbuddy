@@ -1180,8 +1180,185 @@ setInterval(()=>{
 /* ============ Sync 模块 ============ */
 const Sync = {
   channel:null,
-  init(){try{this.channel=new BroadcastChannel('workbuddy_sync');this.channel.onmessage=(e)=>{if(e.data&&e.data.type==='update'){Store.load();UI.render();}};}catch(e){}},
-  broadcast(){if(this.channel){try{this.channel.postMessage({type:'update'});}catch(e){}}},
+  API_BASE:'https://api.jsonbin.io/v3/b',
+  _uploadTimer:null,
+  _pullTimer:null,
+  _syncing:false,
+  _lastUploadAt:0,
+  init(){
+    try{this.channel=new BroadcastChannel('workbuddy_sync');this.channel.onmessage=(e)=>{if(e.data&&e.data.type==='update'){Store.load();UI.render();}};}catch(e){}
+    // 启动时自动从云端拉取
+    setTimeout(()=>this.pull(),1500);
+    // 每2分钟自动拉取一次云端数据
+    if(this._pullTimer)clearInterval(this._pullTimer);
+    this._pullTimer=setInterval(()=>this.pull(),120000);
+  },
+  broadcast(){if(this.channel){try{this.channel.postMessage({type:'update'});}catch(e){}},
+    // 数据变化时自动上传到云端（防抖3秒）
+    this.scheduleUpload();
+  },
+  // 云同步配置
+  cfg(){
+    const s=d_settings();
+    if(!s.cloudSync)s.cloudSync={};
+    return s.cloudSync;
+  },
+  isConfigured(){const c=this.cfg();return !!(c.apiKey&&c.binId);},
+  // 安排上传（3秒防抖，避免频繁写入）
+  scheduleUpload(){
+    if(!this.isConfigured())return;
+    if(this._uploadTimer)clearTimeout(this._uploadTimer);
+    this._uploadTimer=setTimeout(()=>this.upload(),3000);
+  },
+  // 上传数据到云端
+  async upload(){
+    if(!this.isConfigured()||this._syncing)return;
+    const c=this.cfg();
+    this._syncing=true;
+    try{
+      const data=JSON.parse(JSON.stringify(Store.data));
+      data._cloudUpdatedAt=Date.now();
+      const resp=await fetch(this.API_BASE+'/'+c.binId,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-Master-Key':c.apiKey},
+        body:JSON.stringify(data)
+      });
+      if(resp.ok){
+        this._lastUploadAt=Date.now();
+        console.log('[云同步] 上传成功');
+      }else{
+        const err=await resp.json().catch(()=>({}));
+        console.warn('[云同步] 上传失败',resp.status,err.message);
+      }
+    }catch(e){console.warn('[云同步] 上传异常',e);}
+    this._syncing=false;
+  },
+  // 从云端拉取数据
+  async pull(){
+    if(!this.isConfigured()||this._syncing)return;
+    const c=this.cfg();
+    this._syncing=true;
+    try{
+      const resp=await fetch(this.API_BASE+'/'+c.binId+'/latest',{
+        method:'GET',
+        headers:{'X-Master-Key':c.apiKey}
+      });
+      if(!resp.ok){console.warn('[云同步] 拉取失败',resp.status);this._syncing=false;return;}
+      const json=await resp.json();
+      const cloudData=json.record;
+      if(!cloudData||!cloudData.children){this._syncing=false;return;}
+      // 比较云端和本地更新时间，云端更新才合并
+      const cloudTime=cloudData._cloudUpdatedAt||0;
+      const localTime=Store.data._cloudUpdatedAt||0;
+      if(cloudTime>localTime&&cloudTime>this._lastUploadAt){
+        // 云端有更新，合并到本地
+        cloudData._cloudUpdatedAt=cloudTime;
+        Store.data=cloudData;
+        Store.migrate();
+        Object.values(Store.data.children).forEach(ch=>Store.fixChild(ch));
+        Store.save();
+        UI.render();
+        console.log('[云同步] 已从云端同步最新数据');
+      }
+    }catch(e){console.warn('[云同步] 拉取异常',e);}
+    this._syncing=false;
+  },
+  // 首次创建云端 bin
+  async createBin(apiKey){
+    try{
+      const resp=await fetch(this.API_BASE,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Master-Key':apiKey,'X-Bin-Name':'workbuddy_data','X-Bin-Private':'true'},
+        body:JSON.stringify({_cloudUpdatedAt:Date.now(),version:'1.0',settings:{},children:{}})
+      });
+      if(!resp.ok){const err=await resp.json().catch(()=>({}));return{ok:false,msg:err.message||('HTTP '+resp.status)};}
+      const json=await resp.json();
+      return{ok:true,binId:json.metadata.id};
+    }catch(e){return{ok:false,msg:e.message};}
+  },
+  // 云同步设置面板
+  showCloudSettings(){
+    const c=this.cfg();
+    const status=this.isConfigured()?
+      (this._lastUploadAt?`✅ 已连接 · 上次同步：${new Date(this._lastUploadAt).toLocaleString()}`:'✅ 已连接 · 等待同步'):'⚪ 未配置';
+    showModal('☁️ 云同步设置',`<div style="line-height:1.7;font-size:13px;padding:6px 0;">
+      <div style="background:#e3f2fd;padding:10px;border-radius:8px;margin-bottom:12px;">
+        <b>📱 多设备同步</b><br>
+        <span style="font-size:12px;color:var(--text-soft);">配置后，数据自动同步到云端，手机和平板可共享同一份数据。</span>
+      </div>
+      <div style="margin-bottom:8px;">状态：${status}</div>
+      ${!this.isConfigured()?`
+      <div style="background:#fff8e1;padding:10px;border-radius:8px;margin-bottom:12px;">
+        <b>📋 配置步骤：</b><br>
+        <span style="font-size:12px;">
+        1. 打开 <a href="https://jsonbin.io" target="_blank" style="color:var(--primary-d);">jsonbin.io</a> 注册免费账号<br>
+        2. 进入 <a href="https://jsonbin.io/app/api-keys" target="_blank" style="color:var(--primary-d);">API Keys 页面</a> 复制 Master Key<br>
+        3. 将 Master Key 填入下方，点击"创建云端存储"<br>
+        4. 在其他设备上填入相同的 Master Key 和 Bin ID 即可同步
+        </span>
+      </div>
+      <div class="form-row"><label>Master Key</label><input type="text" id="cloudApiKey" placeholder="粘贴 jsonbin.io 的 Master Key" style="width:100%;font-size:12px;"></div>
+      <div style="margin-top:10px;text-align:center;">
+        <button class="btn sm" onclick="Sync.doCreateBin()">🚀 创建云端存储</button>
+      </div>
+      <div style="margin-top:12px;background:#f5f5f5;padding:8px;border-radius:8px;font-size:11px;color:var(--text-soft);">
+        已有 Bin ID？<a href="javascript:void(0)" onclick="document.getElementById('cloudExistingBin').style.display='block'" style="color:var(--primary-d);">点击手动填入</a>
+        <div id="cloudExistingBin" style="display:none;margin-top:8px;">
+          <div class="form-row"><label>Master Key</label><input type="text" id="cloudApiKey2" placeholder="Master Key" style="width:100%;font-size:12px;"></div>
+          <div class="form-row"><label>Bin ID</label><input type="text" id="cloudBinId" placeholder="Bin ID" style="width:100%;font-size:12px;"></div>
+          <button class="btn sm" style="margin-top:6px;" onclick="Sync.doBindExisting()">绑定</button>
+        </div>
+      </div>
+      `:`
+      <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn sm" onclick="Sync.upload().then(()=>toast('已上传到云端'))">📤 立即上传</button>
+        <button class="btn sm" onclick="Sync.pull().then(()=>toast('已从云端拉取'))">📥 立即拉取</button>
+        <button class="btn danger sm" onclick="Sync.unbind()">❌ 解除绑定</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-soft);background:#f5f5f5;padding:8px;border-radius:8px;">
+        Bin ID: <code style="font-size:10px;">${c.binId}</code><br>
+        在其他设备上打开此页面，填入相同的 Master Key 和 Bin ID 即可同步。
+      </div>
+      `}
+    </div>`,`<button class="btn ghost sm" onclick="closeModal()">关闭</button>`,true);
+  },
+  async doCreateBin(){
+    const apiKey=$('#cloudApiKey')?.value.trim();
+    if(!apiKey){toast('请填入 Master Key');return;}
+    toast('正在创建云端存储…');
+    const r=await this.createBin(apiKey);
+    if(r.ok){
+      this.cfg().apiKey=apiKey;
+      this.cfg().binId=r.binId;
+      Store.save();
+      toast('✅ 云端存储创建成功！');
+      // 立即上传当前数据
+      this.upload();
+      closeModal();
+      setTimeout(()=>this.showCloudSettings(),300);
+    }else{
+      toast('创建失败：'+r.msg);
+    }
+  },
+  doBindExisting(){
+    const apiKey=$('#cloudApiKey2')?.value.trim();
+    const binId=$('#cloudBinId')?.value.trim();
+    if(!apiKey||!binId){toast('请填入 Master Key 和 Bin ID');return;}
+    this.cfg().apiKey=apiKey;
+    this.cfg().binId=binId;
+    Store.save();
+    toast('✅ 绑定成功！正在拉取数据…');
+    closeModal();
+    this.pull();
+  },
+  unbind(){
+    confirmModal('确定解除云同步绑定？本地数据不会丢失，但不再自动同步。',()=>{
+      delete d_settings().cloudSync;
+      Store.save();closeModal();
+      toast('已解除云同步绑定');
+      UI.render();
+    });
+  },
   // 导出：支持单孩子/全部孩子
   exportData(scope){
     let data;
@@ -2445,10 +2622,11 @@ const UI = {
         <p style="font-size:12px;color:var(--text-soft);margin-top:6px;">宠物每小时自动消耗5饥饿度和5亲密度。治疗费用${Pet._healCost||150}阳光。购买后可免费反悔一次（确认命名后失效）。</p>
       </div>
       <div class="card"><div class="card-title">💾 数据管理</div>
+        <button class="btn sm" onclick="Sync.showCloudSettings()">☁️ 云同步设置</button>
         <button class="btn sm" onclick="Sync.showExport()">📤 导出数据</button>
         <button class="btn sm" onclick="document.getElementById('importFile').click()">📥 导入数据</button>
         <input type="file" id="importFile" style="display:none;" accept=".json" onchange="Sync.importData(this.files[0])">
-        <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">⚠️ 建议定期备份，清理浏览器缓存会丢失本地数据。<br>导出支持单孩子/全部孩子；导入支持合并/覆盖两种模式。跨设备迁移学习档案请用导出导入。</p>
+        <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">☁️ <b>云同步</b>：配置后手机和平板自动共享数据<br>📤 导出/导入：手动备份恢复，跨设备迁移学习档案<br>⚠️ 清理浏览器缓存会丢失本地数据，建议开启云同步或定期导出。</p>
       </div>`;
   },
   // 家长操作方法
