@@ -1193,7 +1193,7 @@ const Sync = {
     if(this._pullTimer)clearInterval(this._pullTimer);
     this._pullTimer=setInterval(()=>this.pull(),120000);
   },
-  broadcast(){if(this.channel){try{this.channel.postMessage({type:'update'});}catch(e){}},
+  broadcast(){if(this.channel){try{this.channel.postMessage({type:'update'});}catch(e){}}
     // 数据变化时自动上传到云端（防抖3秒）
     this.scheduleUpload();
   },
