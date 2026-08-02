@@ -1389,21 +1389,24 @@ const Sync = {
       try{
         const data=JSON.parse(e.target.result);
         if(!data.children||!data.settings)throw new Error('格式错误');
+        // 保存文件引用供后续使用
+        Sync._pendingFile=file;
         // 二次确认 + 模式选择
         showModal('📥 导入数据确认',`<div style="padding:6px 0;">
           <p style="font-size:13px;margin-bottom:12px;">检测到备份文件，请选择导入模式：</p>
           <div style="display:flex;flex-direction:column;gap:8px;">
-            <button class="btn sm" onclick="Sync._doImport(file,'merge')">🔗 合并导入（保留现有数据，按孩子ID合并）</button>
-            <button class="btn danger sm" onclick="Sync._doImport(file,'cover')">⚠️ 覆盖导入（替换当前全部数据）</button>
+            <button class="btn sm" onclick="Sync._doImport(null,'merge')">🔗 合并导入（保留现有数据，按孩子ID合并）</button>
+            <button class="btn danger sm" onclick="Sync._doImport(null,'cover')">⚠️ 覆盖导入（替换当前全部数据）</button>
             <button class="btn ghost sm" onclick="closeModal()">取消</button>
           </div></div>`,null,true);
-        Sync._pendingFile=file;
       }catch(err){toast('导入失败：文件格式错误');}
     };
     reader.readAsText(file);
   },
   _pendingFile:null,
   _doImport(file,mode){
+    const f=Sync._pendingFile||file;
+    if(!f){toast('文件丢失，请重新选择');closeModal();return;}
     const reader=new FileReader();
     reader.onload=(e)=>{
       try{
@@ -1433,7 +1436,7 @@ const Sync = {
         toast(mode==='cover'?'覆盖导入成功':'合并导入成功');
       }catch(err){toast('导入失败：'+err.message);}
     };
-    reader.readAsText(Sync._pendingFile||file);
+    reader.readAsText(f);
     Sync._pendingFile=null;
   }
 };
