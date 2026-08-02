@@ -2008,19 +2008,22 @@ const UI = {
       let petImgSrc=def.img;
       let petStateLabel='';
       if(def.imgs){
-        // sick（生病）或 hungry（饥饿）→ sad 图
-        // recentAction（刚被抚摸/喂食）→ happy/feed 图
+        // 优先级：死亡/生病 → 哭泣图（生病期间一直哭泣，治愈后才恢复开心）
+        // 最近喂食(10秒) → 吃饭图；最近抚摸(10秒) → 开心图
+        // 饥饿 → 哭泣图；健康默认 → 开心图
         const now=Date.now();
-        const recentFeed=p.lastFeedAt&&(now-p.lastFeedAt)<8000;
-        const recentTouch=p.lastTouchAt&&(now-p.lastTouchAt)<8000;
-        if(recentFeed&&def.imgs.feed){
+        const recentFeed=p.lastFeedAt&&(now-p.lastFeedAt)<10000;
+        const recentTouch=p.lastTouchAt&&(now-p.lastTouchAt)<10000;
+        if(p.status==='dead'&&def.imgs.sad){
+          petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';
+        }else if(p.status==='sick'&&def.imgs.sad){
+          petImgSrc=def.imgs.sad;petStateLabel='🤒 生病了';
+        }else if(recentFeed&&def.imgs.feed){
           petImgSrc=def.imgs.feed;petStateLabel='🍖 吃饱了';
         }else if(recentTouch&&def.imgs.happy){
           petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';
-        }else if((p.status==='sick'||p.status==='hungry')&&def.imgs.sad){
-          petImgSrc=def.imgs.sad;petStateLabel=p.status==='sick'?'🤒 生病了':'😟 饿了';
-        }else if(p.status==='dead'&&def.imgs.sad){
-          petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';
+        }else if(p.status==='hungry'&&def.imgs.sad){
+          petImgSrc=def.imgs.sad;petStateLabel='😟 饿了';
         }else if(def.imgs.happy){
           // 健康且无最近操作 → 默认显示开心图
           petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';
@@ -2578,6 +2581,16 @@ function init(){
   UI.render();
   // 首次交互激活音频
   document.addEventListener('click',()=>Audio.init(),{once:true});
+  // 宠物图片自动刷新：喂食/抚摸后10秒自动恢复开心图
+  setInterval(()=>{
+    const cc=curChild();if(!cc)return;
+    const need=cc.pets.some(p=>{
+      const now=Date.now();
+      return (p.lastFeedAt&&(now-p.lastFeedAt)>9800&&(now-p.lastFeedAt)<10200)
+          || (p.lastTouchAt&&(now-p.lastTouchAt)>9800&&(now-p.lastTouchAt)<10200);
+    });
+    if(need&&State.view==='pet')UI.renderPet&&UI.render();
+  },1000);
 }
 init();
 
