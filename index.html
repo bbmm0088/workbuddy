@@ -339,6 +339,8 @@ const Store = {
     if(!c.today.quizRecords) c.today.quizRecords={};
     if(c.today.mood===undefined) c.today.mood='';
     if(!c.sunlight) c.sunlight={total:0};
+    // 初始阳光补偿：老用户如果余额为0且未获得过阳光，补到300
+    if(c.sunlight.total===0&&!c._init300){c.sunlight.total=300;c._init300=true;}
     if(!c.garden) c.garden={grid:this.emptyGrid(),zombies:[],undoFree:true};
     if(!c.garden.grid||c.garden.grid.length!==5) c.garden.grid=this.emptyGrid();
     if(!c.garden.zombies) c.garden.zombies=[];
@@ -371,7 +373,7 @@ const Store = {
           profile:{name:'小明',avatar:'🦁',grade:'grade1'},
           grade:'grade1',
           today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},
-          sunlight:{total:50},
+          sunlight:{total:300},
           garden:{grid:this.emptyGrid(),zombies:[this.newZombie()],undoFree:true,undoCount:0},
           pets:[],achievements:[],logs:{sunlight:[],pet:[]},
           wrongQuestions:[],
@@ -2324,7 +2326,7 @@ const UI = {
   addChild(){
     const name=prompt('孩子姓名：');if(!name)return;
     const id='c_'+uid();
-    Store.data.children[id]={profile:{name,avatar:'🙂',grade:'grade1'},grade:'grade1',today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},sunlight:{total:0},garden:{grid:Store.emptyGrid(),zombies:[Store.newZombie()],undoFree:true},pets:[],achievements:[],logs:{sunlight:[],pet:[]},wrongQuestions:[],stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[]}};
+    Store.data.children[id]={profile:{name,avatar:'🙂',grade:'grade1'},grade:'grade1',today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},sunlight:{total:300},garden:{grid:Store.emptyGrid(),zombies:[Store.newZombie()],undoFree:true},pets:[],achievements:[],logs:{sunlight:[],pet:[]},wrongQuestions:[],stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[]}};
     Store.fixChild(Store.data.children[id]);
     d_settings().currentChildId=id;Store.save();UI.render();toast('已添加孩子');
   },
