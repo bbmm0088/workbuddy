@@ -249,6 +249,12 @@ if('speechSynthesis'in window){
   _loadVoices();
   window.speechSynthesis.onvoiceschanged=()=>{_loadVoices();};
 }
+// 简易笔顺提示（无动画数据时使用）
+function strokeHint(char){
+  const hints=Bank.strokeHints||{};
+  return hints[char]||'参考田字格仿写';
+}
+
 function speak(text,lang){
   try{
     if(!('speechSynthesis'in window)){toast('当前浏览器不支持语音朗读');return;}
@@ -268,6 +274,95 @@ function speak(text,lang){
     if(window.speechSynthesis.paused)window.speechSynthesis.resume();
   }catch(e){console.warn('speak fail',e);toast('朗读失败，请重试');}
 }
+
+// ============ 语音识别跟读 ============
+// 利用浏览器原生 Web Speech API 进行语音识别，识别结果与原文比对
+const SpeechASR={
+  _recognition:null,
+  _isListening:false,
+  _onResult:null,
+  _onEnd:null,
+  _currentTarget:'',
+  _currentLang:'en-US',
+  isSupported(){
+    return !!(window.SpeechRecognition||window.webkitSpeechRecognition);
+  },
+  start(targetText,lang,onResult,onEnd){
+    if(this._isListening){this.stop();}
+    if(!this.isSupported()){
+      // 不支持：走降级方案，让用户手动确认
+      if(onResult)onResult({success:null,transcript:'',fallback:true,target:targetText});
+      if(onEnd)onEnd();
+      return;
+    }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    this._recognition=new SR();
+    this._recognition.lang=lang||'en-US';
+    this._recognition.interimResults=false;
+    this._recognition.maxAlternatives=3;
+    this._recognition.continuous=false;
+    this._currentTarget=targetText;
+    this._currentLang=lang||'en-US';
+    this._onResult=onResult;
+    this._onEnd=onEnd;
+    this._isListening=true;
+    this._recognition.onresult=(e)=>{
+      const result=e.results[0];
+      const transcripts=[];
+      for(let i=0;i<result.length;i++)transcripts.push(result[i].transcript.trim());
+      const target=this._currentTarget.trim().toLowerCase();
+      // 判断最佳匹配：任一候选与原文相似度足够即算准确
+      let best=null;
+      transcripts.forEach(t=>{
+        const score=SpeechASR.similarity(t.toLowerCase(),target);
+        if(!best||score>best.score)best={transcript:t,score};
+      });
+      const success=best&&best.score>=0.6;
+      if(this._onResult)this._onResult({success,transcripts,best,target:targetText});
+    };
+    this._recognition.onerror=(e)=>{
+      console.warn('ASR error',e);
+      this._isListening=false;
+      if(this._onResult)this._onResult({success:false,error:e.error,target:targetText});
+      if(this._onEnd)this._onEnd();
+    };
+    this._recognition.onend=()=>{
+      this._isListening=false;
+      if(this._onEnd)this._onEnd();
+    };
+    try{
+      this._recognition.start();
+    }catch(e){
+      console.warn('ASR start fail',e);
+      this._isListening=false;
+      if(this._onResult)this._onResult({success:false,error:'start-fail',target:targetText});
+      if(this._onEnd)this._onEnd();
+    }
+  },
+  stop(){
+    if(this._recognition&&this._isListening){
+      try{this._recognition.stop();}catch(e){}
+    }
+    this._isListening=false;
+  },
+  // 字符串相似度（Levenshtein 距离归一化）
+  similarity(a,b){
+    if(!a||!b)return 0;
+    if(a===b)return 1;
+    const m=a.length,n=b.length;
+    if(m===0||n===0)return 0;
+    const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+    for(let i=0;i<=m;i++)dp[i][0]=i;
+    for(let j=0;j<=n;j++)dp[0][j]=j;
+    for(let i=1;i<=m;i++){
+      for(let j=1;j<=n;j++){
+        const cost=a[i-1]===b[j-1]?0:1;
+        dp[i][j]=Math.min(dp[i-1][j]+1,dp[i][j-1]+1,dp[i-1][j-1]+cost);
+      }
+    }
+    return 1-dp[m][n]/Math.max(m,n);
+  }
+};
 
 /* ============ Store 模块 ============ */
 const Store = {
@@ -626,63 +721,80 @@ const Bank = {
     ];
   },
   deeds(){return Store.data.deedDefs||this.defaultDeeds();},
+  // 常用汉字笔顺提示（简化版：笔顺名称列表）
+  strokeHints:{
+    '一':'横','二':'横 横','三':'横 横 横','十':'横 竖','人':'撇 捺','大':'横 撇 捺','小':'竖 点 撇 点',
+    '上':'竖 横','下':'横 竖 点','左':'横 撇 竖','右':'横 撇 横折钩','中':'竖 横折 竖','天':'横 横 撇 横','地':'横 横 横 竖 提 点','人':'撇 捺','你':'撇 竖 横折钩 横 撇 捺','我':'撇 横 横 竖 提 撇 捺 横',
+    '他':'撇 竖弯钩 横 横 撇 捺','日':'竖 横折 横 横 横 竖','月':'撇 横折钩 横 横 横 竖','水':'竖钩 撇 点 点 撇 点 捺','火':'点 撇 点 撇 捺','山':'竖 竖折 竖','石':'横 撇 点 横 撇',
+    '他':'撇 竖弯钩 横 横 撇 捺','它':'点 横 撇 竖弯钩 撇 捺'
+  },
+  strokeOrder:{
+    // 简化笔顺动画坐标（相对位置 0-100%，旋转角度，颜色，宽高）
+    '一':[{x:50,y:50,w:80,h:8,c:'#5cb85c'}],
+    '二':[{x:50,y:40,w:80,h:8},{x:50,y:60,w:80,h:8}],
+    '三':[{x:50,y:30,w:80,h:8},{x:50,y:50,w:80,h:8},{x:50,y:70,w:80,h:8}],
+    '十':[{x:50,y:50,w:80,h:8,r:0},{x:50,y:50,w:8,h:80}],
+    '人':[{x:35,y:30,w:8,h:80,r:25},{x:65,y:30,w:8,h:80,r:-25}],
+    '大':[{x:50,y:35,w:80,h:8},{x:35,y:60,w:8,h:60,r:25},{x:65,y:60,w:8,h:60,r:-25}],
+    '小':[{x:35,y:30,w:8,h:70},{x:50,y:35,w:50,h:8,r:25},{x:65,y:30,w:8,h:70},{x:50,y:75,w:50,h:8,r:-25}]
+  },
   // 识字字库（幼小衔接/低年级）
   characters:{
     gradeK:[
-      {char:'一',pinyin:'yī',word:'一个',sentence:'我吃了一个苹果。',emoji:'➖'},
-      {char:'二',pinyin:'èr',word:'二月',sentence:'二月春风似剪刀。',emoji:'➕➕'},
-      {char:'三',pinyin:'sān',word:'三个',sentence:'我家有三口人。',emoji:'🔢'},
-      {char:'四',pinyin:'sì',word:'四季',sentence:'一年有四季。',emoji:'🍀'},
-      {char:'五',pinyin:'wǔ',word:'五颜六色',sentence:'花园里五颜六色。',emoji:'🌈'},
-      {char:'上',pinyin:'shàng',word:'上学',sentence:'我高高兴兴上学去。',emoji:'⬆️'},
-      {char:'下',pinyin:'xià',word:'下雨',sentence:'今天下雨了。',emoji:'☔'},
-      {char:'左',pinyin:'zuǒ',word:'左手',sentence:'我用左手拿笔。',emoji:'👈'},
-      {char:'右',pinyin:'yòu',word:'右手',sentence:'我用右手吃饭。',emoji:'👉'},
-      {char:'中',pinyin:'zhōng',word:'中国',sentence:'中国是我的祖国。',emoji:'🇨🇳'},
-      {char:'大',pinyin:'dà',word:'大人',sentence:'大人在工作。',emoji:'🐘'},
-      {char:'小',pinyin:'xiǎo',word:'小朋友',sentence:'小朋友真可爱。',emoji:'🐭'}
+      {char:'一',pinyin:'yī',word:'一个',sentence:'我吃了一个苹果。',emoji:'➖',radical:'一'},
+      {char:'二',pinyin:'èr',word:'二月',sentence:'二月春风似剪刀。',emoji:'➕➕',radical:'二'},
+      {char:'三',pinyin:'sān',word:'三个',sentence:'我家有三口人。',emoji:'🔢',radical:'三'},
+      {char:'四',pinyin:'sì',word:'四季',sentence:'一年有四季。',emoji:'🍀',radical:'囗'},
+      {char:'五',pinyin:'wǔ',word:'五颜六色',sentence:'花园里五颜六色。',emoji:'🌈',radical:'五'},
+      {char:'上',pinyin:'shàng',word:'上学',sentence:'我高高兴兴上学去。',emoji:'⬆️',radical:'上'},
+      {char:'下',pinyin:'xià',word:'下雨',sentence:'今天下雨了。',emoji:'☔',radical:'一'},
+      {char:'左',pinyin:'zuǒ',word:'左手',sentence:'我用左手拿笔。',emoji:'👈',radical:'工'},
+      {char:'右',pinyin:'yòu',word:'右手',sentence:'我用右手吃饭。',emoji:'👉',radical:'口'},
+      {char:'中',pinyin:'zhōng',word:'中国',sentence:'中国是我的祖国。',emoji:'🇨🇳',radical:'丨'},
+      {char:'大',pinyin:'dà',word:'大人',sentence:'大人在工作。',emoji:'🐘',radical:'大'},
+      {char:'小',pinyin:'xiǎo',word:'小朋友',sentence:'小朋友真可爱。',emoji:'🐭',radical:'小'}
     ],
     grade1:[
-      {char:'天',pinyin:'tiān',word:'天空',sentence:'天空蓝蓝的。'},
-      {char:'地',pinyin:'dì',word:'大地',sentence:'大地绿绿的。'},
-      {char:'人',pinyin:'rén',word:'人们',sentence:'人们在劳动。'},
-      {char:'你',pinyin:'nǐ',word:'你好',sentence:'你好，同学！'},
-      {char:'我',pinyin:'wǒ',word:'我们',sentence:'我们爱学习。'},
-      {char:'他',pinyin:'tā',word:'他们',sentence:'他们在玩耍。'},
-      {char:'日',pinyin:'rì',word:'日出',sentence:'日出真美丽。'},
-      {char:'月',pinyin:'yuè',word:'月亮',sentence:'月亮像小船。'},
-      {char:'水',pinyin:'shuǐ',word:'喝水',sentence:'多喝水身体好。'},
-      {char:'火',pinyin:'huǒ',word:'火车',sentence:'火车开来了。'},
-      {char:'山',pinyin:'shān',word:'高山',sentence:'高山真雄伟。'},
-      {char:'石',pinyin:'shí',word:'石头',sentence:'石头硬硬的。'}
+      {char:'天',pinyin:'tiān',word:'天空',sentence:'天空蓝蓝的。',emoji:'🌤️',radical:'大'},
+      {char:'地',pinyin:'dì',word:'大地',sentence:'大地绿绿的。',emoji:'🌏',radical:'土'},
+      {char:'人',pinyin:'rén',word:'人们',sentence:'人们在劳动。',emoji:'🧑',radical:'人'},
+      {char:'你',pinyin:'nǐ',word:'你好',sentence:'你好，同学！',emoji:'👋',radical:'亻'},
+      {char:'我',pinyin:'wǒ',word:'我们',sentence:'我们爱学习。',emoji:'🙋',radical:'戈'},
+      {char:'他',pinyin:'tā',word:'他们',sentence:'他们在玩耍。',emoji:'👦',radical:'亻'},
+      {char:'日',pinyin:'rì',word:'日出',sentence:'日出真美丽。',emoji:'☀️',radical:'日'},
+      {char:'月',pinyin:'yuè',word:'月亮',sentence:'月亮像小船。',emoji:'🌙',radical:'月'},
+      {char:'水',pinyin:'shuǐ',word:'喝水',sentence:'多喝水身体好。',emoji:'💧',radical:'水'},
+      {char:'火',pinyin:'huǒ',word:'火车',sentence:'火车开来了。',emoji:'🔥',radical:'火'},
+      {char:'山',pinyin:'shān',word:'高山',sentence:'高山真雄伟。',emoji:'⛰️',radical:'山'},
+      {char:'石',pinyin:'shí',word:'石头',sentence:'石头硬硬的。',emoji:'🪨',radical:'石'}
     ],
     grade2:[
-      {char:'树',pinyin:'shù',word:'树木',sentence:'树木要爱护。'},
-      {char:'林',pinyin:'lín',word:'森林',sentence:'森林里真凉快。'},
-      {char:'花',pinyin:'huā',word:'花朵',sentence:'花朵真美丽。'},
-      {char:'草',pinyin:'cǎo',word:'青草',sentence:'青草绿油油。'},
-      {char:'风',pinyin:'fēng',word:'春风',sentence:'春风吹又生。'},
-      {char:'雨',pinyin:'yǔ',word:'下雨',sentence:'下雨要带伞。'},
-      {char:'云',pinyin:'yún',word:'白云',sentence:'白云飘在天上。'},
-      {char:'阳',pinyin:'yáng',word:'太阳',sentence:'太阳暖洋洋。'},
-      {char:'鸟',pinyin:'niǎo',word:'小鸟',sentence:'小鸟在歌唱。'},
-      {char:'鱼',pinyin:'yú',word:'小鱼',sentence:'小鱼游啊游。'},
-      {char:'虫',pinyin:'chóng',word:'昆虫',sentence:'昆虫真有趣。'},
-      {char:'马',pinyin:'mǎ',word:'小马',sentence:'小马跑得快。'}
+      {char:'树',pinyin:'shù',word:'树木',sentence:'树木要爱护。',emoji:'🌳',radical:'木'},
+      {char:'林',pinyin:'lín',word:'森林',sentence:'森林里真凉快。',emoji:'🌲',radical:'木'},
+      {char:'花',pinyin:'huā',word:'花朵',sentence:'花朵真美丽。',emoji:'🌸',radical:'艹'},
+      {char:'草',pinyin:'cǎo',word:'青草',sentence:'青草绿油油。',emoji:'🌱',radical:'艹'},
+      {char:'风',pinyin:'fēng',word:'春风',sentence:'春风吹又生。',emoji:'🍃',radical:'风'},
+      {char:'雨',pinyin:'yǔ',word:'下雨',sentence:'下雨要带伞。',emoji:'🌧️',radical:'雨'},
+      {char:'云',pinyin:'yún',word:'白云',sentence:'白云飘在天上。',emoji:'☁️',radical:'云'},
+      {char:'阳',pinyin:'yáng',word:'太阳',sentence:'太阳暖洋洋。',emoji:'🌞',radical:'阝'},
+      {char:'鸟',pinyin:'niǎo',word:'小鸟',sentence:'小鸟在歌唱。',emoji:'🐦',radical:'鸟'},
+      {char:'鱼',pinyin:'yú',word:'小鱼',sentence:'小鱼游啊游。',emoji:'🐟',radical:'鱼'},
+      {char:'虫',pinyin:'chóng',word:'昆虫',sentence:'昆虫真有趣。',emoji:'🐛',radical:'虫'},
+      {char:'马',pinyin:'mǎ',word:'小马',sentence:'小马跑得快。',emoji:'🐴',radical:'马'}
     ],
     grade3:[
-      {char:'春',pinyin:'chūn',word:'春天',sentence:'春天来了，花儿开了。'},
-      {char:'夏',pinyin:'xià',word:'夏天',sentence:'夏天的太阳很热。'},
-      {char:'秋',pinyin:'qiū',word:'秋天',sentence:'秋天树叶黄了。'},
-      {char:'冬',pinyin:'dōng',word:'冬天',sentence:'冬天下雪了。'},
-      {char:'海',pinyin:'hǎi',word:'大海',sentence:'大海很蓝很宽。'},
-      {char:'蓝',pinyin:'lán',word:'蓝色',sentence:'天空是蓝色的。'},
-      {char:'绿',pinyin:'lǜ',word:'绿色',sentence:'小草是绿色的。'},
-      {char:'红',pinyin:'hóng',word:'红色',sentence:'红旗是红色的。'},
-      {char:'黄',pinyin:'huáng',word:'黄色',sentence:'香蕉是黄色的。'},
-      {char:'紫',pinyin:'zǐ',word:'紫色',sentence:'葡萄是紫色的。'},
-      {char:'晨',pinyin:'chén',word:'早晨',sentence:'早晨空气真好。'},
-      {char:'晚',pinyin:'wǎn',word:'晚上',sentence:'晚上星星亮了。'}
+      {char:'春',pinyin:'chūn',word:'春天',sentence:'春天来了，花儿开了。',emoji:'🌸',radical:'日'},
+      {char:'夏',pinyin:'xià',word:'夏天',sentence:'夏天的太阳很热。',emoji:'🌴',radical:'夂'},
+      {char:'秋',pinyin:'qiū',word:'秋天',sentence:'秋天树叶黄了。',emoji:'🍂',radical:'禾'},
+      {char:'冬',pinyin:'dōng',word:'冬天',sentence:'冬天下雪了。',emoji:'❄️',radical:'冫'},
+      {char:'海',pinyin:'hǎi',word:'大海',sentence:'大海很蓝很宽。',emoji:'🌊',radical:'氵'},
+      {char:'蓝',pinyin:'lán',word:'蓝色',sentence:'天空是蓝色的。',emoji:'🔵',radical:'艹'},
+      {char:'绿',pinyin:'lǜ',word:'绿色',sentence:'小草是绿色的。',emoji:'🟢',radical:'纟'},
+      {char:'红',pinyin:'hóng',word:'红色',sentence:'红旗是红色的。',emoji:'🔴',radical:'纟'},
+      {char:'黄',pinyin:'huáng',word:'黄色',sentence:'香蕉是黄色的。',emoji:'🟡',radical:'黄'},
+      {char:'紫',pinyin:'zǐ',word:'紫色',sentence:'葡萄是紫色的。',emoji:'🟣',radical:'糸'},
+      {char:'晨',pinyin:'chén',word:'早晨',sentence:'早晨空气真好。',emoji:'🌅',radical:'日'},
+      {char:'晚',pinyin:'wǎn',word:'晚上',sentence:'晚上星星亮了。',emoji:'🌃',radical:'日'}
     ],
     grade4:[
       {char:'潮',pinyin:'cháo',word:'潮水',sentence:'潮水涨起来了。'},
@@ -1940,6 +2052,7 @@ const UI = {
           </div>
         </div>`;
     }else if(l.type==='character'){
+      const strokeId='stroke_'+i;
       cardHtml=`
         <div style="text-align:center;padding:8px;">
           <div style="font-size:48px;line-height:1;margin-bottom:6px;">${item.emoji||'📝'}</div>
@@ -1947,14 +2060,16 @@ const UI = {
           <div style="font-size:20px;color:var(--primary-d);font-weight:600;margin-bottom:6px;">${item.pinyin}</div>
           <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
             <button class="btn sky sm" data-speak="${encodeURIComponent(item.pinyin)}" data-lang="zh-CN">🔊 朗读</button>
-            <button class="btn ghost sm" data-speak="${encodeURIComponent(item.char)}" data-lang="zh-CN">📢 读字</button>
+            <button class="btn pink sm" onclick="UI.playStroke('${item.char.replace(/'/g,"\\'")}','${item.pinyin}','${item.word.replace(/'/g,"\\'")}','${strokeId}')">✏️ 练一练</button>
           </div>
+          <div id="${strokeId}" style="margin-top:8px;"></div>
           <div style="background:var(--bg);padding:6px 10px;border-radius:8px;margin-top:10px;font-size:13px;">
-            <b>组词：</b>${item.word}<br>
+            <b>部首：</b>${item.radical||'—'}　<b>组词：</b>${item.word}<br>
             <b>造句：</b>${item.sentence}
           </div>
         </div>`;
     }else if(l.type==='word'){
+      const reciteId='recite_'+i;
       cardHtml=`
         <div style="text-align:center;padding:8px;">
           <div style="font-size:80px;line-height:1;margin-bottom:6px;">${item.emoji||'📚'}</div>
@@ -1963,10 +2078,12 @@ const UI = {
           <div style="font-size:22px;color:var(--danger-d);font-weight:600;margin:6px 0;">${item.cn}</div>
           <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
             <button class="btn sky sm" data-speak="${encodeURIComponent(item.en)}" data-lang="en-US">🔊 朗读</button>
-            <button class="btn pink sm" data-speak="${encodeURIComponent(item.en)}" data-lang="en-US">🎤 跟读</button>
+            <button class="btn pink sm" onclick="UI.startRecite('${item.en.replace(/'/g,"\\'")}','en-US','${item.cn.replace(/'/g,"\\'")}','${reciteId}')">🎤 跟读</button>
           </div>
+          <div id="${reciteId}" style="margin-top:8px;"></div>
         </div>`;
     }else if(l.type==='sentence'){
+      const reciteId='recite_'+i;
       cardHtml=`
         <div style="text-align:center;padding:8px;">
           <div style="font-size:60px;line-height:1;margin-bottom:6px;">${item.emoji||'💬'}</div>
@@ -1975,8 +2092,9 @@ const UI = {
           <div style="font-size:22px;color:var(--danger-d);font-weight:600;margin:6px 0;">${item.cn}</div>
           <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
             <button class="btn sky sm" data-speak="${encodeURIComponent(item.en)}" data-lang="en-US">🔊 朗读</button>
-            <button class="btn pink sm" data-speak="${encodeURIComponent(item.en)}" data-lang="en-US">🎤 跟读</button>
+            <button class="btn pink sm" onclick="UI.startRecite('${item.en.replace(/'/g,"\\'")}','en-US','${item.cn.replace(/'/g,"\\'")}','${reciteId}')">🎤 跟读</button>
           </div>
+          <div id="${reciteId}" style="margin-top:8px;"></div>
         </div>`;
     }
     const isLearned=l.learned.has(i);
@@ -2040,6 +2158,198 @@ const UI = {
     const l=this.curLearn;if(!l)return;
     if(l.idx<l.items.length-1){l.idx++;this.renderLearn();}
     else{this.renderLearn();} // 最后一项原地刷新
+  },
+  // 英语跟读：录音识别+判断是否准确
+  startRecite(target,lang,cn,areaId){
+    const area=document.getElementById(areaId);
+    if(!area)return;
+    // 先朗读一遍范本
+    speak(target,lang);
+    if(!SpeechASR.isSupported()){
+      // 浏览器不支持语音识别：降级为手动确认
+      area.innerHTML=`<div style="background:#fff8e1;padding:10px;border-radius:10px;margin-top:6px;">
+        <div style="font-size:13px;color:var(--text-soft);margin-bottom:6px;">📢 当前浏览器不支持语音识别，请大声跟读一遍后手动判断：</div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn sky sm" data-speak="${encodeURIComponent(target)}" data-lang="${lang}">🔊 再听一遍</button>
+          <button class="btn sm" onclick="UI.confirmRecite(true,'${target.replace(/'/g,"\\'")}','${areaId}','${cn.replace(/'/g,"\\'")}')">✅ 读对了</button>
+        </div>
+      </div>`;
+      // 绑定朗读按钮
+      setTimeout(()=>{
+        const b=area.querySelector('[data-speak]');
+        if(b)b.addEventListener('click',()=>speak(decodeURIComponent(b.dataset.speak),b.dataset.lang));
+      },0);
+      return;
+    }
+    // 支持：开始录音
+    area.innerHTML=`<div style="background:var(--danger);color:#fff;padding:10px;border-radius:10px;margin-top:6px;text-align:center;">
+      <div style="font-size:32px;animation:pulse 1s infinite;">🎤</div>
+      <div style="font-size:14px;font-weight:700;">正在录音…大声读：${target}</div>
+      <div style="font-size:12px;opacity:.85;margin-top:4px;">说完后自动停止</div>
+    </div>`;
+    SpeechASR.start(target,lang,
+      (result)=>{
+        if(!area)return;
+        if(result.fallback){
+          // 已降级
+          return;
+        }
+        if(result.success){
+          area.innerHTML=`<div style="background:var(--primary);color:#fff;padding:10px;border-radius:10px;margin-top:6px;text-align:center;">
+            <div style="font-size:32px;">🎉</div>
+            <div style="font-size:14px;font-weight:700;">读得很准！</div>
+            <div style="font-size:12px;opacity:.9;margin-top:4px;">识别："${result.best.transcript}"（匹配度 ${Math.round(result.best.score*100)}%）</div>
+            <button class="btn sm" style="margin-top:8px;background:var(--gold);color:#fff;" onclick="UI.confirmRecite(true,'${target.replace(/'/g,"\\'")}','${areaId}','${cn.replace(/'/g,"\\'")}')">⭐ 学会了</button>
+          </div>`;
+          Audio.play('checkin');
+        }else if(result.error==='no-speech'||result.error==='aborted'){
+          area.innerHTML=`<div style="background:#fff8e1;padding:10px;border-radius:10px;margin-top:6px;text-align:center;">
+            <div style="font-size:13px;color:var(--text-soft);">没听到声音，请再试一次</div>
+            <button class="btn pink sm" onclick="UI.startRecite('${target.replace(/'/g,"\\'")}','${lang}','${cn.replace(/'/g,"\\'")}','${areaId}')">🎤 再试一次</button>
+          </div>`;
+        }else{
+          area.innerHTML=`<div style="background:#fff3e0;padding:10px;border-radius:10px;margin-top:6px;text-align:center;">
+            <div style="font-size:14px;color:var(--orange-d);font-weight:700;">还差一点，再试试 💪</div>
+            <div style="font-size:12px;color:var(--text-soft);margin:4px 0;">识别："${result.best?result.best.transcript:'（无）'}"（匹配度 ${result.best?Math.round(result.best.score*100):0}%）</div>
+            <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:6px;">
+              <button class="btn sky sm" data-speak="${encodeURIComponent(target)}" data-lang="${lang}">🔊 听范读</button>
+              <button class="btn pink sm" onclick="UI.startRecite('${target.replace(/'/g,"\\'")}','${lang}','${cn.replace(/'/g,"\\'")}','${areaId}')">🎤 再来一次</button>
+            </div>
+          </div>`;
+          setTimeout(()=>{
+            const b=area.querySelector('[data-speak]');
+            if(b)b.addEventListener('click',()=>speak(decodeURIComponent(b.dataset.speak),b.dataset.lang));
+          },0);
+        }
+      },
+      ()=>{}
+    );
+  },
+  // 用户确认跟读通过：标记当前项为学会
+  confirmRecite(ok,target,areaId,cn){
+    if(!ok)return;
+    if(!this.curLearn)return;
+    Audio.play('checkin');
+    toast('⭐ 已标记为学会');
+    this.learnCurrent();
+  },
+  // 汉字笔顺练习：弹窗播放笔顺动画+描红方格
+  playStroke(char,pinyin,word,areaId){
+    const area=document.getElementById(areaId);
+    if(!area)return;
+    // 简易笔顺动画：按预定义的笔画数逐笔显示（用 strokeSteps 字段，没有就用占位动画）
+    const steps=Bank.strokeOrder&&Bank.strokeOrder[char]?Bank.strokeOrder[char]:null;
+    let animHtml='';
+    if(steps&&steps.length){
+      animHtml=`<div id="strokeAnim" style="position:relative;width:180px;height:180px;margin:8px auto;background:#fff;border:2px dashed var(--primary);border-radius:8px;">
+        ${steps.map((s,idx)=>`<div class="stroke-step" data-idx="${idx}" style="position:absolute;top:${s.y||50}%;left:${s.x||50}%;transform:translate(-50%,-50%) rotate(${s.r||0}deg);width:${s.w||60}px;height:${s.h||8}px;background:${s.c||'var(--primary-d)'};border-radius:4px;opacity:0;transition:opacity .3s;"></div>`).join('')}
+      </div>
+      <div style="text-align:center;font-size:13px;color:var(--text-soft);">
+        <span id="strokeStepNum">0</span> / ${steps.length} 笔
+      </div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-top:6px;">
+        <button class="btn sky sm" id="strokePlay">▶ 播放笔顺</button>
+        <button class="btn pink sm" id="strokeReplay">🔄 重播</button>
+      </div>`;
+    }else{
+      // 没有预定义笔顺：展示田字格+大字提示，并朗读
+      animHtml=`<div style="width:180px;height:180px;margin:8px auto;background:#fff;border:2px solid var(--primary);border-radius:8px;position:relative;">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:120px;font-weight:700;color:var(--danger-d);font-family:'KaiTi','楷体',serif;">${char}</div>
+        <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed #ccc;"></div>
+        <div style="position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed #ccc;"></div>
+      </div>
+      <div style="text-align:center;font-size:13px;color:var(--text-soft);margin-top:4px;">📝 笔顺：${strokeHint(char)}</div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-top:6px;">
+        <button class="btn sky sm" data-speak="${encodeURIComponent(char)}" data-lang="zh-CN">🔊 听读音</button>
+        <button class="btn pink sm" data-speak="${encodeURIComponent(pinyin)}" data-lang="zh-CN">🔊 听拼音</button>
+      </div>`;
+    }
+    // 田字格跟写
+    const writeHtml=`<div style="margin-top:10px;background:var(--bg);padding:10px;border-radius:10px;">
+      <div style="font-size:13px;color:var(--text-soft);margin-bottom:6px;">📝 跟我写（在田字格里描红）：</div>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <div style="width:90px;height:90px;background:#fff;border:2px solid var(--border);border-radius:6px;position:relative;">
+          <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed #ddd;"></div>
+          <div style="position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed #ddd;"></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:60px;color:#e0e0e0;font-family:'KaiTi','楷体',serif;">${char}</div>
+        </div>
+        <div style="width:90px;height:90px;background:#fff;border:2px solid var(--border);border-radius:6px;position:relative;">
+          <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed #ddd;"></div>
+          <div style="position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed #ddd;"></div>
+          <canvas id="writeCanvas_${areaId}" width="90" height="90" style="position:absolute;top:0;left:0;cursor:crosshair;"></canvas>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:6px;">
+        <button class="btn ghost sm" onclick="UI.clearCanvas('writeCanvas_${areaId}')">🗑️ 清除</button>
+      </div>
+    </div>`;
+    area.innerHTML=animHtml+writeHtml;
+    // 绑定朗读按钮
+    area.querySelectorAll('[data-speak]').forEach(b=>{
+      b.addEventListener('click',()=>speak(decodeURIComponent(b.dataset.speak),b.dataset.lang));
+    });
+    // 播放笔顺动画
+    if(steps&&steps.length){
+      let cur=0;
+      const animEl=area.querySelector('#strokeAnim');
+      const numEl=area.querySelector('#strokeStepNum');
+      const playOne=()=>{
+        if(cur>=steps.length){
+          return;
+        }
+        const el=animEl.querySelector('[data-idx="'+cur+'"]');
+        if(el)el.style.opacity='1';
+        numEl.textContent=String(cur+1);
+        cur++;
+        setTimeout(playOne,600);
+      };
+      const reset=()=>{
+        cur=0;
+        animEl.querySelectorAll('.stroke-step').forEach(e=>e.style.opacity='0');
+        numEl.textContent='0';
+      };
+      const playBtn=area.querySelector('#strokePlay');
+      const replayBtn=area.querySelector('#strokeReplay');
+      if(playBtn)playBtn.addEventListener('click',()=>{reset();playOne();});
+      if(replayBtn)replayBtn.addEventListener('click',()=>{reset();playOne();});
+      // 自动播放一次
+      setTimeout(()=>{reset();playOne();},100);
+    }
+    // 初始化 canvas 写字板
+    setTimeout(()=>{
+      const canvas=document.getElementById('writeCanvas_'+areaId);
+      if(canvas)UI.initWriteCanvas(canvas);
+    },100);
+  },
+  // 初始化手写 canvas
+  initWriteCanvas(canvas){
+    const ctx=canvas.getContext('2d');
+    ctx.strokeStyle='#333';ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';
+    let drawing=false;let last=null;
+    const getPos=(e)=>{
+      const rect=canvas.getBoundingClientRect();
+      const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+      const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+      return{x:x*canvas.width/rect.width,y:y*canvas.height/rect.height};
+    };
+    const start=(e)=>{e.preventDefault();drawing=true;last=getPos(e);};
+    const move=(e)=>{
+      if(!drawing)return;e.preventDefault();
+      const p=getPos(e);
+      ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();
+      last=p;
+    };
+    const end=()=>{drawing=false;last=null;};
+    canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);
+    canvas.addEventListener('mouseup',end);canvas.addEventListener('mouseleave',end);
+    canvas.addEventListener('touchstart',start);canvas.addEventListener('touchmove',move);
+    canvas.addEventListener('touchend',end);
+    canvas._ctx=ctx;
+  },
+  clearCanvas(id){
+    const c=document.getElementById(id);if(!c)return;
+    const ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);
   },
   prevLearn(){
     const l=this.curLearn;if(!l)return;
