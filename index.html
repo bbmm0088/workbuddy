@@ -1664,8 +1664,10 @@ const UI = {
     // 低年级（幼小衔接/1/2年级）增加读题功能
     const grade=curChild().grade;
     const isLowGrade=(grade==='gradeK'||grade==='grade1'||grade==='grade2');
+    // 读题语言：数学题强制中文（数字用中文读），其他按内容判断
+    const readLang=item.speakLang||(q.taskId.startsWith('math_')?'zh-CN':(/[\u4e00-\u9fa5]/.test(item.q)?'zh-CN':'en-US'));
     // 读题按钮：朗读完整题干
-    const readQBtn=isLowGrade&&!isDictation?`<button class="btn ghost sm" data-speak="${encodeURIComponent(item.q.replace(/["""]/g,''))}" data-lang="${item.speakLang||(/[\u4e00-\u9fa5]/.test(item.q)?'zh-CN':'en-US')}" title="读题">📢 读题</button>`:'';
+    const readQBtn=isLowGrade&&!isDictation?`<button class="btn ghost sm" data-speak="${encodeURIComponent(item.q.replace(/["""]/g,''))}" data-lang="${readLang}" title="读题">📢 读题</button>`:'';
     let ansHtml='';
     if(isInput){
       ansHtml=`<input type="text" id="qInput" value="${answered||''}" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextQuiz()">`;
@@ -1705,8 +1707,8 @@ const UI = {
     if(isInput)setTimeout(()=>{const inp=$('#qInput');if(inp){inp.focus();inp.oninput=(e)=>{this.curQuiz.answers[i]=e.target.value;};}},0);
     // 听写题自动朗读一次
     if(isDictation&&item.speakText){setTimeout(()=>speak(item.speakText,item.speakLang||''),300);}
-    // 低年级非听写题自动读题一次
-    if(isLowGrade&&!isDictation){setTimeout(()=>speak(item.q.replace(/[""""]/g,''),item.speakLang||(/[\u4e00-\u9fa5]/.test(item.q)?'zh-CN':'en-US')),300);}
+    // 低年级非��写题自动读题一次（数学题用中文读数字）
+    if(isLowGrade&&!isDictation){setTimeout(()=>speak(item.q.replace(/["""]/g,''),readLang),300);}
   },
   selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
   exitQuiz(){
