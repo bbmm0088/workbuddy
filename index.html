@@ -194,7 +194,7 @@ input,select,textarea{font-family:inherit;outline:none;}
 <div class="app">
   <!-- 顶部状态栏 -->
   <header class="topbar">
-    <div class="logo">🌻 WorkBuddy</div>
+    <div class="logo">🌻 宝宝学习工作台</div>
     <div class="stats" id="topStats"></div>
     <div class="progress-wrap">
       <div class="progress-bar"><div class="progress-fill" id="topProgress" style="width:0%">0%</div></div>
@@ -1634,7 +1634,7 @@ const UI = {
       btns=`<button class="btn sm" disabled style="background:#ffe0b2;color:#e65100;">⏳ 审核中</button>`;
     }else if(isQuiz){
       // 带测试的作业：提供"开始测试"和"线下完成（家长审核）"两个选项
-      btns=`<button class="btn sm" onclick="UI.startQuiz('${id}')">开始测试</button> <button class="btn orange sm" onclick="UI.offlineComplete('${id}')" title="家长确认孩子已在纸质/书面上完成">📝 线下完成</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
+      btns=`<button class="btn sm" onclick="UI.startQuiz('${id}')">开始测试</button> <button class="btn orange sm" onclick="UI.offlineComplete('${id}')" title="家长确认孩子已在纸质/书面上完成">线下完成</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
     }else if(id==='cn_callig'){
       btns=`<button class="btn sm" onclick="UI.showCallig()">查看字帖</button> <button class="btn sm" onclick="completeTask('${id}',${reward},'练字练习')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
     }else if(id==='cn_reading'){
@@ -2241,7 +2241,9 @@ const UI = {
       <p style="margin-bottom:12px;">选择专注时长：</p>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
         ${[5,10,15,20].map(m=>`<button class="btn sm" onclick="UI.beginFocus('${taskId}',${m})">${m}分钟</button>`).join('')}
-      </div></div>`,null,true);
+      </div>
+      <div style="margin-top:14px;"><button class="btn ghost sm" onclick="closeModal()">退出</button></div>
+      </div>`,null,true);
   },
   beginFocus(taskId,mins){
     closeModal();
