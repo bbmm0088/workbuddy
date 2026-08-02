@@ -1549,7 +1549,7 @@ const UI = {
           ${Object.entries(children).map(([cid,ch])=>`<option value="${cid}">${ch.profile.name}专属</option>`).join('')}
         </select>
         <input id="inlineCtReward" type="number" placeholder="阳光" value="10" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;">☀️
-        <label style="font-size:11px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="inlineCtReview"> 需��核</label>
+        <label style="font-size:11px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="inlineCtReview"> 需审核</label>
         <button class="btn sm" onclick="UI.addCustomTaskInline('${cat}')">添加</button>
       </div>
     </div>`;
@@ -1773,7 +1773,7 @@ const UI = {
     if(isInput)setTimeout(()=>{const inp=$('#qInput');if(inp){inp.focus();inp.oninput=(e)=>{this.curQuiz.answers[i]=e.target.value;};}},0);
     // 听写题自动朗读一次
     if(isDictation&&item.speakText){setTimeout(()=>speak(item.speakText,item.speakLang||''),300);}
-    // 低年级非��写题自动读题一次（数学题用中文读数字）
+    // 低年级非听写题自动读题一次（数学题用中文读数字）
     if(isLowGrade&&!isDictation){setTimeout(()=>speak(item.q.replace(/["""]/g,''),readLang),300);}
   },
   selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
