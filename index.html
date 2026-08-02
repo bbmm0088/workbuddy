@@ -458,16 +458,18 @@ const Bank = {
   chinese:{
     gradeK:{
       pinyin:[
-        {q:'b',a:'玻',opts:['玻','波','摸','佛']},
-        {q:'p',a:'坡',opts:['坡','玻','摸','佛']},
-        {q:'m',a:'摸',opts:['摸','坡','玻','佛']},
-        {q:'f',a:'佛',opts:['佛','摸','坡','玻']},
-        {q:'d',a:'得',opts:['得','特','讷','勒']},
-        {q:'t',a:'特',opts:['特','得','讷','勒']},
-        {q:'n',a:'讷',opts:['讷','得','特','勒']},
-        {q:'l',a:'勒',opts:['勒','得','特','讷']},
-        {q:'g',a:'哥',opts:['哥','科','喝','佛']},
-        {q:'k',a:'科',opts:['科','哥','喝','佛']}
+        {q:'b',a:'玻',hint:'广播广播',emoji:'📻',opts:['玻','波','摸','佛']},
+        {q:'p',a:'坡',hint:'泼水泼水',emoji:'💧',opts:['坡','玻','摸','佛']},
+        {q:'m',a:'摸',hint:'两个门洞',emoji:'🚪',opts:['摸','坡','玻','佛']},
+        {q:'f',a:'佛',hint:'一根拐杖',emoji:'🦯',opts:['佛','摸','坡','玻']},
+        {q:'d',a:'得',hint:'马蹄马蹄',emoji:'🐎',opts:['得','特','讷','勒']},
+        {q:'t',a:'特',hint:'伞把伞把',emoji:'☂️',opts:['特','得','讷','勒']},
+        {q:'n',a:'讷',hint:'一个门洞',emoji:'🚪',opts:['讷','得','特','勒']},
+        {q:'l',a:'勒',hint:'一根小棒',emoji:'🍡',opts:['勒','得','特','讷']},
+        {q:'g',a:'哥',hint:'鸽子鸽子',emoji:'🕊️',opts:['哥','科','喝','佛']},
+        {q:'k',a:'科',hint:'蝌蚪蝌蚪',emoji:'🐸',opts:['科','哥','喝','佛']},
+        {q:'h',a:'喝',hint:'喝水喝水',emoji:'🥤',opts:['喝','哥','科','佛']},
+        {q:'j',a:'鸡',hint:'母鸡母鸡',emoji:'🐔',opts:['鸡','哥','科','喝']}
       ],
       calligraphy:[{char:'一',radical:'横',strokes:1},{char:'二',radical:'横',strokes:2},{char:'三',radical:'横',strokes:3},{char:'十',radical:'十',strokes:2},{char:'口',radical:'口',strokes:3},{char:'人',radical:'人',strokes:2},{char:'大',radical:'大',strokes:3},{char:'小',radical:'小',strokes:3}],
       poetry:[
@@ -582,7 +584,7 @@ const Bank = {
   },
   // 英语
   english:{
-    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə'},{en:'cat',cn:'猫',phonetic:'kæt'},{en:'dog',cn:'狗',phonetic:'dɒɡ'},{en:'egg',cn:'蛋',phonetic:'eɡ'},{en:'fish',cn:'鱼',phonetic:'fɪʃ'},{en:'milk',cn:'牛奶',phonetic:'mɪlk'},{en:'sun',cn:'太阳',phonetic:'sʌn'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'bird',cn:'鸟',phonetic:'bɜːd'},{en:'cake',cn:'蛋糕',phonetic:'keɪk'}],sentences:[{en:'Hello!',cn:'你好！'},{en:'Good morning.',cn:'早上好。'},{en:'Thank you.',cn:'谢谢。'},{en:'Goodbye.',cn:'再见。'},{en:'I like apples.',cn:'我喜欢苹果。'},{en:'What is this?',cn:'这是什么？'}]},
+    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl',emoji:'🍎'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə',emoji:'🍌'},{en:'cat',cn:'猫',phonetic:'kæt',emoji:'🐱'},{en:'dog',cn:'狗',phonetic:'dɒɡ',emoji:'🐶'},{en:'egg',cn:'蛋',phonetic:'eɡ',emoji:'🥚'},{en:'fish',cn:'鱼',phonetic:'fɪʃ',emoji:'🐟'},{en:'milk',cn:'牛奶',phonetic:'mɪlk',emoji:'🥛'},{en:'sun',cn:'太阳',phonetic:'sʌn',emoji:'☀️'},{en:'red',cn:'红色',phonetic:'red',emoji:'🟥'},{en:'blue',cn:'蓝色',phonetic:'bluː',emoji:'🟦'},{en:'bird',cn:'鸟',phonetic:'bɜːd',emoji:'🐦'},{en:'cake',cn:'蛋糕',phonetic:'keɪk',emoji:'🎂'},{en:'orange',cn:'橙子',phonetic:'ˈɒrɪndʒ',emoji:'🍊'},{en:'grape',cn:'葡萄',phonetic:'ɡreɪp',emoji:'🍇'}],sentences:[{en:'Hello!',cn:'你好！',emoji:'👋'},{en:'Good morning.',cn:'早上好。',emoji:'🌅'},{en:'Thank you.',cn:'谢谢。',emoji:'🙏'},{en:'Goodbye.',cn:'再见。',emoji:'👋'},{en:'I love you.',cn:'我爱你。',emoji:'❤️'},{en:'How are you?',cn:'你好吗？',emoji:'😊'}]},
     grade1:{words:[{en:'book',cn:'书',phonetic:'bʊk'},{en:'pen',cn:'笔',phonetic:'pen'},{en:'school',cn:'学校',phonetic:'skuːl'},{en:'teacher',cn:'老师',phonetic:'ˈtiːtʃə'},{en:'student',cn:'学生',phonetic:'ˈstjuːdənt'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'green',cn:'绿色',phonetic:'ɡriːn'},{en:'yellow',cn:'黄色',phonetic:'ˈjeləʊ'},{en:'pencil',cn:'铅笔',phonetic:'ˈpensl'},{en:'ruler',cn:'尺子',phonetic:'ˈruːlə'},{en:'eraser',cn:'橡皮',phonetic:'ɪˈreɪzə'}],sentences:[{en:'I am a student.',cn:'我是一名学生。'},{en:'What is your name?',cn:'你叫什么名字？'},{en:'Nice to meet you.',cn:'很高兴认识你。'},{en:'Stand up, please.',cn:'请起立。'},{en:'Open your book.',cn:'打开你的书。'},{en:'My name is Li Ming.',cn:'我的名字是李明。'}]},
     grade2:{words:[{en:'family',cn:'家庭',phonetic:'ˈfæməli'},{en:'father',cn:'爸爸',phonetic:'ˈfɑːðə'},{en:'mother',cn:'妈妈',phonetic:'ˈmʌðə'},{en:'brother',cn:'兄弟',phonetic:'ˈbrʌðə'},{en:'sister',cn:'姐妹',phonetic:'ˈsɪstə'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'home',cn:'家',phonetic:'həʊm'},{en:'love',cn:'爱',phonetic:'lʌv'},{en:'grandma',cn:'奶奶/姥姥',phonetic:'ˈɡrænmɑː'},{en:'grandpa',cn:'爷爷/姥爷',phonetic:'ˈɡrænpɑː'},{en:'uncle',cn:'叔叔',phonetic:'ˈʌŋkl'},{en:'aunt',cn:'阿姨',phonetic:'ɑːnt'}],sentences:[{en:'This is my family.',cn:'这是我的家庭。'},{en:'I love my mom.',cn:'我爱我的妈妈。'},{en:'He is my brother.',cn:'他是我的兄弟。'},{en:'She is my friend.',cn:'她是我的朋友。'},{en:'My father is tall.',cn:'我爸爸很高。'},{en:'Where is your home?',cn:'你家在哪里？'}]},
     grade3:{words:[{en:'weather',cn:'天气',phonetic:'ˈweðə'},{en:'sunny',cn:'晴朗',phonetic:'ˈsʌni'},{en:'rainy',cn:'下雨',phonetic:'ˈreɪni'},{en:'windy',cn:'有风',phonetic:'ˈwɪndi'},{en:'cloudy',cn:'多云',phonetic:'ˈklaʊdi'},{en:'snowy',cn:'下雪',phonetic:'ˈsnəʊi'},{en:'hot',cn:'热',phonetic:'hɒt'},{en:'cold',cn:'冷',phonetic:'kəʊld'},{en:'food',cn:'食物',phonetic:'fuːd'},{en:'rice',cn:'米饭',phonetic:'raɪs'},{en:'water',cn:'水',phonetic:'ˈwɔːtə'},{en:'animal',cn:'动物',phonetic:'ˈænɪml'}],sentences:[{en:'How is the weather?',cn:'天气怎么样？'},{en:'It is sunny today.',cn:'今天是晴天。'},{en:'I like rainy days.',cn:'我喜欢雨天。'},{en:'It is very cold.',cn:'很冷。'},{en:'Do you like apples?',cn:'你喜欢苹果吗？'},{en:'What is your favorite animal?',cn:'你最喜欢的动物是什么？'}]},
@@ -627,18 +629,18 @@ const Bank = {
   // 识字字库（幼小衔接/低年级）
   characters:{
     gradeK:[
-      {char:'一',pinyin:'yī',word:'一个',sentence:'我吃了一个苹果。'},
-      {char:'二',pinyin:'èr',word:'二月',sentence:'二月春风似剪刀。'},
-      {char:'三',pinyin:'sān',word:'三个',sentence:'我家有三口人。'},
-      {char:'四',pinyin:'sì',word:'四季',sentence:'一年有四季。'},
-      {char:'五',pinyin:'wǔ',word:'五颜六色',sentence:'花园里五颜六色。'},
-      {char:'上',pinyin:'shàng',word:'上学',sentence:'我高高兴兴上学去。'},
-      {char:'下',pinyin:'xià',word:'下雨',sentence:'今天下雨了。'},
-      {char:'左',pinyin:'zuǒ',word:'左手',sentence:'我用左手拿笔。'},
-      {char:'右',pinyin:'yòu',word:'右手',sentence:'我用右手吃饭。'},
-      {char:'中',pinyin:'zhōng',word:'中国',sentence:'中国是我的祖国。'},
-      {char:'大',pinyin:'dà',word:'大人',sentence:'大人在工作。'},
-      {char:'小',pinyin:'xiǎo',word:'小朋友',sentence:'小朋友真可爱。'}
+      {char:'一',pinyin:'yī',word:'一个',sentence:'我吃了一个苹果。',emoji:'➖'},
+      {char:'二',pinyin:'èr',word:'二月',sentence:'二月春风似剪刀。',emoji:'➕➕'},
+      {char:'三',pinyin:'sān',word:'三个',sentence:'我家有三口人。',emoji:'🔢'},
+      {char:'四',pinyin:'sì',word:'四季',sentence:'一年有四季。',emoji:'🍀'},
+      {char:'五',pinyin:'wǔ',word:'五颜六色',sentence:'花园里五颜六色。',emoji:'🌈'},
+      {char:'上',pinyin:'shàng',word:'上学',sentence:'我高高兴兴上学去。',emoji:'⬆️'},
+      {char:'下',pinyin:'xià',word:'下雨',sentence:'今天下雨了。',emoji:'☔'},
+      {char:'左',pinyin:'zuǒ',word:'左手',sentence:'我用左手拿笔。',emoji:'👈'},
+      {char:'右',pinyin:'yòu',word:'右手',sentence:'我用右手吃饭。',emoji:'👉'},
+      {char:'中',pinyin:'zhōng',word:'中国',sentence:'中国是我的祖国。',emoji:'🇨🇳'},
+      {char:'大',pinyin:'dà',word:'大人',sentence:'大人在工作。',emoji:'🐘'},
+      {char:'小',pinyin:'xiǎo',word:'小朋友',sentence:'小朋友真可爱。',emoji:'🐭'}
     ],
     grade1:[
       {char:'天',pinyin:'tiān',word:'天空',sentence:'天空蓝蓝的。'},
@@ -1755,6 +1757,17 @@ const UI = {
     if(subj==='chinese'){
       const poetry=Bank.chinese[c.grade]?.poetry||[];
       extra=`<div class="card"><div class="card-title">📜 今日古诗</div>${poetry.length?`<div style="background:linear-gradient(135deg,#fff8e1,#ffe0b2);padding:14px;border-radius:12px;"><div style="font-weight:700;font-size:16px;">《${poetry[0].title}》</div><div style="color:var(--text-soft);font-size:12px;">— ${poetry[0].author}</div><div style="margin:8px 0;font-size:15px;line-height:1.8;">${poetry[0].content}</div><div style="font-size:12px;color:var(--primary-d);">拼音：${poetry[0].pinyin}</div><details style="margin-top:6px;font-size:12px;"><summary>📖 解析</summary><p style="padding:6px 0;">${poetry[0].analysis}</p></details></div>`:'暂无'}</div>`;
+      // 幼小衔接：增加声母/韵母快速浏览区
+      if(c.grade==='gradeK'){
+        const pinyinList=Bank.chinese[c.grade]?.pinyin||[];
+        extra+=`<div class="card"><div class="card-title">🗣️ 声母韵母表（点击朗读）</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">
+          ${pinyinList.map(p=>`<div style="background:var(--bg);border-radius:10px;padding:8px;text-align:center;cursor:pointer;" data-speak="${encodeURIComponent(p.a)}" data-lang="zh-CN">
+            <div style="font-size:32px;">${p.emoji||''}</div>
+            <div style="font-size:24px;font-weight:700;color:var(--primary-d);">${p.q}</div>
+            <div style="font-size:11px;color:var(--text-soft);">${p.hint||p.a}</div>
+          </div>`).join('')}
+        </div></div>`;
+      }
     }
     return `<div class="card"><div class="card-title">${title} 任务</div><div class="grid grid-2">${allIds.map(id=>UI.taskCardById(id)).join('')}</div></div>${extra}${State.mode==='parent'?UI.customTaskInlineForm(title):''}`;
   },
@@ -1855,8 +1868,14 @@ const UI = {
     }else if(pending){
       btns=`<button class="btn sm" disabled style="background:#ffe0b2;color:#e65100;">⏳ 审核中</button>`;
     }else if(isQuiz){
-      // 带测试的作业：提供"开始测试"和"线下完成（家长审核）"两个选项
-      btns=`<button class="btn sm" onclick="UI.startQuiz('${id}')">开始测试</button> <button class="btn orange sm" onclick="UI.offlineComplete('${id}')" title="家长确认孩子已在纸质/书面上完成">线下完成</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
+      // 幼小衔接（gradeK）的拼音/识字/英语题改为"卡片学习"模式
+      const isKGrade=curChild().grade==='gradeK';
+      const isLearnMode=isKGrade&&(id==='cn_pinyin'||id==='cn_literacy'||id==='en_word'||id==='en_sent');
+      if(isLearnMode){
+        btns=`<button class="btn sm" onclick="UI.startLearn('${id}')">📖 开始学习</button> <button class="btn orange sm" onclick="UI.offlineComplete('${id}')" title="家长确认孩子已在纸质/书面上完成">线下完成</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
+      }else{
+        btns=`<button class="btn sm" onclick="UI.startQuiz('${id}')">开始测试</button> <button class="btn orange sm" onclick="UI.offlineComplete('${id}')" title="家长确认孩子已在纸质/书面上完成">线下完成</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
+      }
     }else if(id==='cn_callig'){
       btns=`<button class="btn sm" onclick="UI.showCallig()">查看字帖</button> <button class="btn sm" onclick="completeTask('${id}',${reward},'练字练习')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
     }else if(id==='cn_reading'){
@@ -1874,6 +1893,188 @@ const UI = {
   // 答题系统
   curQuiz:null,
   _quizOriginView:null,
+  // ============ 幼小衔接卡片学习模式 ============
+  curLearn:null,
+  startLearn(taskId){
+    this._quizOriginView=State.view;
+    const c=curChild();const grade=c.grade;
+    let items=[];let title='';let type='';
+    if(taskId==='cn_pinyin'){
+      type='pinyin';
+      items=(Bank.chinese[grade]?.pinyin||[]).slice();
+      title='🗣️ 拼音学习';
+    }else if(taskId==='cn_literacy'){
+      type='character';
+      items=(Bank.characters[grade]||[]).slice();
+      title='📖 识字学习';
+    }else if(taskId==='en_word'){
+      type='word';
+      items=(Bank.english[grade]?.words||[]).slice();
+      title='🍎 单词学习';
+    }else if(taskId==='en_sent'){
+      type='sentence';
+      items=(Bank.english[grade]?.sentences||[]).slice();
+      title='💬 每日短语';
+    }
+    if(!items.length){toast('题库为空');return;}
+    this.curLearn={taskId,title,type,items,learned:new Set(),idx:0};
+    this.renderLearn();
+  },
+  renderLearn(){
+    const l=this.curLearn;if(!l)return;
+    if(this._quizMask){this._quizMask.remove();this._quizMask=null;}
+    closeModal();
+    const i=l.idx;const item=l.items[i];
+    const total=l.items.length;
+    const learned=l.learned.size;
+    let cardHtml='';
+    if(l.type==='pinyin'){
+      cardHtml=`
+        <div style="text-align:center;padding:8px;">
+          <div style="font-size:64px;line-height:1;margin-bottom:6px;">${item.emoji||'🔤'}</div>
+          <div style="font-size:80px;font-weight:700;color:var(--primary-d);line-height:1;letter-spacing:4px;margin:8px 0;">${item.q}</div>
+          <div style="font-size:14px;color:var(--text-soft);margin-bottom:6px;">${item.hint||item.a}</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn sky sm" data-speak="${encodeURIComponent(item.a)}" data-lang="zh-CN">🔊 朗读</button>
+            <button class="btn ghost sm" data-speak="${encodeURIComponent(item.q)}" data-lang="zh-CN">📢 读音</button>
+          </div>
+        </div>`;
+    }else if(l.type==='character'){
+      cardHtml=`
+        <div style="text-align:center;padding:8px;">
+          <div style="font-size:48px;line-height:1;margin-bottom:6px;">${item.emoji||'📝'}</div>
+          <div style="font-size:90px;font-weight:700;color:var(--danger-d);line-height:1;margin:6px 0;">${item.char}</div>
+          <div style="font-size:20px;color:var(--primary-d);font-weight:600;margin-bottom:6px;">${item.pinyin}</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn sky sm" data-speak="${encodeURIComponent(item.pinyin)}" data-lang="zh-CN">🔊 朗读</button>
+            <button class="btn ghost sm" data-speak="${encodeURIComponent(item.char)}" data-lang="zh-CN">📢 读字</button>
+          </div>
+          <div style="background:var(--bg);padding:6px 10px;border-radius:8px;margin-top:10px;font-size:13px;">
+            <b>组词：</b>${item.word}<br>
+            <b>造句：</b>${item.sentence}
+          </div>
+        </div>`;
+    }else if(l.type==='word'){
+      cardHtml=`
+        <div style="text-align:center;padding:8px;">
+          <div style="font-size:80px;line-height:1;margin-bottom:6px;">${item.emoji||'📚'}</div>
+          <div style="font-size:42px;font-weight:700;color:var(--primary-d);line-height:1;margin:8px 0;">${item.en}</div>
+          <div style="font-size:16px;color:var(--text-soft);margin-bottom:4px;">[${item.phonetic||''}]</div>
+          <div style="font-size:22px;color:var(--danger-d);font-weight:600;margin:6px 0;">${item.cn}</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn sky sm" data-speak="${encodeURIComponent(item.en)}" data-lang="en-US">🔊 朗读</button>
+            <button class="btn pink sm" data-speak="${encodeURIComponent(item.en)}" data-lang="en-US">🎤 跟读</button>
+          </div>
+        </div>`;
+    }else if(l.type==='sentence'){
+      cardHtml=`
+        <div style="text-align:center;padding:8px;">
+          <div style="font-size:60px;line-height:1;margin-bottom:6px;">${item.emoji||'💬'}</div>
+          <div style="font-size:18px;color:var(--text-soft);margin-bottom:6px;">第 ${i+1} 句</div>
+          <div style="font-size:32px;font-weight:700;color:var(--primary-d);line-height:1.3;margin:8px 0;">${item.en}</div>
+          <div style="font-size:22px;color:var(--danger-d);font-weight:600;margin:6px 0;">${item.cn}</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+            <button class="btn sky sm" data-speak="${encodeURIComponent(item.en)}" data-lang="en-US">🔊 朗读</button>
+            <button class="btn pink sm" data-speak="${encodeURIComponent(item.en)}" data-lang="en-US">🎤 跟读</button>
+          </div>
+        </div>`;
+    }
+    const isLearned=l.learned.has(i);
+    const body=`
+      <div style="padding:4px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-soft);margin-bottom:8px;">
+          <span>第 ${i+1} / ${total} 项</span>
+          <span>已学会 <b style="color:var(--primary-d);">${learned}</b> / ${total}</span>
+        </div>
+        <div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:${(learned/total)*100}%;background:var(--primary);"></div></div>
+        <div style="background:var(--card);border:2px solid var(--bg2);border-radius:14px;padding:10px;margin:10px 0;">${cardHtml}</div>
+      </div>`;
+    const learnBtn=isLearned
+      ?`<button class="btn sm" disabled style="background:var(--bg);color:var(--primary-d);">✅ 已学会</button>`
+      :`<button class="btn sm" onclick="UI.learnCurrent()" style="background:var(--gold);color:#fff;">⭐ 学会了</button>`;
+    const footer=`
+      <button class="btn ghost sm" onclick="UI.exitLearn()">退出</button>
+      <button class="btn ghost sm" onclick="UI.prevLearn()" ${i===0?'disabled':''}>上一项</button>
+      ${learnBtn}
+      <button class="btn sm" onclick="UI.nextLearn()">${i===total-1?'完成':'下一项'} →</button>`;
+    showModal(l.title,body,footer,true);
+  },
+  learnCurrent(){
+    const l=this.curLearn;if(!l)return;
+    l.learned.add(l.idx);
+    Audio.play('checkin');
+    toast('⭐ 已标记为学会');
+    // 学会后自动跳到下一个未学会的项
+    const next=this.findNextUnlearned();
+    if(next!==-1){l.idx=next;}
+    this.renderLearn();
+    // 所有都学会：完成整个学习，自动结算阳光奖励
+    if(l.learned.size>=l.items.length){
+      setTimeout(()=>{
+        const task=todayTaskList(curChild()).find(x=>x.id===l.taskId);
+        const reward=task?task.reward:10;
+        const perfectReward=task?task.perfectReward:0;
+        // 全部学会：满分奖励
+        addSunlight(reward,l.title+'(全部学会)');
+        if(perfectReward>0){
+          curChild().today.sunlight+=perfectReward;
+          Log.sunlight(l.title+'满分奖励',perfectReward);
+        }
+        curChild().today.tasks[l.taskId]={completed:true,lockedAt:nowISO(),score:reward+perfectReward,base:reward,bonus:perfectReward,perfect:true,learned:l.learned.size};
+        checkLevelUp();Ach.check();Store.save();
+        toast('🎉 全部学会！+'+(reward+perfectReward)+'阳光');
+        this.curLearn=null;
+        closeModal();
+        UI.render();
+      },400);
+    }
+  },
+  findNextUnlearned(){
+    const l=this.curLearn;if(!l)return -1;
+    for(let i=l.idx+1;i<l.items.length;i++)if(!l.learned.has(i))return i;
+    // 前面还有没学的
+    for(let i=0;i<l.idx;i++)if(!l.learned.has(i))return i;
+    return -1;
+  },
+  nextLearn(){
+    const l=this.curLearn;if(!l)return;
+    if(l.idx<l.items.length-1){l.idx++;this.renderLearn();}
+    else{this.renderLearn();} // 最后一项原地刷新
+  },
+  prevLearn(){
+    const l=this.curLearn;if(!l)return;
+    if(l.idx>0){l.idx--;this.renderLearn();}
+  },
+  exitLearn(){
+    if(!this.curLearn)return;
+    this._quizMask=window._curMask;
+    showModal('退出学习','<div style="padding:10px 0;text-align:center;">确定退出本次学习吗？<br><span style="color:var(--text-soft);font-size:12px;">已标记学会的项目会保留。</span></div>',
+      `<button class="btn ghost sm" onclick="UI.renderLearn()">继续学习</button> <button class="btn danger sm" onclick="UI.forceExitLearn()">确认退出</button>`,true);
+  },
+  forceExitLearn(){
+    if(this._quizMask){this._quizMask.remove();this._quizMask=null;}
+    const l=this.curLearn;
+    // 部分学会：结算已学会的阳光奖励（按比例）
+    if(l&&l.learned.size>0){
+      const task=todayTaskList(curChild()).find(x=>x.id===l.taskId);
+      const reward=task?task.reward:10;
+      const learnedRatio=l.learned.size/l.items.length;
+      const partialReward=Math.round(reward*learnedRatio);
+      if(partialReward>0){
+        addSunlight(partialReward,l.title+'(学会'+l.learned.size+'/'+l.items.length+'项)');
+        curChild().today.tasks[l.taskId]={completed:true,lockedAt:nowISO(),score:partialReward,base:partialReward,bonus:0,perfect:false,learned:l.learned.size};
+        Store.save();
+        toast('已结算学会奖励：+'+partialReward+'阳光');
+      }else{
+        toast('已退出学习');
+      }
+    }else{
+      toast('已退出学习');
+    }
+    this.curLearn=null;
+    closeModal();
+    this.backToQuizOrigin();
+  },
   startQuiz(taskId){
     // 记录测试来源视图，退出时返回该页面
     this._quizOriginView=State.view;
