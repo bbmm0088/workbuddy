@@ -1104,6 +1104,8 @@ function todayTaskList(c){
     // scope='all' 或未设置 → 所有孩子可见
     // scope='child' → 只在 t.childId === 当前孩子ID 时可见
     if(t.scope==='child'&&t.childId&&t.childId!==d_settings().currentChildId)return;
+    // 减分项目不计入作业完成率，单独在减分页面处理
+    if(t.cat==='减分')return;
     list.push({id:t.id,cat:t.cat||'自定义',name:t.name,icon:t.icon||'📝',reward:t.reward,review:!!t.review,custom:true});
   });
   // 过滤被家长隐藏的内置任务
@@ -1341,7 +1343,7 @@ const Router = {
     {id:'sport',icon:'⚽',name:'运动',childOnly:false},
     {id:'chore',icon:'🧹',name:'家务',childOnly:false},
     {id:'deed',icon:'🌟',name:'德育',childOnly:false},
-    {id:'custom',icon:'📝',name:'自定义',childOnly:false},
+    {id:'penalty',icon:'⚠️',name:'减分',childOnly:false},
     {id:'wrong',icon:'📝',name:'错题本',childOnly:false},
     {id:'garden',icon:'🌻',name:'花园',childOnly:false},
     {id:'pet',icon:'🐾',name:'宠物',childOnly:false},
@@ -1449,9 +1451,13 @@ const UI = {
       return `<div class="card"><div class="card-title">🧹 家务打卡</div><div class="grid grid-2">${ids.concat(customs).map(id=>UI.taskCardById(id)).join('')}</div></div>${State.mode==='parent'?UI.customTaskInlineForm('家务'):''}`;
     },
     deed(){return UI.renderDeed();},
-    custom(){
-      const ids=(Store.data.customTasks||[]).filter(t=>t.cat==='自定义'||!t.cat).map(t=>t.id);
-      return `<div class="card"><div class="card-title">📝 自定义作业</div>${ids.length?`<div class="grid grid-2">${ids.map(id=>UI.taskCardById(id)).join('')}</div>`:'<div style="color:var(--text-light);text-align:center;padding:20px;font-size:13px;">暂无自定义分类作业<br><span style="font-size:11px;">可在下方添加</span></div>'}</div>${State.mode==='parent'?UI.customTaskInlineForm('自定义'):''}`;
+    penalty(){
+      const c=curChild();
+      const items=(Store.data.customTasks||[]).filter(t=>t.cat==='减分'||t.cat==='自定义'||!t.cat);
+      return `<div class="card"><div class="card-title">⚠️ 减分项目</div>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">家长对表现不佳的行为扣减阳光，点击项目即可执行扣分。</p>
+        ${items.length?`<div class="grid grid-2">${items.map(t=>UI.penaltyCard(t)).join('')}</div>`:'<div style="color:var(--text-light);text-align:center;padding:20px;font-size:13px;">暂无减分项目<br><span style="font-size:11px;">家长可在下方添加</span></div>'}
+      </div>${State.mode==='parent'?UI.penaltyInlineForm():''}`;
     },
     wrong(){return UI.renderWrong();},
     garden(){return UI.renderGarden();},
@@ -1543,10 +1549,70 @@ const UI = {
           ${Object.entries(children).map(([cid,ch])=>`<option value="${cid}">${ch.profile.name}专属</option>`).join('')}
         </select>
         <input id="inlineCtReward" type="number" placeholder="阳光" value="10" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;">☀️
-        <label style="font-size:11px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="inlineCtReview"> 需审核</label>
+        <label style="font-size:11px;display:flex;align-items:center;gap:2px;"><input type="checkbox" id="inlineCtReview"> 需��核</label>
         <button class="btn sm" onclick="UI.addCustomTaskInline('${cat}')">添加</button>
       </div>
     </div>`;
+  },
+  // 减分项目卡片
+  penaltyCard(t){
+    const c=curChild();
+    const count=c.today.penalties?.[t.id]||0;
+    const isParent=State.mode==='parent';
+    return `<div class="task-card" style="border-color:var(--danger);">
+      <div class="t-title">${t.icon||'⚠️'} ${t.name}</div>
+      <div class="t-desc">扣分项目 · 今日已扣 ${count} 次</div>
+      <div class="t-foot"><span class="reward-tag" style="background:var(--danger);color:#fff;">-${t.reward}☀️</span>
+        <div>
+          <button class="btn danger sm" onclick="UI.doPenalty('${t.id}')">⚠️ 扣 ${t.reward} 阳光</button>
+          ${isParent?`<button class="btn ghost sm" style="color:var(--danger);font-size:11px;margin-left:4px;" onclick="UI.delCustomTaskConfirm('${t.id}')">🗑️</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  },
+  // 减分项目添加表单（家长模式专用）
+  penaltyInlineForm(){
+    const children=Store.data.children;
+    return `<div class="card" style="border:2px dashed var(--danger);">
+      <div class="card-title" style="font-size:13px;">➕ 添加减分项目 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长模式专属）</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <input id="penIcon" placeholder="图标" value="⚠️" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;">
+        <input id="penName" placeholder="项目名称（如：上课讲话/不按时完成）" style="flex:1;min-width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+        <select id="penScope" style="padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <option value="all">🌐 共有</option>
+          ${Object.entries(children).map(([cid,ch])=>`<option value="${cid}">${ch.profile.name}专属</option>`).join('')}
+        </select>
+        <input id="penReward" type="number" placeholder="扣阳光" value="10" style="width:70px;padding:6px;border:1px solid var(--border);border-radius:6px;">☀️
+        <button class="btn danger sm" onclick="UI.addPenalty()">添加</button>
+      </div>
+    </div>`;
+  },
+  // 添加减分项目
+  addPenalty(){
+    const name=$('#penName')?.value.trim();if(!name){toast('请填写项目名称');return;}
+    const icon=$('#penIcon')?.value||'⚠️';
+    const reward=+$('#penReward')?.value||10;
+    const scopeVal=$('#penScope')?.value||'all';
+    const scope=scopeVal==='all'?'all':'child';
+    const childId=scopeVal==='all'?null:scopeVal;
+    if(!Store.data.customTasks)Store.data.customTasks=[];
+    Store.data.customTasks.push({id:'ct_'+uid(),name,icon,cat:'减分',reward,review:false,custom:true,scope,childId});
+    Store.save();UI.render();toast('已添加减分项目：'+name);
+  },
+  // 执行扣分
+  doPenalty(taskId){
+    const t=(Store.data.customTasks||[]).find(x=>x.id===taskId);if(!t)return;
+    const c=curChild();
+    confirmModal('确定对「'+t.name+'」扣 '+t.reward+' 阳光？',()=>{
+      if(c.sunlight.total<t.reward){toast('阳光余额不足（当前 '+c.sunlight.total+'），仍将扣至0');}
+      Log.sunlight('减分：'+t.name,-t.reward);
+      c.today.sunlight=Math.max(0,c.today.sunlight-t.reward);
+      // 记录今日扣分次数
+      if(!c.today.penalties)c.today.penalties={};
+      c.today.penalties[taskId]=(c.today.penalties[taskId]||0)+1;
+      Audio.play('wrong');Store.save();UI.render();
+      toast('⚠️ 已扣 '+t.reward+' 阳光：'+t.name);
+    });
   },
   taskCardById(id){
     const tasks=todayTaskList(curChild());
@@ -2257,8 +2323,8 @@ const UI = {
       <div class="card"><div class="card-title">🛒 商店管理</div><div id="shopMgr">${Store.data.shopItems.map(it=>`<div class="log-item"><span>${it.icon} <input type="text" value="${it.name}" style="width:90px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').name=this.value;Store.save()"> <input type="number" value="${it.price}" style="width:60px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').price=+this.value;Store.save()">☀️</span><button class="btn danger sm" onclick="UI.delShop('${it.id}')">删除</button></div>`).join('')}</div>
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newShopName" placeholder="名称"><input id="newShopPrice" type="number" placeholder="价格"><input id="newShopIcon" placeholder="图标" value="🎁"><button class="btn sm" onclick="UI.addShop()">添加</button></div>
       </div>
-      <div class="card"><div class="card-title">📝 作业任务管理 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长自定义作业，可设阳光值和归属）</span></div>
-        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">共有任务对所有孩子可见，专属任务只对指定孩子显示。</p>
+      <div class="card"><div class="card-title">📝 作业任务管理 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（自定义作业 / 减分项目，可设阳光值和归属）</span></div>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">分类选「减分」的项目会出现在减分页面，用于扣减阳光；其他分类为作业任务。共有任务对所有孩子可见，专属任务只对指定孩子显示。</p>
         ${(Store.data.customTasks||[]).map(t=>{
           const childName=t.scope==='child'&&t.childId?Store.data.children[t.childId]?.profile?.name||'已删除孩子':'';
           return `<div class="log-item">
@@ -2266,7 +2332,7 @@ const UI = {
             <input type="text" value="${t.icon||'📝'}" style="width:40px;border:1px solid var(--border);border-radius:4px;padding:2px;text-align:center;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').icon=this.value;Store.save()">
             <input type="text" value="${t.name}" style="width:100px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').name=this.value;Store.save()">
             <select style="border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.customTasks.find(x=>x.id==='${t.id}').cat=this.value;Store.save()">
-              ${['语文','数学','英语','运动','家务','德育','自定义'].map(c=>`<option value="${c}" ${t.cat===c?'selected':''}>${c}</option>`).join('')}
+              ${['语文','数学','英语','运动','家务','德育','减分'].map(c=>`<option value="${c}" ${t.cat===c?'selected':''}>${c}</option>`).join('')}
             </select>
             <select style="border:1px solid var(--border);border-radius:4px;padding:2px;font-size:11px;" onchange="UI.setCustomTaskScope('${t.id}',this.value)">
               <option value="all" ${t.scope!=='child'?'selected':''}>🌐 共有</option>
@@ -2283,7 +2349,7 @@ const UI = {
             <input id="newCtIcon" placeholder="图标" value="📝" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;">
             <input id="newCtName" placeholder="任务名称（如：写日记）" style="flex:1;min-width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;">
             <select id="newCtCat" style="padding:6px;border:1px solid var(--border);border-radius:6px;">
-              ${['语文','数学','英语','运动','家务','德育','自定义'].map(c=>`<option value="${c}">${c}</option>`).join('')}
+              ${['语文','数学','英语','运动','家务','德育','减分'].map(c=>`<option value="${c}">${c}</option>`).join('')}
             </select>
             <select id="newCtScope" style="padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
               <option value="all">🌐 共有任务</option>
