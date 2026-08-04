@@ -163,6 +163,33 @@ input,select,textarea{font-family:inherit;outline:none;}
 .sun-float{position:fixed;color:var(--gold);font-weight:700;font-size:22px;pointer-events:none;z-index:300;text-shadow:0 0 4px #fff;animation:floatUp 1.2s ease forwards;}
 @keyframes floatUp{0%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-50px);}}
 
+/* ============ 宠物动画系统 ============ */
+.pet-anim{animation-duration:1s;animation-iteration-count:infinite;animation-timing-function:ease-in-out;}
+.pet-anim.blink{animation-name:petBlink;animation-duration:4s;}
+.pet-anim.wag{animation-name:petWagTail;animation-duration:1.5s;}
+.pet-anim.eat{animation-name:petEat;animation-duration:.5s;animation-iteration-count:6;}
+.pet-anim.happy{animation-name:petHappy;animation-duration:.6s;animation-iteration-count:5;}
+.pet-anim.sick{animation-name:petSick;animation-duration:.3s;}
+.pet-anim.call{animation-name:petCall;animation-duration:.8s;animation-iteration-count:3;}
+.pet-anim.wash{animation-name:petWash;animation-duration:1s;animation-iteration-count:4;}
+.pet-anim.play{animation-name:petPlay;animation-duration:.5s;animation-iteration-count:8;}
+@keyframes petBlink{0%,90%,100%{transform:scale(1);}93%,97%{transform:scaleY(.85) scaleX(1.02);}}
+@keyframes petWagTail{0%,100%{transform:rotate(-3deg);}50%{transform:rotate(3deg);}}
+@keyframes petEat{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+@keyframes petHappy{0%,100%{transform:rotate(0) scale(1);}25%{transform:rotate(-5deg) scale(1.05);}75%{transform:rotate(5deg) scale(1.05);}}
+@keyframes petSick{0%,100%{transform:translateX(0);}25%{transform:translateX(-3px);}75%{transform:translateX(3px);}}
+@keyframes petCall{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+@keyframes petWash{0%,100%{transform:rotate(0);}33%{transform:rotate(-8deg);}66%{transform:rotate(8deg);}}
+@keyframes petPlay{0%,100%{transform:translateY(0) rotate(0);}50%{transform:translateY(-12px) rotate(10deg);}}
+/* 首页悬浮宠物 */
+.floating-pet{position:fixed;bottom:72px;right:14px;z-index:50;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#fff3e0,#ffe0b2);display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2);border:3px solid var(--primary);animation:petFloat 2.5s ease-in-out infinite;transition:transform .2s;}
+.floating-pet:hover{transform:scale(1.1);}
+.floating-pet .fp-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;}
+@keyframes petFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+/* 装扮图标 */
+.outfit-icons{display:flex;gap:4px;justify-content:center;font-size:18px;}
+.bond-badge{display:inline-block;background:linear-gradient(135deg,#7c4dff,#b388ff);color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+
 /* 表单 */
 .form-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
 .form-row label{font-size:12px;color:var(--text-soft);font-weight:600;}
@@ -422,6 +449,7 @@ const Store = {
         }
       });
     }
+    if(!d.petOutfits)d.petOutfits=Pet.defaultOutfits();
     if(!d.achievementDefs) d.achievementDefs=Ach.defaultDefs();
     if(d.settings.reviewMode===undefined) d.settings.reviewMode=false;
     if(!d.settings.hiddenTasks) d.settings.hiddenTasks=[];
@@ -449,10 +477,16 @@ const Store = {
     });
     if(c.garden.zombies.length===0&&d_settings().zombieEnabled) c.garden.zombies.push(this.newZombie());
     if(!c.pets) c.pets=[];
-    // 为已有宠物补充lastDecayAt字段（兼容旧数据，从购买时间或当前时间开始计）
+    // 为已有宠物补充新字段（兼容旧数据）
     c.pets.forEach(p=>{
       if(p.lastDecayAt===undefined)p.lastDecayAt=p.purchasedAt?new Date(p.purchasedAt).getTime():Date.now();
+      if(p.health===undefined)p.health=100;
+      if(p.bondLevel===undefined)p.bondLevel=Pet.bondLevelFromIntimacy(p.intimacy);
+      if(!p.outfits)p.outfits={};
+      if(!p.toys)p.toys=[];
+      if(p.lastDailyReward===undefined)p.lastDailyReward='';
     });
+    if(!c.ownedOutfits)c.ownedOutfits=[];
     if(!c.achievements) c.achievements=[];
     if(!c.logs) c.logs={sunlight:[],pet:[]};
     if(!c.wrongQuestions) c.wrongQuestions=[];
@@ -1049,32 +1083,51 @@ const Pet = {
       }
     };
   },
+  // 装扮商城定义
+  defaultOutfits(){
+    return[
+      {id:'hat_top',name:'礼帽',icon:'🎩',slot:'hat',cost:50,desc:'绅士风度'},
+      {id:'hat_crown',name:'皇冠',icon:'👑',slot:'hat',cost:200,desc:'王者风范'},
+      {id:'hat_bow',name:'蝴蝶结',icon:'🎀',slot:'hat',cost:30,desc:'可爱装扮'},
+      {id:'hat_cap',name:'棒球帽',icon:'🧢',slot:'hat',cost:40,desc:'运动风'},
+      {id:'col_gold',name:'金链',icon:'🔗',slot:'collar',cost:80,desc:'闪亮金色'},
+      {id:'col_pink',name:'粉蝴蝶结',icon:'🌸',slot:'collar',cost:30,desc:'甜美系'},
+      {id:'col_diamond',name:'钻石项圈',icon:'💎',slot:'collar',cost:150,desc:'奢华钻石'},
+      {id:'nest_basic',name:'普通窝',icon:'🛏️',slot:'nest',cost:50,desc:'舒适小窝'},
+      {id:'nest_castle',name:'城堡窝',icon:'🏰',slot:'nest',cost:300,desc:'梦幻城堡'},
+      {id:'nest_garden',name:'花园窝',icon:'🌺',slot:'nest',cost:200,desc:'花香满溢'},
+      {id:'toy_yarn',name:'毛线球',icon:'🧶',slot:'toy',cost:20,desc:'猫咪最爱'},
+      {id:'toy_bone',name:'骨头',icon:'🦴',slot:'toy',cost:20,desc:'狗狗最爱'},
+      {id:'toy_ball',name:'网球',icon:'🎾',slot:'toy',cost:30,desc:'追逐网球'}
+    ];
+  },
+  outfits(){return Store.data.petOutfits||this.defaultOutfits();},
   list(){return Store.data.petDefs;},
+  // 羁绊等级计算（亲密度→1-10级）
+  bondLevelFromIntimacy(intimacy){
+    return Math.min(10,Math.floor(intimacy/20)+1);
+  },
   buy(type){
     const def=this.list()[type];if(!def)return false;
     if(!spendSunlight(def.cost,'领养'+def.name))return false;
     const c=curChild();
-    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,status:'healthy',purchasedAt:nowISO(),lastDecayAt:Date.now(),canRegret:true};
+    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,health:100,bondLevel:4,status:'healthy',purchasedAt:nowISO(),lastDecayAt:Date.now(),canRegret:true,outfits:{},toys:[],lastDailyReward:''};
     c.pets.push(pet);
     Log.pet('领养',pet.id,def.name);
     Audio.play('pet');Store.save();
-    // 弹出命名框（含免费反悔选项）
     UI.promptName(pet.id,'给宠物起个名字吧～');
     return true;
   },
-  // 免费反悔：购买后未反悔过的宠物可退回全额阳光
   regret(petId){
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
     if(!p.canRegret){toast('该宠物已使用过反悔机会');return;}
     const def=this.list()[p.type];
-    // 移除宠物并退还阳光
     c.pets=c.pets.filter(x=>x.id!==petId);
     addSunlight(def.cost,'反悔退还：'+def.name);
     Log.pet('反悔',petId,'退还'+def.cost+'阳光');
     Store.save();closeModal();UI.render();
     toast('已退回'+def.name+'，返还'+def.cost+'阳光');
   },
-  // 弃养：消耗300阳光永久放弃宠物
   abandon(petId){
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
     const def=this.list()[p.type];
@@ -1104,47 +1157,187 @@ const Pet = {
     if(cn===0&&en>12)return'字母数字最多12个字符';
     return'';
   },
-  feed(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;const def=this.list()[p.type];
-    if(!spendSunlight(10,'喂食'+p.name))return;
-    p.satiety=clamp(p.satiety+10,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);Log.pet('喂食',p.id,'饱食+10');Audio.play('pet');Store.save();UI.render();},
-  water(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
-    if(!spendSunlight(5,'喂水'+p.name))return;
-    p.satiety=clamp(p.satiety+5,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);Log.pet('喂水',p.id,'饱食+5');Audio.play('pet');Store.save();UI.render();},
-  touch(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+  // ============ 四类食材投喂 ============
+  feedWater(petId){ // 白开水：2阳光，饱食+5
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(2,'喂水'+p.name))return;
+    p.satiety=clamp(p.satiety+5,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);
+    Log.pet('喂水',p.id,'饱食+5');Audio.play('pet');Store.save();UI.render();
+  },
+  feedKibble(petId){ // 粮：5阳光，饱食+15，健康+2
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(5,'喂粮'+p.name))return;
+    p.satiety=clamp(p.satiety+15,0,200);p.health=clamp((p.health||100)+2,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);
+    Log.pet('喂粮',p.id,'饱食+15 健康+2');Audio.play('pet');Store.save();UI.render();
+  },
+  feedCan(petId){ // 罐头：15阳光，饱食+25，健康+5
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(15,'喂罐头'+p.name))return;
+    p.satiety=clamp(p.satiety+25,0,200);p.health=clamp((p.health||100)+5,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);
+    Log.pet('喂罐头',p.id,'饱食+25 健康+5');Audio.play('pet');Store.save();UI.render();
+  },
+  feedNutrition(petId){ // 营养餐：25阳光，饱食+35，亲密度+5，健康+10
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(25,'喂营养餐'+p.name))return;
+    p.satiety=clamp(p.satiety+35,0,200);p.health=clamp((p.health||100)+10,0,200);p.intimacy=clamp(p.intimacy+5,0,200);p.lastFeedAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    Log.pet('喂营养餐',p.id,'饱食+35 健康+10 亲密+5');Audio.play('pet');Store.save();UI.render();
+  },
+  // ============ 互动玩法 ============
+  touch(petId){ // 抚摸：10阳光，亲密度+10
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(!spendSunlight(10,'抚摸'+p.name))return;
-    p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateStatus(p);Log.pet('抚摸',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();},
-  walk(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    Log.pet('抚摸',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();
+  },
+  walk(petId){ // 遛宠：10阳光，亲密度+10
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(!spendSunlight(10,'遛宠'+p.name))return;
-    p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateStatus(p);Log.pet('遛宠',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();},
-  heal(petId){const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    Log.pet('遛宠',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();
+  },
+  call(petId){ // 唤名：免费，亲密度+3
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    p.intimacy=clamp(p.intimacy+3,0,200);p.lastCallAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    Log.pet('唤名',p.id,'亲密+3');Audio.play('pet');Store.save();UI.render();
+    toast('🔊 '+p.name+'！');
+  },
+  play(petId){ // 玩玩具：5阳光，亲密度+15，健康+3
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(5,'玩玩具'+p.name))return;
+    p.intimacy=clamp(p.intimacy+15,0,200);p.health=clamp((p.health||100)+3,0,200);p.lastPlayAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    Log.pet('玩玩具',p.id,'亲密+15 健康+3');Audio.play('pet');Store.save();UI.render();
+  },
+  wash(petId){ // 洗澡：10阳光，健康+15
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(!spendSunlight(10,'洗澡'+p.name))return;
+    p.health=clamp((p.health||100)+15,0,200);p.lastWashAt=Date.now();this.updateStatus(p);
+    Log.pet('洗澡',p.id,'健康+15');Audio.play('pet');Store.save();UI.render();
+  },
+  photo(petId){ // 合照：免费，亲密度+5
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    const def=this.list()[p.type];
+    p.intimacy=clamp(p.intimacy+5,0,200);p.lastPhotoAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    Log.pet('合照',p.id,'亲密+5');Audio.play('pet');Store.save();UI.render();
+    // 弹窗显示合照
+    const dateStr=new Date().toLocaleDateString('zh-CN');
+    showModal('📸 宠物合照',`<div style="text-align:center;padding:10px;">
+      <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:16px;border:2px dashed var(--primary);">
+        <div style="font-size:60px;">${def.emoji} 🧒</div>
+        <div style="font-size:16px;font-weight:700;margin:8px 0;">${c.profile.name} & ${p.name}</div>
+        <div style="font-size:12px;color:var(--text-soft);">${dateStr}</div>
+        <div style="margin-top:6px;font-size:13px;color:var(--primary-d);">羁绊 Lv.${p.bondLevel||1} · 亲密度 ${p.intimacy}</div>
+      </div>
+    </div>`,`<button class="btn sm" onclick="closeModal()">真好看！</button>`);
+  },
+  miniGame(petId){ // 迷你游戏：猜数字
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this._miniGame)return; // 防止重复打开
+    const target=1+rnd(10);
+    let attempts=3;
+    this._miniGame={target,attempts,petId};
+    const renderGame=(hint)=>{
+      const mg=this._miniGame;
+      showModal('🎮 迷你游戏：猜数字',`<div style="text-align:center;padding:10px;">
+        <div style="font-size:40px;margin-bottom:8px;">🎲</div>
+        <p style="font-size:13px;color:var(--text-soft);margin-bottom:8px;">猜一个 1-10 的数字，${mg.attempts} 次机会</p>
+        ${hint?`<div style="font-size:14px;font-weight:700;color:var(--primary-d);margin-bottom:8px;">${hint}</div>`:''}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;">
+          ${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button class="btn sm" style="width:42px;height:42px;font-size:16px;" onclick="UI.guessNum(${n})">${n}</button>`).join('')}
+        </div>
+      </div>`,`<button class="btn ghost sm" onclick="UI.exitMiniGame()">退出</button>`,true);
+    };
+    this._renderMiniGame=renderGame;
+    renderGame('');
+  },
+  heal(petId){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     const cost=this._healCost||150;
     if(!spendSunlight(cost,'治疗'+p.name))return;
-    p.satiety=clamp(p.satiety+50,0,200);p.intimacy=clamp(p.intimacy+50,0,200);p.status='healthy';Log.pet('治疗',p.id,'恢复健康');Audio.play('pet');Store.save();},
+    p.satiety=clamp(p.satiety+50,0,200);p.intimacy=clamp(p.intimacy+50,0,200);p.health=clamp((p.health||100)+80,0,200);p.status='healthy';this.updateBondLevel(p);Log.pet('治疗',p.id,'恢复健康');Audio.play('pet');Store.save();UI.render();
+  },
+  // ============ 装扮系统 ============
+  buyOutfit(outfitId){
+    const outfit=this.outfits().find(o=>o.id===outfitId);if(!outfit)return;
+    const c=curChild();
+    if(!c.ownedOutfits)c.ownedOutfits=[];
+    if(c.ownedOutfits.includes(outfitId)){toast('已拥有此装扮');return;}
+    if(!spendSunlight(outfit.cost,'购买装扮：'+outfit.name))return;
+    c.ownedOutfits.push(outfitId);
+    Log.pet('购买装扮','',outfit.name);
+    Store.save();UI.render();
+    toast('已购买'+outfit.name+'！');
+  },
+  equipOutfit(petId,outfitId){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    const outfit=this.outfits().find(o=>o.id===outfitId);if(!outfit)return;
+    if(!c.ownedOutfits||!c.ownedOutfits.includes(outfitId)){toast('未拥有此装扮');return;}
+    if(!p.outfits)p.outfits={};
+    // 同槽位切换
+    p.outfits[outfit.slot]=outfitId;
+    Store.save();UI.render();
+    toast('已穿戴'+outfit.name);
+  },
+  unequipOutfit(petId,slot){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    if(!p.outfits||!p.outfits[slot])return;
+    delete p.outfits[slot];
+    Store.save();UI.render();
+  },
+  // ============ 状态与等级 ============
   updateStatus(p){
     if(p.satiety<=0||p.intimacy<=0){p.status='dead';return;}
-    if(p.satiety<=30||p.intimacy<50){p.status='sick';}
-    else if(p.satiety<50){p.status='hungry';}
+    if((p.health||100)<=30||p.satiety<=30||p.intimacy<50){p.status='sick';}
+    else if(p.satiety<50||(p.health||100)<60){p.status='hungry';}
     else{p.status='healthy';}
   },
-  // 每小时衰减：消耗5饥饿度5亲密度
+  updateBondLevel(p){
+    p.bondLevel=this.bondLevelFromIntimacy(p.intimacy);
+  },
+  // 每日奖励：精心饲养（饱食度>50且亲密度>50）赠送20阳光
+  checkDailyReward(){
+    const c=curChild();if(!c.pets.length)return;
+    const today=todayStr();
+    c.pets.forEach(p=>{
+      if(p.status==='dead')return;
+      if(p.lastDailyReward===today)return; // 今天已领
+      if(p.satiety>50&&p.intimacy>50){
+        addSunlight(20,'宠物每日奖励：'+p.name);
+        p.lastDailyReward=today;
+        Log.pet('每日奖励',p.id,'+20阳光');
+      }
+    });
+    Store.save();
+  },
+  // ============ 衰减系统 ============
+  // 每小时消耗5饥饿度5亲密度，凌晨0-8点不消耗
   decay(c){
     if(!d_settings().petDecayEnabled)return;
-    const ds=5,di=5; // 每小时消耗5点
+    const ds=5,di=5;
     const now=Date.now();
     c.pets.forEach(p=>{
       if(p.status==='dead')return;
-      // 计算距上次衰减经过的小时数
       const last=p.lastDecayAt||p.purchasedAt||now;
-      const elapsedHours=Math.floor((now-last)/3600000);
-      if(elapsedHours>0){
-        p.satiety=Math.max(-1,p.satiety-ds*elapsedHours);
-        p.intimacy=Math.max(-1,p.intimacy-di*elapsedHours);
-        p.lastDecayAt=last+elapsedHours*3600000;
+      // 逐小时检查，跳过凌晨0-8点
+      let checkTime=last;
+      let totalDecayHours=0;
+      while(checkTime<now){
+        const hour=new Date(checkTime).getHours();
+        const nextHour=checkTime+3600000;
+        if(hour>=8){ // 8:00-23:59 才消耗
+          if(nextHour<=now)totalDecayHours++;
+        }
+        checkTime=nextHour;
+      }
+      if(totalDecayHours>0){
+        p.satiety=Math.max(-1,p.satiety-ds*totalDecayHours);
+        p.intimacy=Math.max(-1,p.intimacy-di*totalDecayHours);
+        p.health=Math.max(-1,(p.health||100)-2*totalDecayHours);
+        p.lastDecayAt=now;
+        this.updateBondLevel(p);
         this.updateStatus(p);
         if(p.status==='dead'){c.logs.pet.unshift({time:nowISO(),action:'死亡',petId:p.id,detail:'属性耗尽'});}
       }
     });
-    // 清理死亡宠物
     c.pets=c.pets.filter(p=>p.status!=='dead');
   }
 };
@@ -1773,7 +1966,8 @@ const UI = {
           <div style="font-size:13px;">当前僵尸：<b>${c.garden.zombies.length}</b> 只 ${c.garden.zombies.length>0?`· 最近一只血量 ${c.garden.zombies[0].hp}/${c.garden.zombies[0].maxHp}`:''}</div>
           ${rate<0.5&&c.garden.zombies.length>0?'<div style="color:var(--danger);font-size:12px;margin-top:4px;">⚠️ 完成率不足50%，僵尸会前进！</div>':''}
           ${rate>=0.8?'<div style="color:var(--primary-d);font-size:12px;margin-top:4px;">✨ 完成率≥80%，僵尸被冻结！</div>':''}
-        </div>`;
+        </div>
+        ${c.pets.length?`<div class="floating-pet" onclick="Router.navigate('pet')" title="去看看${c.pets[0].name}">${Pet.list()[c.pets[0].type].emoji}</div>`:''}`;
     },
     chinese(){const g=curChild().grade;const ids=Bank.characters[g]?['cn_pinyin','cn_literacy','cn_dictation','cn_callig','cn_poetry','cn_reading']:['cn_pinyin','cn_callig','cn_poetry','cn_reading'];return UI.renderSubject('chinese','语文',ids);},
     math(){const c=curChild();const ids=['math_add','math_sub'];if(c.grade!=='gradeK'&&c.grade!=='grade1')ids.push('math_mul');ids.push('math_think');return UI.renderSubject('math','数学',ids);},
@@ -2750,60 +2944,160 @@ const UI = {
     Audio.play('zombie');toast('消灭成功！');closeModal();UI.render();
   },
   renderPet(){
+    // 检查每日奖励
+    Pet.checkDailyReward();
     const c=curChild();const defs=Pet.list();
+    const allOutfits=Pet.outfits();
+    const ownedOutfits=c.ownedOutfits||[];
     const petHtml=c.pets.length?c.pets.map(p=>{
       const def=defs[p.type];
       // 根据宠物状态选择图片
       let petImgSrc=def.img;
       let petStateLabel='';
+      let animClass='pet-anim blink'; // 默认闲置眨眼
       if(def.imgs){
-        // 优先级：死亡/生病 → 哭泣图（生病期间一直哭泣，治愈后才恢复开心）
-        // 最近喂食(10秒) → 吃饭图；最近抚摸(10秒) → 开心图
-        // 饥饿 → 哭泣图；健康默认 → 开心图
         const now=Date.now();
         const recentFeed=p.lastFeedAt&&(now-p.lastFeedAt)<10000;
         const recentTouch=p.lastTouchAt&&(now-p.lastTouchAt)<10000;
+        const recentCall=p.lastCallAt&&(now-p.lastCallAt)<8000;
+        const recentPlay=p.lastPlayAt&&(now-p.lastPlayAt)<10000;
+        const recentWash=p.lastWashAt&&(now-p.lastWashAt)<10000;
         if(p.status==='dead'&&def.imgs.sad){
-          petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';
+          petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';animClass='';
         }else if(p.status==='sick'&&def.imgs.sad){
-          petImgSrc=def.imgs.sad;petStateLabel='🤒 生病了';
+          petImgSrc=def.imgs.sad;petStateLabel='🤒 生病了';animClass='pet-anim sick';
         }else if(recentFeed&&def.imgs.feed){
-          petImgSrc=def.imgs.feed;petStateLabel='🍖 吃饱了';
+          petImgSrc=def.imgs.feed;petStateLabel='🍖 吃东西';animClass='pet-anim eat';
+        }else if(recentPlay&&def.imgs.happy){
+          petImgSrc=def.imgs.happy;petStateLabel='🎾 玩耍中';animClass='pet-anim play';
+        }else if(recentWash&&def.imgs.happy){
+          petImgSrc=def.imgs.happy;petStateLabel='🛁 洗澡中';animClass='pet-anim wash';
         }else if(recentTouch&&def.imgs.happy){
-          petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';
+          petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';animClass='pet-anim happy';
+        }else if(recentCall&&def.imgs.happy){
+          petImgSrc=def.imgs.happy;petStateLabel='📢 听到名字了';animClass='pet-anim call';
         }else if(p.status==='hungry'&&def.imgs.sad){
-          petImgSrc=def.imgs.sad;petStateLabel='😟 饿了';
+          petImgSrc=def.imgs.sad;petStateLabel='😟 饿了';animClass='pet-anim wag';
         }else if(def.imgs.happy){
-          // 健康且无最近操作 → 默认显示开心图
-          petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';
+          petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';animClass='pet-anim wag';
         }
       }
-      const imgHtml=petImgSrc?`<img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div>`:`<div class="pet-emoji">${def.emoji}</div>`;
-      return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️</div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
+      // 装扮图标
+      const outfitIcons=p.outfits?Object.entries(p.outfits).map(([slot,oid])=>{
+        const o=allOutfits.find(x=>x.id===oid);
+        return o?o.icon:'';
+      }).join(''):'';
+      // 羁绊等级
+      const bondLv=p.bondLevel||Pet.bondLevelFromIntimacy(p.intimacy);
+      // 健康值
+      const health=p.health||100;
+      const imgHtml=petImgSrc?`<div class="${animClass}"><img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div></div>`:`<div class="${animClass}"><div class="pet-emoji">${def.emoji}</div></div>`;
+      return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}${outfitIcons?`<div class="outfit-icons">${outfitIcons}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️ <span class="bond-badge">羁绊 Lv.${bondLv}</span></div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
       <div><div class="bar-label"><span>饱食度</span><span>${p.satiety}</span></div><div class="bar-wrap"><div class="bar-fill sat" style="width:${clamp(p.satiety/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
+      <div><div class="bar-label"><span>❤️ 健康值</span><span>${health}</span></div><div class="bar-wrap"><div class="bar-fill" style="width:${clamp(health/200*100,0,100)}%;background:linear-gradient(90deg,#ef5350,#e53935);"></div></div></div>
       ${p.status==='sick'?'<div style="color:var(--danger);font-size:12px;text-align:center;">⚠️ 宠物生病了，需要治疗！</div>':''}
       ${p.satiety<50&&p.status!=='dead'?'<div style="color:var(--orange-d);font-size:12px;text-align:center;">饥饿提示：请尽快喂食</div>':''}
-      <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
-        <button class="btn orange sm" onclick="Pet.feed('${p.id}')">喂食10</button>
-        <button class="btn sky sm" onclick="Pet.water('${p.id}')">喂水5</button>
-        <button class="btn pink sm" onclick="Pet.touch('${p.id}')">抚摸10</button>
-        <button class="btn sm" onclick="Pet.walk('${p.id}')">遛宠10</button>
-        ${p.status==='sick'?'<button class="btn danger sm" onclick="Pet.heal(\''+p.id+'\')">治疗'+(Pet._healCost||150)+'</button>':''}
-        <button class="btn ghost sm" onclick="Pet.abandon('${p.id}')" title="弃养宠物，消耗300阳光" style="color:var(--danger);">弃养300</button>
+      ${health<60&&p.status!=='dead'?'<div style="color:var(--danger);font-size:12px;text-align:center;">💔 健康值偏低，建议洗澡或喂营养餐</div>':''}
+      <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
+        <button class="btn sky sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.feedWater('${p.id}')" title="白开水 2阳光">💧2</button>
+        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.feedKibble('${p.id}')" title="粮 5阳光">🍖5</button>
+        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.feedCan('${p.id}')" title="罐头 15阳光">🥫15</button>
+        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.feedNutrition('${p.id}')" title="营养餐 25阳光">🥗25</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
+        <button class="btn pink sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.touch('${p.id}')" title="抚摸 10阳光">🤗10</button>
+        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.call('${p.id}')" title="唤名 免费">📢免费</button>
+        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.play('${p.id}')" title="玩玩具 5阳光">🎾5</button>
+        <button class="btn sky sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.wash('${p.id}')" title="洗澡 10阳光">🛁10</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
+        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.walk('${p.id}')" title="遛宠 10阳光">🦮10</button>
+        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.miniGame('${p.id}')" title="迷你游戏">🎮游戏</button>
+        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.photo('${p.id}')" title="合照 免费">📸合照</button>
+        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="UI.showOutfitPicker('${p.id}')" title="装扮">👗装扮</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
+        ${p.status==='sick'?'<button class="btn danger sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.heal(\''+p.id+'\')">💊治疗'+(Pet._healCost||150)+'</button>':''}
+        <button class="btn ghost sm" style="font-size:11px;padding:4px 8px;color:var(--danger);" onclick="Pet.abandon('${p.id}')" title="弃养 300阳光">💔弃养</button>
       </div></div>`;
     }).join(''):'<div style="text-align:center;color:var(--text-light);padding:20px;">还没有宠物，快去领养一只吧！🐾</div>';
+    // 装扮商城
+    const outfitHtml=allOutfits.map(o=>{
+      const owned=ownedOutfits.includes(o.id);
+      return `<div class="task-card" style="text-align:center;"><div style="font-size:36px;">${o.icon}</div><div class="t-title" style="justify-content:center;font-size:13px;">${o.name}</div><div class="t-desc" style="text-align:center;font-size:10px;">${o.desc||''} · ${({hat:'头饰',collar:'项圈',nest:'宠物窝',toy:'玩具'})[o.slot]}</div><div class="t-foot" style="justify-content:center;">${owned?'<span style="color:var(--primary-d);font-size:11px;">✅ 已拥有</span>':`<button class="btn orange sm" style="font-size:11px;" ${c.sunlight.total>=o.cost?'':'disabled'} onclick="Pet.buyOutfit('${o.id}')">${o.cost}☀️</button>`}</div></div>`;
+    }).join('');
     return `<div class="card"><div class="card-title">🐾 我的宠物 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showPetHelp()">📖 玩法介绍</button></div><div class="grid grid-2">${petHtml}</div></div>
       <div class="card"><div class="card-title">🏪 宠物商店</div><div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const cardImg=d.img?`<img src="${d.img}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto;display:block;">`:`<div style="font-size:50px;">${d.emoji}</div>`;
         return `<div class="task-card"><div style="text-align:center;">${cardImg}</div><div class="t-title" style="justify-content:center;margin-top:4px;">${d.name}</div><div class="t-desc" style="text-align:center;font-size:11px;min-height:36px;">${d.desc||''}</div><div class="t-foot" style="justify-content:center;"><button class="btn orange sm" ${c.sunlight.total>=d.cost?'':'disabled'} onclick="Pet.buy('${k}')">领养 ${d.cost}☀️</button></div></div>`;
       }).join('')}</div></div>
+      <div class="card"><div class="card-title">👗 装扮商城</div><div style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">用学习阳光兑换装扮，穿戴后会在宠物卡片上显示。全部仅用阳光兑换，无付费。</div><div class="grid grid-3">${outfitHtml}</div></div>
       <div class="card"><div class="card-title">📋 宠物日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.pet.map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()} · ${l.detail||''}</div></div></div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无宠物日志</div>'}</div></div>`;
+  },
+  // 装扮选择弹窗
+  showOutfitPicker(petId){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    const allOutfits=Pet.outfits();
+    const owned=c.ownedOutfits||[];
+    const slots=['hat','collar','nest','toy'];
+    const slotNames={hat:'头饰',collar:'项圈',nest:'宠物窝',toy:'玩具'};
+    const html=slots.map(slot=>{
+      const items=allOutfits.filter(o=>o.slot===slot);
+      const equipped=p.outfits&&p.outfits[slot];
+      return `<div style="margin-bottom:12px;"><div style="font-size:13px;font-weight:700;color:var(--primary-d);margin-bottom:6px;">${slotNames[slot]}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${items.map(o=>{
+        const isOwned=owned.includes(o.id);
+        const isEquipped=equipped===o.id;
+        return `<div style="text-align:center;padding:6px;border-radius:8px;border:2px solid ${isEquipped?'var(--primary)':'var(--border)'};background:${isEquipped?'var(--bg)':'#fff'};cursor:${isOwned?'pointer':'default'};opacity:${isOwned?1:.5};" ${isOwned?`onclick="Pet.equipOutfit('${petId}','${o.id}')"`:''}>
+          <div style="font-size:24px;">${o.icon}</div><div style="font-size:10px;">${o.name}</div>${isEquipped?'<div style="font-size:9px;color:var(--primary-d);">✅穿戴中</div>':''}
+        </div>`;
+      }).join('')}${equipped?`<button class="btn ghost sm" style="font-size:10px;align-self:center;" onclick="Pet.unequipOutfit('${petId}','${slot}')">脱下</button>`:''}</div></div>`;
+    }).join('');
+    showModal('👗 装扮 '+p.name,`<div style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">点击已拥有的装扮穿戴，未拥有的请去装扮商城购买。</div>${html}`,`<button class="btn sm" onclick="closeModal()">完成</button>`,true);
+  },
+  // 迷你游戏：猜数字
+  guessNum(n){
+    const mg=Pet._miniGame;if(!mg)return;
+    if(n===mg.target){
+      // 猜中
+      const c=curChild();const p=c.pets.find(x=>x.id===mg.petId);if(p){
+        p.intimacy=clamp(p.intimacy+20,0,200);Pet.updateBondLevel(p);Pet.updateStatus(p);
+        addSunlight(5,'迷你游戏获胜');
+        Log.pet('迷你游戏获胜',p.id,'亲密+20 阳光+5');
+        Store.save();
+      }
+      Pet._miniGame=null;
+      closeModal();
+      toast('🎉 恭喜猜中！亲密度+20，阳光+5');
+      UI.render();
+    }else{
+      mg.attempts--;
+      if(mg.attempts<=0){
+        // 用完机会
+        const c=curChild();const p=c.pets.find(x=>x.id===mg.petId);if(p){
+          p.intimacy=clamp(p.intimacy+5,0,200);Pet.updateBondLevel(p);Pet.updateStatus(p);
+          Log.pet('迷你游戏参与',p.id,'亲密+5');
+          Store.save();
+        }
+        Pet._miniGame=null;
+        closeModal();
+        toast('答案是'+mg.target+'，再接再厉！亲密度+5');
+        UI.render();
+      }else{
+        const hint=n<mg.target?'太小了，再大一点':'太大了，再小一点';
+        if(Pet._renderMiniGame)Pet._renderMiniGame(hint);
+      }
+    }
+  },
+  exitMiniGame(){
+    Pet._miniGame=null;
+    closeModal();
+    toast('已退出迷你游戏');
   },
   showPetHelp(){
     showModal('🐾 宠物养成介绍',`<div style="line-height:1.7;font-size:13px;">
       <h4 style="color:var(--primary-d);margin:8px 0 6px;">🎯 玩法目标</h4>
-      <p>领养心仪的宠物，喂食、互动养成，建立深厚友谊！</p>
+      <p>领养心仪的宠物，喂食、互动养成，建立深厚友谊！精心饲养每天可获20阳光奖励。</p>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🐾 4 种宠物</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>🐈‍⬛ <b>小黑猫</b>（100☀️）· 酷酷的眼神，戴蓝色小围巾</li>
@@ -2811,27 +3105,45 @@ const UI = {
         <li>🐱 <b>三花猫</b>（150☀️）· 黄白黑毛色，戴粉色蝴蝶结</li>
         <li>🐩 <b>萨摩耶</b>（150☀️）· 微笑天使，戴口水巾</li>
       </ul>
-      <h4 style="color:var(--primary-d);margin:12px 0 6px;">🍖 4 种互动</h4>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">🍖 四类食材投喂</h4>
       <ul style="padding-left:18px;font-size:12px;">
-        <li>🍖 <b>喂食</b>（10☀️）饱食度 +10</li>
-        <li>💧 <b>喂水</b>（5☀️）饱食度 +5</li>
-        <li>🤗 <b>抚摸</b>（10☀️）亲密度 +10</li>
-        <li>🦮 <b>遛宠</b>（10☀️）亲密度 +10</li>
+        <li>💧 <b>白开水</b>（2☀️）饱食度+5</li>
+        <li>🍖 <b>粮</b>（5☀️）饱食度+15，健康+2</li>
+        <li>🥫 <b>罐头</b>（15☀️）饱食度+25，健康+5</li>
+        <li>🥗 <b>营养餐</b>（25☀️）饱食度+35，亲密度+5，健康+10</li>
+      </ul>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">🎮 互动玩法</h4>
+      <ul style="padding-left:18px;font-size:12px;">
+        <li>🤗 <b>抚摸</b>（10☀️）亲密度+10</li>
+        <li>📢 <b>唤名</b>（免费）亲密度+3，宠物会有反应</li>
+        <li>🎾 <b>玩玩具</b>（5☀️）亲密度+15，健康+3</li>
+        <li>🛁 <b>洗澡</b>（10☀️）健康+15</li>
+        <li>🦮 <b>遛宠</b>（10☀️）亲密度+10</li>
+        <li>🎮 <b>迷你游戏</b>猜数字，猜中亲密度+20，阳光+5</li>
+        <li>📸 <b>合照</b>（免费）亲密度+5，生成合照卡片</li>
+      </ul>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">👗 装扮商城</h4>
+      <p style="font-size:12px;">用学习阳光兑换头饰、项圈、宠物窝、玩具，自由穿戴。全部仅用阳光兑换，无付费。</p>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">📊 属性系统</h4>
+      <ul style="padding-left:18px;font-size:12px;">
+        <li><b>饱食度</b>：喂食恢复，影响饥饿/生病</li>
+        <li><b>亲密度</b>：互动恢复，影响羁绊等级</li>
+        <li><b>健康值</b>：洗澡/营养餐恢复，低于30会生病</li>
+        <li><b>羁绊等级</b>（Lv.1-10）：亲密度越高等级越高</li>
+        <li><b>每日奖励</b>：饱食度>50且亲密度>50，每天自动获20☀️</li>
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">⏰ 消耗机制</h4>
       <ul style="padding-left:18px;font-size:12px;">
-        <li>宠物<b>每小时</b>自动消耗 5 饥饿度和 5 亲密度</li>
-        <li>饱食度＜50 → 红字饥饿提示</li>
-        <li>饱食度≤30 或亲密度＜50 → 生病（治疗 150☀️），生病期间一直哭泣</li>
-        <li>饱食度或亲密度≤0 → 宠物死亡，需重新购买</li>
+        <li>每小时消耗 5 饱食度、5 亲密度、2 健康值</li>
+        <li>🌙 凌晨 0:00-8:00 不消耗（宠物睡觉）</li>
+        <li>饱食度≤30 或健康值≤30 → 生病（治疗${Pet._healCost||150}☀️）</li>
+        <li>饱食度或亲密度≤0 → 死亡</li>
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">💸 领养与弃养</h4>
       <ul style="padding-left:18px;font-size:12px;">
-        <li><b>免费反悔</b>：购买后可免费反悔一次，退还全额阳光（确认命名后失效）</li>
+        <li><b>免费反悔</b>：领养后可免费反悔一次，退还全额阳光</li>
         <li><b>弃养</b>：消耗 300☀️ 永久放弃宠物</li>
       </ul>
-      <h4 style="color:var(--primary-d);margin:12px 0 6px;">✏️ 命名规则</h4>
-      <p style="font-size:12px;">购买后自动弹命名框，宠物家园点击名字可改名。最多 8 个汉字或字母数字 12 个，禁止特殊符号。</p>
     </div>`,`<button class="btn sm" onclick="closeModal()">明白了</button>`,false);
   },
   renderShop(){
