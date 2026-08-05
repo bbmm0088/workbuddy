@@ -1042,7 +1042,10 @@ const Pet = {
           normal:'images/black_cat.jpg?v=2',
           happy:'images/black_cat_happy.jpg?v=2',
           sad:'images/black_cat_sad.jpg?v=2',
-          feed:'images/black_cat_feed.jpg?v=2'
+          feed:'images/black_cat_feed.jpg?v=2',
+          touch:'images/black_cat_touch.jpg?v=5',
+          play:'images/black_cat_play.jpg?v=5',
+          wash:'images/black_cat_wash.jpg?v=5'
         },
         desc:'酷酷的小黑猫，眼神明亮，喜欢戴蓝色小围巾。',
         cost:100,attrs:{饱食:'高',亲密:'中',攻击:'无',防御:'低'}
@@ -1065,7 +1068,10 @@ const Pet = {
           normal:'images/tricolor.jpg?v=2',
           happy:'images/tricolor_happy.jpg?v=2',
           sad:'images/tricolor_sad.jpg?v=2',
-          feed:'images/tricolor_feed.jpg?v=2'
+          feed:'images/tricolor_feed.jpg?v=2',
+          touch:'images/tricolor_touch.jpg?v=5',
+          play:'images/tricolor_happy.jpg?v=5',
+          wash:'images/tricolor_wash.jpg?v=5'
         },
         desc:'可爱的小三花，戴粉色蝴蝶结，毛色由黄白黑相间。',
         cost:150,attrs:{饱食:'中',亲密:'高',攻击:'无',防御:'中'}
@@ -2968,10 +2974,16 @@ const UI = {
           petImgSrc=def.imgs.sad;petStateLabel='🤒 生病了';animClass='pet-anim sick';
         }else if(recentFeed&&def.imgs.feed){
           petImgSrc=def.imgs.feed;petStateLabel='🍖 吃东西';animClass='pet-anim eat';
+        }else if(recentPlay&&def.imgs.play){
+          petImgSrc=def.imgs.play;petStateLabel='🎾 玩耍中';animClass='pet-anim play';
         }else if(recentPlay&&def.imgs.happy){
           petImgSrc=def.imgs.happy;petStateLabel='🎾 玩耍中';animClass='pet-anim play';
+        }else if(recentWash&&def.imgs.wash){
+          petImgSrc=def.imgs.wash;petStateLabel='🛁 洗澡中';animClass='pet-anim wash';
         }else if(recentWash&&def.imgs.happy){
           petImgSrc=def.imgs.happy;petStateLabel='🛁 洗澡中';animClass='pet-anim wash';
+        }else if(recentTouch&&def.imgs.touch){
+          petImgSrc=def.imgs.touch;petStateLabel='🤗 抚摸中';animClass='pet-anim happy';
         }else if(recentTouch&&def.imgs.happy){
           petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';animClass='pet-anim happy';
         }else if(recentCall&&def.imgs.happy){
