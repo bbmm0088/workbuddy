@@ -530,9 +530,9 @@ const Bank = {
   gradeNames:{gradeK:'幼小衔接',grade1:'一年级',grade2:'二年级',grade3:'三年级',grade4:'四年级',grade5:'五年级',grade6:'六年级'},
   // 数学：动态生成
   mathGen:{
-    oralAdd:(grade)=>{const max={gradeK:20,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(max-a+1);return{q:a+' + '+b+' = ?',a:String(a+b)};},
-    oralSub:(grade)=>{const max={gradeK:20,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(a+1);return{q:a+' - '+b+' = ?',a:String(a-b)};},
-    mul:(grade)=>{if(grade==='grade2'){const a=1+rnd(9),b=1+rnd(9);return{q:a+' × '+b+' = ?',a:String(a*b)};}if(grade==='grade3'){const a=10+rnd(90),b=1+rnd(9);return{q:a+' × '+b+' = ?',a:String(a*b)};}const t={grade4:99,grade5:99,grade6:99}[grade]||99;const c=1+rnd(t),d=1+rnd(t);return{q:c+' × '+d+' = ?',a:String(c*d)};},
+    oralAdd:(grade)=>{const max={gradeK:20,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(max-a+1);return{q:a+' + '+b+' = ?',readText:a+'加'+b+'等于几',a:String(a+b)};},
+    oralSub:(grade)=>{const max={gradeK:20,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(a+1);return{q:a+' - '+b+' = ?',readText:a+'减'+b+'等于几',a:String(a-b)};},
+    mul:(grade)=>{if(grade==='grade2'){const a=1+rnd(9),b=1+rnd(9);return{q:a+' × '+b+' = ?',readText:a+'乘'+b+'等于几',a:String(a*b)};}if(grade==='grade3'){const a=10+rnd(90),b=1+rnd(9);return{q:a+' × '+b+' = ?',readText:a+'乘'+b+'等于几',a:String(a*b)};}const t={grade4:99,grade5:99,grade6:99}[grade]||99;const c=1+rnd(t),d=1+rnd(t);return{q:c+' × '+d+' = ?',readText:c+'乘'+d+'等于几',a:String(c*d)};},
     thinking:(grade)=>{
       // 苏教版思维训练：按年级分级选题
       const lowBank=[ // 幼小衔接/1-2年级：基础应用题
@@ -917,7 +917,7 @@ const Bank = {
   },
   // 英语
   english:{
-    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl',emoji:'🍎'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə',emoji:'🍌'},{en:'cat',cn:'猫',phonetic:'kæt',emoji:'🐱'},{en:'dog',cn:'狗',phonetic:'dɒɡ',emoji:'🐶'},{en:'egg',cn:'蛋',phonetic:'eɡ',emoji:'🥚'},{en:'fish',cn:'鱼',phonetic:'fɪʃ',emoji:'🐟'},{en:'milk',cn:'牛奶',phonetic:'mɪlk',emoji:'🥛'},{en:'sun',cn:'太阳',phonetic:'sʌn',emoji:'☀️'},{en:'red',cn:'红色',phonetic:'red',emoji:'🟥'},{en:'blue',cn:'蓝色',phonetic:'bluː',emoji:'🟦'},{en:'bird',cn:'鸟',phonetic:'bɜːd',emoji:'🐦'},{en:'cake',cn:'蛋糕',phonetic:'keɪk',emoji:'🎂'},{en:'orange',cn:'橙子',phonetic:'ˈɒrɪndʒ',emoji:'🍊'},{en:'grape',cn:'葡萄',phonetic:'ɡreɪp',emoji:'🍇'},{en:'duck',cn:'鸭子',phonetic:'dʌk',emoji:'🦆'},{en:'pig',cn:'猪',phonetic:'pɪɡ',emoji:'🐷'},{en:'star',cn:'星星',phonetic:'stɑː',emoji:'⭐'},{en:'moon',cn:'月亮',phonetic:'muːn',emoji:'🌙'},{en:'tree',cn:'树',phonetic:'triː',emoji:'🌳'},{en:'flower',cn:'花',phonetic:'ˈflaʊə',emoji:'🌸'},{en:'rain',cn:'雨',phonetic:'reɪn',emoji:'🌧️'},{en:'snow',cn:'雪',phonetic:'snəʊ',emoji:'❄️'},{en:'eye',cn:'眼睛',phonetic:'aɪ',emoji:'👁️'},{en:'nose',cn:'鼻子',phonetic:'nəʊz',emoji:'👃'},{en:'hand',cn:'手',phonetic:'hænd',emoji:'🤚'},{en:'car',cn:'小汽车',phonetic:'kɑː',emoji:'🚗'},{en:'blueberry',cn:'蓝莓',phonetic:'ˈbluːbəri',emoji:'🫐'},{en:'lemon',cn:'柠檬',phonetic:'ˈlemən',emoji:'🍋'},{en:'watermelon',cn:'西瓜',phonetic:'ˈwɔːtəmelən',emoji:'🍉'},{en:'strawberry',cn:'草莓',phonetic:'ˈstrɔːbəri',emoji:'🍓'},{en:'peach',cn:'桃子',phonetic:'piːtʃ',emoji:'🍑'},{en:'pear',cn:'梨',phonetic:'peə',emoji:'🍐'},{en:'tomato',cn:'西红柿',phonetic:'təˈmɑːtəʊ',emoji:'🍅'},{en:'potato',cn:'土豆',phonetic:'pəˈteɪtəʊ',emoji:'🥔'},{en:'carrot',cn:'胡萝卜',phonetic:'ˈkærət',emoji:'🥕'},{en:'cabbage',cn:'卷心菜',phonetic:'ˈkæbɪdʒ',emoji:'🥬'},{en:'cucumber',cn:'黄瓜',phonetic:'ˈkjuːkʌmbə',emoji:'🥒'},{en:'eggplant',cn:'茄子',phonetic:'ˈeɡplɑːnt',emoji:'🍆'},{en:'pumpkin',cn:'南瓜',phonetic:'ˈpʌmpkɪn',emoji:'🎃'},{en:'onion',cn:'洋葱',phonetic:'ˈʌnjən',emoji:'🧅'},{en:'vegetable',cn:'蔬菜',phonetic:'ˈvedʒtəbl',emoji:'🥗'},{en:'fruit',cn:'水果',phonetic:'fruːt',emoji:'🍒'}],sentences:[{en:'Hello!',cn:'你好！',emoji:'👋'},{en:'Good morning.',cn:'早上好。',emoji:'🌅'},{en:'Thank you.',cn:'谢谢。',emoji:'🙏'},{en:'Goodbye.',cn:'再见。',emoji:'👋'},{en:'I love you.',cn:'我爱你。',emoji:'❤️'},{en:'How are you?',cn:'你好吗？',emoji:'😊'},{en:'Good night.',cn:'晚安。',emoji:'🌙'},{en:'I am happy.',cn:'我很开心。',emoji:'😄'},{en:'What is this?',cn:'这是什么？',emoji:'🤔'},{en:'It is a cat.',cn:'它是一只猫。',emoji:'🐱'},{en:'I like apples.',cn:'我喜欢苹果。',emoji:'🍎'},{en:'See you tomorrow.',cn:'明天见。',emoji:'👋'},{en:'I see a man in a van.',cn:'我看见货车里的一个男人。',emoji:'🚐'},{en:'A cat in a hat.',cn:'戴帽子的猫。',emoji:'🐱'},{en:'I like oranges.',cn:'我喜欢橙子。',emoji:'🍊'},{en:'This is a lemon.',cn:'这是一个柠檬。',emoji:'🍋'},{en:'I like blueberries.',cn:'我喜欢蓝莓。',emoji:'🫐'},{en:'I see an apple.',cn:'我看见一个苹果。',emoji:'🍎'},{en:'It is a dog.',cn:'它是一只狗。',emoji:'🐶'},{en:'I have a book.',cn:'我有一本书。',emoji:'📖'}]},
+    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl',emoji:'🍎',img:'images/flash_apple.jpg'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə',emoji:'🍌'},{en:'cat',cn:'猫',phonetic:'kæt',emoji:'🐱'},{en:'dog',cn:'狗',phonetic:'dɒɡ',emoji:'🐶'},{en:'egg',cn:'蛋',phonetic:'eɡ',emoji:'🥚'},{en:'fish',cn:'鱼',phonetic:'fɪʃ',emoji:'🐟'},{en:'milk',cn:'牛奶',phonetic:'mɪlk',emoji:'🥛'},{en:'sun',cn:'太阳',phonetic:'sʌn',emoji:'☀️'},{en:'red',cn:'红色',phonetic:'red',emoji:'🟥'},{en:'blue',cn:'蓝色',phonetic:'bluː',emoji:'🟦'},{en:'bird',cn:'鸟',phonetic:'bɜːd',emoji:'🐦'},{en:'cake',cn:'蛋糕',phonetic:'keɪk',emoji:'🎂'},{en:'orange',cn:'橙子',phonetic:'ˈɒrɪndʒ',emoji:'🍊',img:'images/flash_orange.jpg'},{en:'grape',cn:'葡萄',phonetic:'ɡreɪp',emoji:'🍇'},{en:'duck',cn:'鸭子',phonetic:'dʌk',emoji:'🦆'},{en:'pig',cn:'猪',phonetic:'pɪɡ',emoji:'🐷'},{en:'star',cn:'星星',phonetic:'stɑː',emoji:'⭐'},{en:'moon',cn:'月亮',phonetic:'muːn',emoji:'🌙'},{en:'tree',cn:'树',phonetic:'triː',emoji:'🌳'},{en:'flower',cn:'花',phonetic:'ˈflaʊə',emoji:'🌸'},{en:'rain',cn:'雨',phonetic:'reɪn',emoji:'🌧️'},{en:'snow',cn:'雪',phonetic:'snəʊ',emoji:'❄️'},{en:'eye',cn:'眼睛',phonetic:'aɪ',emoji:'👁️'},{en:'nose',cn:'鼻子',phonetic:'nəʊz',emoji:'👃'},{en:'hand',cn:'手',phonetic:'hænd',emoji:'🤚'},{en:'car',cn:'小汽车',phonetic:'kɑː',emoji:'🚗'},{en:'blueberry',cn:'蓝莓',phonetic:'ˈbluːbəri',emoji:'🫐',img:'images/flash_blueberry.jpg'},{en:'lemon',cn:'柠檬',phonetic:'ˈlemən',emoji:'🍋',img:'images/flash_lemon.jpg'},{en:'watermelon',cn:'西瓜',phonetic:'ˈwɔːtəmelən',emoji:'🍉'},{en:'strawberry',cn:'草莓',phonetic:'ˈstrɔːbəri',emoji:'🍓'},{en:'peach',cn:'桃子',phonetic:'piːtʃ',emoji:'🍑'},{en:'pear',cn:'梨',phonetic:'peə',emoji:'🍐'},{en:'tomato',cn:'西红柿',phonetic:'təˈmɑːtəʊ',emoji:'🍅'},{en:'potato',cn:'土豆',phonetic:'pəˈteɪtəʊ',emoji:'🥔'},{en:'carrot',cn:'胡萝卜',phonetic:'ˈkærət',emoji:'🥕'},{en:'cabbage',cn:'卷心菜',phonetic:'ˈkæbɪdʒ',emoji:'🥬'},{en:'cucumber',cn:'黄瓜',phonetic:'ˈkjuːkʌmbə',emoji:'🥒'},{en:'eggplant',cn:'茄子',phonetic:'ˈeɡplɑːnt',emoji:'🍆'},{en:'pumpkin',cn:'南瓜',phonetic:'ˈpʌmpkɪn',emoji:'🎃'},{en:'onion',cn:'洋葱',phonetic:'ˈʌnjən',emoji:'🧅'},{en:'vegetable',cn:'蔬菜',phonetic:'ˈvedʒtəbl',emoji:'🥗'},{en:'fruit',cn:'水果',phonetic:'fruːt',emoji:'🍒'}],sentences:[{en:'Hello!',cn:'你好！',emoji:'👋'},{en:'Good morning.',cn:'早上好。',emoji:'🌅'},{en:'Thank you.',cn:'谢谢。',emoji:'🙏'},{en:'Goodbye.',cn:'再见。',emoji:'👋'},{en:'I love you.',cn:'我爱你。',emoji:'❤️'},{en:'How are you?',cn:'你好吗？',emoji:'😊'},{en:'Good night.',cn:'晚安。',emoji:'🌙'},{en:'I am happy.',cn:'我很开心。',emoji:'😄'},{en:'What is this?',cn:'这是什么？',emoji:'🤔'},{en:'It is a cat.',cn:'它是一只猫。',emoji:'🐱'},{en:'I like apples.',cn:'我喜欢苹果。',emoji:'🍎'},{en:'See you tomorrow.',cn:'明天见。',emoji:'👋'},{en:'I see a man in a van.',cn:'我看见货车里的一个男人。',emoji:'🚐'},{en:'A cat in a hat.',cn:'戴帽子的猫。',emoji:'🐱'},{en:'I like oranges.',cn:'我喜欢橙子。',emoji:'🍊'},{en:'This is a lemon.',cn:'这是一个柠檬。',emoji:'🍋'},{en:'I like blueberries.',cn:'我喜欢蓝莓。',emoji:'🫐'},{en:'I see an apple.',cn:'我看见一个苹果。',emoji:'🍎'},{en:'It is a dog.',cn:'它是一只狗。',emoji:'🐶'},{en:'I have a book.',cn:'我有一本书。',emoji:'📖'}]},
     grade1:{words:[{en:'book',cn:'书',phonetic:'bʊk'},{en:'pen',cn:'笔',phonetic:'pen'},{en:'school',cn:'学校',phonetic:'skuːl'},{en:'teacher',cn:'老师',phonetic:'ˈtiːtʃə'},{en:'student',cn:'学生',phonetic:'ˈstjuːdənt'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'green',cn:'绿色',phonetic:'ɡriːn'},{en:'yellow',cn:'黄色',phonetic:'ˈjeləʊ'},{en:'pencil',cn:'铅笔',phonetic:'ˈpensl'},{en:'ruler',cn:'尺子',phonetic:'ˈruːlə'},{en:'eraser',cn:'橡皮',phonetic:'ɪˈreɪzə'},{en:'bag',cn:'书包',phonetic:'bæɡ'},{en:'desk',cn:'课桌',phonetic:'desk'},{en:'chair',cn:'椅子',phonetic:'tʃeə'},{en:'blackboard',cn:'黑板',phonetic:'ˈblækbɔːd'},{en:'classroom',cn:'教室',phonetic:'ˈklɑːsruːm'},{en:'boy',cn:'男孩',phonetic:'bɔɪ'},{en:'girl',cn:'女孩',phonetic:'ɡɜːl'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'morning',cn:'早上',phonetic:'ˈmɔːnɪŋ'},{en:'afternoon',cn:'下午',phonetic:'ˌɑːftəˈnuːn'},{en:'one',cn:'一',phonetic:'wʌn'},{en:'two',cn:'二',phonetic:'tuː'}],sentences:[{en:'I am a student.',cn:'我是一名学生。'},{en:'What is your name?',cn:'你叫什么名字？'},{en:'Nice to meet you.',cn:'很高兴认识你。'},{en:'Stand up, please.',cn:'请起立。'},{en:'Open your book.',cn:'打开你的书。'},{en:'My name is Li Ming.',cn:'我的名字是李明。'},{en:'Sit down, please.',cn:'请坐下。'},{en:'Close your book.',cn:'合上你的书。'},{en:'What color is it?',cn:'它是什么颜色？'},{en:'It is red.',cn:'它是红色的。'},{en:'How old are you?',cn:'你几岁了？'},{en:'I am seven years old.',cn:'我七岁了。'}]},
     grade2:{words:[{en:'family',cn:'家庭',phonetic:'ˈfæməli'},{en:'father',cn:'爸爸',phonetic:'ˈfɑːðə'},{en:'mother',cn:'妈妈',phonetic:'ˈmʌðə'},{en:'brother',cn:'兄弟',phonetic:'ˈbrʌðə'},{en:'sister',cn:'姐妹',phonetic:'ˈsɪstə'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'home',cn:'家',phonetic:'həʊm'},{en:'love',cn:'爱',phonetic:'lʌv'},{en:'grandma',cn:'奶奶/姥姥',phonetic:'ˈɡrænmɑː'},{en:'grandpa',cn:'爷爷/姥爷',phonetic:'ˈɡrænpɑː'},{en:'uncle',cn:'叔叔',phonetic:'ˈʌŋkl'},{en:'aunt',cn:'阿姨',phonetic:'ɑːnt'},{en:'tall',cn:'高的',phonetic:'tɔːl'},{en:'short',cn:'矮的/短的',phonetic:'ʃɔːt'},{en:'fat',cn:'胖的',phonetic:'fæt'},{en:'thin',cn:'瘦的',phonetic:'θɪn'},{en:'young',cn:'年轻的',phonetic:'jʌŋ'},{en:'old',cn:'年老的',phonetic:'əʊld'},{en:'kind',cn:'和蔼的',phonetic:'kaɪnd'},{en:'pretty',cn:'漂亮的',phonetic:'ˈprɪti'},{en:'strong',cn:'强壮的',phonetic:'strɒŋ'},{en:'cute',cn:'可爱的',phonetic:'kjuːt'},{en:'baby',cn:'婴儿',phonetic:'ˈbeɪbi'},{en:'parents',cn:'父母',phonetic:'ˈpeərənts'}],sentences:[{en:'This is my family.',cn:'这是我的家庭。'},{en:'I love my mom.',cn:'我爱我的妈妈。'},{en:'He is my brother.',cn:'他是我的兄弟。'},{en:'She is my friend.',cn:'她是我的朋友。'},{en:'My father is tall.',cn:'我爸爸很高。'},{en:'Where is your home?',cn:'你家在哪里？'},{en:'My mother is kind.',cn:'我妈妈很和蔼。'},{en:'She is tall and thin.',cn:'她又高又瘦。'},{en:'I have a baby brother.',cn:'我有一个小弟弟。'},{en:'We are a happy family.',cn:'我们是一个幸福的家庭。'},{en:'My father is strong.',cn:'我爸爸很强壮。'},{en:'This is my grandma.',cn:'这是我的奶奶。'}]},
     grade3:{words:[{en:'weather',cn:'天气',phonetic:'ˈweðə'},{en:'sunny',cn:'晴朗',phonetic:'ˈsʌni'},{en:'rainy',cn:'下雨',phonetic:'ˈreɪni'},{en:'windy',cn:'有风',phonetic:'ˈwɪndi'},{en:'cloudy',cn:'多云',phonetic:'ˈklaʊdi'},{en:'snowy',cn:'下雪',phonetic:'ˈsnəʊi'},{en:'hot',cn:'热',phonetic:'hɒt'},{en:'cold',cn:'冷',phonetic:'kəʊld'},{en:'food',cn:'食物',phonetic:'fuːd'},{en:'rice',cn:'米饭',phonetic:'raɪs'},{en:'water',cn:'水',phonetic:'ˈwɔːtə'},{en:'animal',cn:'动物',phonetic:'ˈænɪml'},{en:'warm',cn:'暖和的',phonetic:'wɔːm'},{en:'cool',cn:'凉爽的',phonetic:'kuːl'},{en:'spring',cn:'春天',phonetic:'sprɪŋ'},{en:'summer',cn:'夏天',phonetic:'ˈsʌmə'},{en:'autumn',cn:'秋天',phonetic:'ˈɔːtəm'},{en:'winter',cn:'冬天',phonetic:'ˈwɪntə'},{en:'noodle',cn:'面条',phonetic:'ˈnuːdl'},{en:'meat',cn:'肉',phonetic:'miːt'},{en:'vegetable',cn:'蔬菜',phonetic:'ˈvedʒtəbl'},{en:'fruit',cn:'水果',phonetic:'fruːt'},{en:'panda',cn:'熊猫',phonetic:'ˈpændə'},{en:'elephant',cn:'大象',phonetic:'ˈelɪfənt'}],sentences:[{en:'How is the weather?',cn:'天气怎么样？'},{en:'It is sunny today.',cn:'今天是晴天。'},{en:'I like rainy days.',cn:'我喜欢雨天。'},{en:'It is very cold.',cn:'很冷。'},{en:'Do you like apples?',cn:'你喜欢苹果吗？'},{en:'What is your favorite animal?',cn:'你最喜欢的动物是什么？'},{en:'What season is it?',cn:'现在是什么季节？'},{en:'It is spring.',cn:'现在是春天。'},{en:'I like summer best.',cn:'我最喜欢夏天。'},{en:'My favorite fruit is grapes.',cn:'我最喜欢的水果是葡萄。'},{en:'The panda is cute.',cn:'熊猫很可爱。'},{en:'It is warm today.',cn:'今天很暖和。'}]},
@@ -1971,7 +1971,7 @@ function completeTask(taskId,reward,reason,perfect,bonus){
   const c=curChild();const t=c.today.tasks[taskId];
   if(t&&t.completed){toast('今日已完成，不可重复领取');return false;}
   const totalScore=reward+(bonus||0);
-  const isQuiz=taskId.startsWith('cn_pinyin')||taskId.startsWith('cn_poetry')||taskId.startsWith('math_')||taskId.startsWith('en_')||taskId==='cn_literacy'||taskId==='cn_dictation';
+  const isQuiz=taskId.startsWith('cn_pinyin')||taskId.startsWith('math_')||taskId.startsWith('en_')||taskId==='cn_literacy'||taskId==='cn_dictation';
   // 家长审核模式：非测试的需审核任务，孩子只能"申请审核"
   if(d_settings().reviewMode&&!isQuiz){
     const task=todayTaskList(c).find(x=>x.id===taskId);
@@ -2385,12 +2385,15 @@ const UI = {
     const isCustom=taskDef?.custom;
     const done=task?.completed;
     const pending=task?.pendingReview;
-    const isQuiz=id.startsWith('cn_pinyin')||id.startsWith('cn_poetry')||id.startsWith('math_')||id.startsWith('en_')||id==='cn_literacy'||id==='cn_dictation'||id==='en_dictation';
+    const isQuiz=id.startsWith('cn_pinyin')||id.startsWith('math_')||id.startsWith('en_')||id==='cn_literacy'||id==='cn_dictation'||id==='en_dictation';
     let btns='';
     if(done){
       btns=`<button class="btn done sm" disabled>✅ 已完成</button> <button class="btn ghost sm" onclick="undoTask('${id}')">撤销</button>`;
     }else if(pending){
       btns=`<button class="btn sm" disabled style="background:#ffe0b2;color:#e65100;">⏳ 审核中</button>`;
+    }else if(id==='cn_poetry'){
+      // 古诗改为跟读模式
+      btns=`<button class="btn sm" onclick="UI.startLearn('${id}')">🎤 古诗跟读</button> <button class="btn orange sm" onclick="UI.offlineComplete('${id}')" title="家长确认孩子已在纸质/书面上完成">线下完成</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯</button>`;
     }else if(isQuiz){
       // 幼小衔接（gradeK）的拼音/识字/英语题改为"卡片学习"模式
       const isKGrade=curChild().grade==='gradeK';
@@ -2441,9 +2444,16 @@ const UI = {
       type='sentence';
       items=pick((Bank.english[grade]?.sentences||[]).slice(),Math.min(dailyCount,(Bank.english[grade]?.sentences||[]).length));
       title='💬 每日短语';
+    }else if(taskId==='cn_poetry'){
+      type='poetry';
+      const bank=Bank.chinese[grade]?.poetry||[];
+      const poemCount=grade==='gradeK'?2:3;
+      items=pick(bank.slice(),Math.min(poemCount,bank.length)).map(po=>({...po,lines:po.content.split(/[，。！？]/).filter(s=>s.trim())}));
+      title='🎤 古诗跟读';
     }
     if(!items.length){toast('题库为空');return;}
-    this.curLearn={taskId,title,type,items,learned:new Set(),idx:0};
+    const readLines=type==='poetry'?items.map(it=>new Array(it.lines.length).fill(false)):null;
+    this.curLearn={taskId,title,type,items,learned:new Set(),idx:0,readLines};
     this.renderLearn();
   },
   renderLearn(){
@@ -2488,7 +2498,7 @@ const UI = {
       const reciteId='recite_'+i;
       cardHtml=`
         <div style="text-align:center;padding:8px;">
-          <div style="font-size:80px;line-height:1;margin-bottom:6px;">${item.emoji||'📚'}</div>
+          ${item.img?`<img src="${item.img}" style="max-height:160px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1);margin-bottom:6px;">`:`<div style="font-size:80px;line-height:1;margin-bottom:6px;">${item.emoji||'📚'}</div>`}
           <div style="font-size:42px;font-weight:700;color:var(--primary-d);line-height:1;margin:8px 0;">${item.en}</div>
           <div style="font-size:16px;color:var(--text-soft);margin-bottom:4px;">[${item.phonetic||''}]</div>
           <div style="font-size:22px;color:var(--danger-d);font-weight:600;margin:6px 0;">${item.cn}</div>
@@ -2511,6 +2521,29 @@ const UI = {
             <button class="btn pink sm" onclick="UI.startRecite('${item.en.replace(/'/g,"\\'")}','en-US','${item.cn.replace(/'/g,"\\'")}','${reciteId}')">🎤 跟读</button>
           </div>
           <div id="${reciteId}" style="margin-top:8px;"></div>
+        </div>`;
+    }else if(l.type==='poetry'){
+      const read=l.readLines&&l.readLines[i]?l.readLines[i]:[];
+      const allRead=read.every(Boolean);
+      cardHtml=`
+        <div style="text-align:center;padding:8px;">
+          <div style="font-size:13px;color:var(--text-soft);margin-bottom:4px;">${item.author}</div>
+          <div style="font-size:26px;font-weight:700;color:var(--primary-d);margin-bottom:10px;">《${item.title}》</div>
+          <div style="background:var(--bg);border-radius:12px;padding:12px;text-align:left;margin:8px 0;">
+            ${item.lines.map((line,li)=>{
+              const done=read[li];
+              return `<div style="display:flex;align-items:center;gap:6px;margin:6px 0;padding:8px;border-radius:8px;background:${done?'rgba(76,175,80,.15)':'transparent'};">
+                <div style="flex:1;font-size:18px;font-weight:600;">${line}</div>
+                ${done?'<span style="color:var(--primary-d);font-size:13px;">✅</span>':`
+                  <button class="btn sky sm" data-speak="${encodeURIComponent(line)}" data-lang="zh-CN">🔊</button>
+                  <button class="btn pink sm" onclick="UI.recitePoetryLine(${li},'${line.replace(/'/g,"\\'")}')">🎤</button>
+                `}
+              </div>
+              <div id="poetryLine_${li}" style="min-height:4px;"></div>`;
+            }).join('')}
+          </div>
+          <div style="font-size:12px;color:var(--text-soft);line-height:1.6;">${item.pinyin||''}</div>
+          ${allRead?'<div style="margin-top:8px;color:var(--primary-d);font-weight:700;">🎉 已全部跟读，点击"学会了"完成</div>':''}
         </div>`;
     }
     const isLearned=l.learned.has(i);
@@ -2655,6 +2688,63 @@ const UI = {
     Audio.play('checkin');
     toast('⭐ 已标记为学会');
     this.learnCurrent();
+  },
+  // 古诗逐句跟读
+  recitePoetryLine(lineIdx,text){
+    const l=this.curLearn;if(!l||l.type!=='poetry')return;
+    const i=l.idx;const poem=l.items[i];
+    const areaId='poetryLine_'+lineIdx;const area=document.getElementById(areaId);if(!area)return;
+    speak(text,'zh-CN');
+    const markRead=()=>{
+      if(!l.readLines[i])l.readLines[i]=new Array(poem.lines.length).fill(false);
+      l.readLines[i][lineIdx]=true;
+      this.renderLearn();
+      if(l.readLines[i].every(Boolean)){
+        Audio.play('checkin');
+        toast('🎉 这首诗全部跟读完成！');
+        setTimeout(()=>this.learnCurrent(),500);
+      }
+    };
+    if(!SpeechASR.isSupported()){
+      area.innerHTML=`<div style="background:#fff8e1;padding:8px;border-radius:8px;margin-top:4px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--text-soft);">请大声跟读后确认：</span>
+        <button class="btn sky sm" data-speak="${encodeURIComponent(text)}" data-lang="zh-CN">🔊 再听</button>
+        <button class="btn sm" onclick="UI.confirmPoetryLine(${lineIdx})">✅ 读对了</button>
+      </div>`;
+      setTimeout(()=>{const b=area.querySelector('[data-speak]');if(b)b.addEventListener('click',()=>speak(decodeURIComponent(b.dataset.speak),b.dataset.lang));},0);
+      return;
+    }
+    area.innerHTML=`<div style="background:var(--danger);color:#fff;padding:8px;border-radius:8px;margin-top:4px;text-align:center;">
+      <div style="font-size:24px;animation:pulse 1s infinite;">🎤</div>
+      <div style="font-size:13px;font-weight:700;">正在听…大声读：${text}</div>
+    </div>`;
+    SpeechASR.start(text,'zh-CN',(result)=>{
+      if(result.fallback)return;
+      if(result.success){
+        area.innerHTML=`<div style="background:var(--primary);color:#fff;padding:8px;border-radius:8px;margin-top:4px;text-align:center;">🎉 读得很准！</div>`;
+        Audio.play('checkin');
+        setTimeout(markRead,300);
+      }else{
+        area.innerHTML=`<div style="background:#fff3e0;padding:8px;border-radius:8px;margin-top:4px;text-align:center;">
+          <div style="font-size:13px;color:var(--orange-d);">还差一点 💪</div>
+          <button class="btn sky sm" data-speak="${encodeURIComponent(text)}" data-lang="zh-CN">🔊 听范读</button>
+          <button class="btn pink sm" onclick="UI.recitePoetryLine(${lineIdx},'${text.replace(/'/g,"\\'")}')">🎤 再来</button>
+        </div>`;
+        setTimeout(()=>{const b=area.querySelector('[data-speak]');if(b)b.addEventListener('click',()=>speak(decodeURIComponent(b.dataset.speak),b.dataset.lang));},0);
+      }
+    },()=>{});
+  },
+  confirmPoetryLine(lineIdx){
+    const l=this.curLearn;if(!l||l.type!=='poetry')return;
+    const i=l.idx;
+    if(!l.readLines[i])l.readLines[i]=new Array(l.items[i].lines.length).fill(false);
+    l.readLines[i][lineIdx]=true;
+    this.renderLearn();
+    if(l.readLines[i].every(Boolean)){
+      Audio.play('checkin');
+      toast('🎉 这首诗全部跟读完成！');
+      setTimeout(()=>this.learnCurrent(),500);
+    }
   },
   // 汉字笔顺练习：弹窗播放笔顺动画+描红方格
   playStroke(char,pinyin,word,areaId){
@@ -2819,19 +2909,32 @@ const UI = {
     if(taskId==='cn_literacy'){
       const bank=Bank.characters[grade]||[];
       const chosen=pick(bank,Math.min(qCount,bank.length));
-      // 一半看字选拼音，一半看拼音选字
+      // 照样子组词语：1/3 看字选词，其余看字选拼音/看拼音选字
       questions=chosen.map((w,i)=>{
         const distractors=shuffle(bank.filter(x=>x.char!==w.char)).slice(0,3);
-        if(i%2===0){
+        const mode=i%3;
+        if(mode===0){
           return{q:'"'+w.char+'"（'+w.word+'）的拼音是？',opts:shuffle([w.pinyin,...distractors.map(d=>d.pinyin)]),a:w.pinyin};
-        }else{
+        }else if(mode===1){
           return{q:'拼音 "'+w.pinyin+'" 对应哪个字？',opts:shuffle([w.char,...distractors.map(d=>d.char)]),a:w.char};
+        }else{
+          const wordDistractors=shuffle(bank.filter(x=>x.char!==w.char&&!x.word.includes(w.char))).slice(0,3).map(x=>x.word);
+          return{q:'"'+w.char+'" 可以组成哪个词？',opts:shuffle([w.word,...wordDistractors]),a:w.word};
         }
       });
       title='识字测试';
     }else if(taskId==='cn_pinyin'){
       const bank=Bank.chinese[grade]?.pinyin||[];
-      questions=pick(bank,Math.min(qCount,bank.length)).map(q=>({q:q.q+' 读作？',opts:q.opts,a:q.a}));
+      const finalRe=/^(a|o|e|i|u|ü|ai|ei|ui|ao|ou|iu|ie|üe|er|an|en|in|un|ün|ang|eng|ing|ong)$/;
+      const finalItems=bank.filter(p=>finalRe.test(p.q));
+      const seqQs=[];
+      for(let i=0;i<finalItems.length-1;i++){
+        const cur=finalItems[i],nxt=finalItems[i+1];
+        const d=shuffle(finalItems.filter(x=>x.q!==nxt.q)).slice(0,3).map(x=>x.q);
+        seqQs.push({q:'按韵母表顺序，"'+cur.q+'" 后面是哪个？',opts:shuffle([nxt.q,...d]),a:nxt.q});
+      }
+      const idQs=pick(bank,Math.min(qCount,bank.length)).map(q=>({q:q.q+' 读作？',opts:q.opts,a:q.a}));
+      questions=shuffle([...idQs,...seqQs]).slice(0,qCount);
       title='拼音测试';
     }else if(taskId==='cn_poetry'){
       const bank=Bank.chinese[grade]?.poetry||[];
@@ -2890,8 +2993,12 @@ const UI = {
     const isLowGrade=(grade==='gradeK'||grade==='grade1'||grade==='grade2');
     // 读题语言：数学题强制中文（数字用中文读），其他按内容判断
     const readLang=item.speakLang||(q.taskId.startsWith('math_')?'zh-CN':(/[\u4e00-\u9fa5]/.test(item.q)?'zh-CN':'en-US'));
+    // 数学题朗读文本：把 +-×=? 转成中文自然读法（如"5减3等于几"）
+    const rawQ=item.q.replace(/["""]/g,'');
+    const mathRead=(q.taskId.startsWith('math_')&&(!item.readText))?(txt)=>txt.replace(/\+/g,' 加 ').replace(/-/g,' 减 ').replace(/×/g,' 乘 ').replace(/=/g,' 等于 ').replace(/\?/g,' 几 '):(txt)=>txt;
+    const readQText=item.readText||mathRead(rawQ);
     // 读题按钮：朗读完整题干
-    const readQBtn=isLowGrade&&!isDictation?`<button class="btn ghost sm" data-speak="${encodeURIComponent(item.q.replace(/["""]/g,''))}" data-lang="${readLang}" title="读题">📢 读题</button>`:'';
+    const readQBtn=isLowGrade&&!isDictation?`<button class="btn ghost sm" data-speak="${encodeURIComponent(readQText)}" data-lang="${readLang}" title="读题">📢 读题</button>`:'';
     let ansHtml='';
     if(isInput){
       ansHtml=`<input type="text" id="qInput" value="${answered||''}" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextQuiz()">`;
@@ -2932,7 +3039,7 @@ const UI = {
     // 听写题自动朗读一次
     if(isDictation&&item.speakText){setTimeout(()=>speak(item.speakText,item.speakLang||''),300);}
     // 低年级非听写题自动读题一次（数学题用中文读数字）
-    if(isLowGrade&&!isDictation){setTimeout(()=>speak(item.q.replace(/["""]/g,''),readLang),300);}
+    if(isLowGrade&&!isDictation){setTimeout(()=>speak(readQText,readLang),300);}
   },
   selectQuiz(opt){const q=this.curQuiz;q.answers[q.idx]=opt;this.renderQuiz();},
   exitQuiz(){
