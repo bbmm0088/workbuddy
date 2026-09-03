@@ -186,8 +186,6 @@ input,select,textarea{font-family:inherit;outline:none;}
 .floating-pet:hover{transform:scale(1.1);}
 .floating-pet .fp-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;}
 @keyframes petFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
-/* 装扮图标 */
-.outfit-icons{display:flex;gap:4px;justify-content:center;font-size:18px;}
 .bond-badge{display:inline-block;background:linear-gradient(135deg,#7c4dff,#b388ff);color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
 
 /* 表单 */
@@ -449,7 +447,6 @@ const Store = {
         }
       });
     }
-    if(!d.petOutfits)d.petOutfits=Pet.defaultOutfits();
     if(!d.achievementDefs) d.achievementDefs=Ach.defaultDefs();
     if(d.settings.reviewMode===undefined) d.settings.reviewMode=false;
     if(!d.settings.hiddenTasks) d.settings.hiddenTasks=[];
@@ -482,11 +479,8 @@ const Store = {
       if(p.lastDecayAt===undefined)p.lastDecayAt=p.purchasedAt?new Date(p.purchasedAt).getTime():Date.now();
       if(p.health===undefined)p.health=100;
       if(p.bondLevel===undefined)p.bondLevel=Pet.bondLevelFromIntimacy(p.intimacy);
-      if(!p.outfits)p.outfits={};
-      if(!p.toys)p.toys=[];
       if(p.lastDailyReward===undefined)p.lastDailyReward='';
     });
-    if(!c.ownedOutfits)c.ownedOutfits=[];
     if(!c.achievements) c.achievements=[];
     if(!c.logs) c.logs={sunlight:[],pet:[]};
     if(!c.wrongQuestions) c.wrongQuestions=[];
@@ -551,7 +545,29 @@ const Bank = {
         '同学们站成一排，从左数小明第5个，从右数第6个，共几人？|10人',
         '一根木棒锯成4段需要12分钟，锯成8段需要几分钟？|28分钟',
         '小明今年8岁，爸爸今年36岁，爸爸年龄是小明的几倍？|4.5倍',
-        '有5元和10元共8张总65元，各几张？|3张5元5张10元'
+        '有5元和10元共8张总65元，各几张？|3张5元5张10元',
+        '妈妈买了12个橘子，全家每天吃3个，能吃几天？|4天',
+        '一只青蛙4条腿，5只青蛙共有几条腿？|20条',
+        '小红有15支铅笔，送给同学6支，又买了4支，现在有几支？|13支',
+        '一辆公交车上有10人，到站下4人上3人，车上现在几人？|9人',
+        '明明从1写到20，一共写了多少个数字"1"？|12个',
+        '一年有12个月，一个季度有3个月，一年有几个季度？|4个',
+        '树上有8只鸟，飞走了3只，又飞来5只，现在树上有几只？|10只',
+        '弟弟今年5岁，哥哥今年9岁，5年后哥哥比弟弟大几岁？|4岁',
+        '小丽看一本书，每天看6页看了4天，第5天应从第几页看起？|25页',
+        '把8个苹果平均分给4个小朋友，每人分几个？|2个',
+        '一根木棒锯成5段需要16分钟，锯成9段需要几分钟？|32分钟',
+        '钟面上12个数字之间共有多少小格？|60小格',
+        '小明买一支铅笔1元一块橡皮2元，付了10元应找回多少元？|7元',
+        '一盒彩笔24支，用了一半又用了一半的一半，还剩几支？|6支',
+        '二(1)班有40人，二(2)班比二(1)班多5人，两班共有多少人？|85人',
+        '一列小火车有9节车厢，每节坐4人，一共能坐多少人？|36人',
+        '姐姐有20张贴纸，给妹妹7张后两人一样多，妹妹原来有几张？|6张',
+        '用1、2、3三个数字可以组成多少个不同的三位数？|6个',
+        '小白兔拔了9个萝卜，小灰兔比它多拔6个，两只兔子共拔几个？|24个',
+        '排队报数，从前往后小明报第7，从后往前也报第7，这队共几人？|13人',
+        '一本故事书80页，第一天看了20页，第二天看了30页，还剩多少页？|30页',
+        '一个西瓜切4刀（井字形），最多能切成几块？|9块'
       ];
       const midBank=[ // 3-4年级：植树/排队/图形
         '一条路长100米，每隔5米种一棵树（两端都种），要种几棵？|21棵',
@@ -565,7 +581,25 @@ const Bank = {
         '一个数减7后乘4再加8得36，这个数是？|14',
         '鸡兔同笼，共10个头28条腿，鸡兔各几只？|6鸡4兔',
         '找规律填数：2, 5, 11, 23, ?, 95|47',
-        '甲是乙的3倍，甲乙之和是48，甲是多少？|36'
+        '甲是乙的3倍，甲乙之和是48，甲是多少？|36',
+        '一块长方形菜地长12米宽8米，周长是多少米？|40米',
+        '一个正方形花坛边长15米，围着它走一圈要走多少米？|60米',
+        '钟表9点整，时针分针成多少度？|90度',
+        '钟表6点整，时针分针成多少度？|180度',
+        '用0、2、5可以组成多少个没有重复数字的两位数？|4个',
+        '一个数乘3减12得24，这个数是？|12',
+        '商店运来4箱苹果每箱25千克，卖出68千克，还剩多少千克？|32千克',
+        '三位数中最小的数与最大的数的和是多少？|1099',
+        '小华每天写16个大字，一个星期（7天）写多少个？|112个',
+        '3只猫3天吃3只老鼠，9只猫9天吃几只老鼠？|27只',
+        '一个长方形长增加3厘米宽不变，周长增加多少厘米？|6厘米',
+        '在长10厘米宽6厘米的长方形中剪一个最大的正方形，边长是几厘米？|6厘米',
+        '果园里有梨树56棵，苹果树是梨树的3倍，两种树共有多少棵？|224棵',
+        '小明把除数3看成5，算出的商是12，正确的商是多少？|20',
+        '一列火车每小时行90千米，行4小时，一共行多少千米？|360千米',
+        '一桶油连桶共重12千克，倒出一半后连桶重7千克，桶重多少千克？|2千克',
+        '一根铁丝围成边长6厘米的正方形，改围成长10厘米的长方形，宽是多少厘米？|2厘米',
+        '同学们做操站成方队，每行每列都是8人，这个方队共有多少人？|64人'
       ];
       const highBank=[ // 5-6年级：鸡兔同笼/分数/百分数
         '鸡兔同笼，共12个头40条腿，鸡兔各几只？|4鸡8兔',
@@ -577,7 +611,27 @@ const Bank = {
         '甲乙两车从两地相向而行，甲速60km/h乙速40km/h，3小时后相遇，两地相距多远？|300千米',
         '一个水池单开进水管4小时满，单开排水管6小时排完，同时开几小时满？|12小时',
         '某班50人考试，及格率96%，几人不及格？|2人',
-        '圆的半径扩大2倍，面积扩大几倍？|4倍'
+        '圆的半径扩大2倍，面积扩大几倍？|4倍',
+        '修一条公路，已修的是未修的3倍，已修比未修多24千米，全长多少千米？|48千米',
+        '甲数是乙数的1.5倍，两数之和是75，甲数是多少？|45',
+        '一件商品打八折后卖160元，原价多少元？|200元',
+        '一个圆的周长是31.4厘米，半径是多少？(π取3.14)|5厘米',
+        '长方体长8厘米宽5厘米高4厘米，体积是多少立方厘米？|160立方厘米',
+        '正方体棱长总和48厘米，棱长是多少厘米？|4厘米',
+        '一批货物甲车6次运完，乙车3次运完，两车一起几次运完？|2次',
+        '六(1)班有50人，今天出勤率98%，几人没来？|1人',
+        '把5米长的绳子平均分成8段，每段是全长的几分之几？|八分之一',
+        '比较大小：3/4和5/6哪个大？|5/6',
+        '一个数的25%是15，这个数是多少？|60',
+        '解比例：3:4=15:x，x等于多少？|20',
+        '长方形周长36厘米，长是宽的2倍，长是多少厘米？|12厘米',
+        '三角形面积24平方厘米，底是8厘米，高是多少厘米？|6厘米',
+        '甲乙两地相距180千米，去时3小时回来2小时，往返平均速度是多少？|72千米/小时',
+        '五个数的平均数是30，把其中一个数改为60后平均数变为33，这个数原来是多少？|45',
+        '一本书300页，第一天看了全书的1/3，第二天看了60页，还剩多少页？|140页',
+        '圆柱底面半径3厘米高5厘米，侧面积是多少？(π取3.14)|94.2平方厘米',
+        '男生比女生多1/5，女生有25人，男生有多少人？|30人',
+        '含盐率10%的盐水200克，要变成含盐率20%需蒸发多少克水？|100克'
       ];
       let bank;
       if(grade==='gradeK'||grade==='grade1'||grade==='grade2')bank=lowBank;
@@ -601,17 +655,33 @@ const Bank = {
         {q:'g',a:'哥',hint:'鸽子鸽子',emoji:'🕊️',opts:['哥','科','喝','佛']},
         {q:'k',a:'科',hint:'蝌蚪蝌蚪',emoji:'🐸',opts:['科','哥','喝','佛']},
         {q:'h',a:'喝',hint:'喝水喝水',emoji:'🥤',opts:['喝','哥','科','佛']},
-        {q:'j',a:'鸡',hint:'母鸡母鸡',emoji:'🐔',opts:['鸡','哥','科','喝']}
+        {q:'j',a:'鸡',hint:'母鸡母鸡',emoji:'🐔',opts:['鸡','哥','科','喝']},
+        {q:'q',a:'欺',hint:'气球气球',emoji:'🎈',opts:['欺','鸡','西','希']},
+        {q:'x',a:'西',hint:'西瓜西瓜',emoji:'🍉',opts:['西','欺','鸡','希']},
+        {q:'zh',a:'知',hint:'蜘蛛蜘蛛',emoji:'🕷️',opts:['知','吃','诗','日']},
+        {q:'ch',a:'吃',hint:'吃饭吃饭',emoji:'🍚',opts:['吃','知','诗','日']},
+        {q:'sh',a:'诗',hint:'狮子狮子',emoji:'🦁',opts:['诗','知','吃','日']},
+        {q:'r',a:'日',hint:'日出日出',emoji:'🌅',opts:['日','知','吃','诗']},
+        {q:'z',a:'资',hint:'写字写字',emoji:'✏️',opts:['资','次','思','日']},
+        {q:'c',a:'次',hint:'刺猬刺猬刺猬',emoji:'🦔',opts:['次','资','思','日']},
+        {q:'s',a:'思',hint:'丝绸丝绸',emoji:'🎀',opts:['思','资','次','日']},
+        {q:'y',a:'医',hint:'医生医生',emoji:'🩺',opts:['医','屋','西','欺']},
+        {q:'w',a:'屋',hint:'房屋房屋',emoji:'🏠',opts:['屋','医','西','欺']}
       ],
       calligraphy:[{char:'一',radical:'横',strokes:1},{char:'二',radical:'横',strokes:2},{char:'三',radical:'横',strokes:3},{char:'十',radical:'十',strokes:2},{char:'口',radical:'口',strokes:3},{char:'人',radical:'人',strokes:2},{char:'大',radical:'大',strokes:3},{char:'小',radical:'小',strokes:3}],
       poetry:[
         {title:'咏鹅',author:'骆宾王',content:'鹅，鹅，鹅，曲项向天歌。白毛浮绿水，红掌拨清波。',pinyin:'é,é,é,qū xiàng xiàng tiān gē。bái máo fú lǜ shuǐ,hóng zhǎng bō qīng bō。',analysis:'诗人用白描手法，生动写出鹅在水中游动的姿态。'},
         {title:'画',author:'王维',content:'远看山有色，近听水无声。春去花还在，人来鸟不惊。',pinyin:'yuǎn kàn shān yǒu sè,jìn tīng shuǐ wú shēng。chūn qù huā hái zài,rén lái niǎo bù jīng。',analysis:'一首谜语诗，描写画中山水花鸟，妙在"无声""不惊"。'},
-        {title:'悯农',author:'李绅',content:'锄禾日当午，汗滴禾下土。谁知盘中餐，粒粒皆辛苦。',pinyin:'chú hé rì dāng wǔ,hàn dī hé xià tǔ。shuí zhī pán zhōng cān,lì lì jiē xīn kǔ。',analysis:'写农民劳作辛苦，教育人们珍惜粮食。'},
+        {title:'悯农·其二',author:'李绅',content:'锄禾日当午，汗滴禾下土。谁知盘中餐，粒粒皆辛苦。',pinyin:'chú hé rì dāng wǔ,hàn dī hé xià tǔ。shuí zhī pán zhōng cān,lì lì jiē xīn kǔ。',analysis:'写农民劳作辛苦，教育人们珍惜粮食。'},
         {title:'古朗月行',author:'李白',content:'小时不识月，呼作白玉盘。又疑瑶台镜，飞在青云端。',pinyin:'xiǎo shí bù shí yuè,hū zuò bái yù pán。yòu yí yáo tái jìng,fēi zài qīng yún duān。',analysis:'以儿童眼光写月亮，想象丰富，天真烂漫。'},
-        {title:'风',author:'李峤',content:'解落三秋叶，能开二月花。过江千尺浪，入竹万竿斜。',pinyin:'jiě luò sān qiū yè,néng kāi èr yuè huā。guò jiāng qiān chǐ làng,rù zhú wàn gān xié。',analysis:'全诗无一"风"字，却句句写风，巧妙生动。'}
+        {title:'风',author:'李峤',content:'解落三秋叶，能开二月花。过江千尺浪，入竹万竿斜。',pinyin:'jiě luò sān qiū yè,néng kāi èr yuè huā。guò jiāng qiān chǐ làng,rù zhú wàn gān xié。',analysis:'全诗无一"风"字，却句句写风，巧妙生动。'},
+        {title:'江南',author:'汉乐府',content:'江南可采莲，莲叶何田田。鱼戏莲叶间。鱼戏莲叶东，鱼戏莲叶西，鱼戏莲叶南，鱼戏莲叶北。',pinyin:'jiāng nán kě cǎi lián,lián yè hé tián tián。yú xì lián yè jiān。yú xì lián yè dōng,yú xì lián yè xī,yú xì lián yè nán,yú xì lián yè běi。',analysis:'写采莲时节鱼儿嬉戏莲叶间的美景，语言活泼。'},
+        {title:'梅花',author:'王安石',content:'墙角数枝梅，凌寒独自开。遥知不是雪，为有暗香来。',pinyin:'qiáng jiǎo shù zhī méi,líng hán dú zì kāi。yáo zhī bù shì xuě,wèi yǒu àn xiāng lái。',analysis:'赞梅花不畏严寒独自开放，暗香沁人。'},
+        {title:'鹿柴',author:'王维',content:'空山不见人，但闻人语响。返景入深林，复照青苔上。',pinyin:'kōng shān bù jiàn rén,dàn wén rén yǔ xiǎng。fǎn yǐng rù shēn lín,fù zhào qīng tái shàng。',analysis:'以声衬静，写出空山的幽静深邃。'},
+        {title:'相思',author:'王维',content:'红豆生南国，春来发几枝。愿君多采撷，此物最相思。',pinyin:'hóng dòu shēng nán guó,chūn lái fā jǐ zhī。yuàn jūn duō cǎi xié,cǐ wù zuì xiāng sī。',analysis:'借红豆寄托思念之情，语言朴实情意深。'},
+        {title:'登乐游原',author:'李商隐',content:'向晚意不适，驱车登古原。夕阳无限好，只是近黄昏。',pinyin:'xiàng wǎn yì bù shì,qū chē dēng gǔ yuán。xī yáng wú xiàn hǎo,zhǐ shì jìn huáng hūn。',analysis:'赞叹夕阳美景又惋惜临近黄昏，意味深长。'}
       ],
-      reading:[{book:'猜猜我有多爱你',author:'山姆·麦克布雷尼'},{book:'好饿的毛毛虫',author:'艾瑞·卡尔'},{book:'爷爷一定有办法',author:'菲比·吉尔曼'},{book:'逃家小兔',author:'玛格丽特·怀兹·布朗'}]
+      reading:[{book:'猜猜我有多爱你',author:'山姆·麦克布雷尼'},{book:'好饿的毛毛虫',author:'艾瑞·卡尔'},{book:'爷爷一定有办法',author:'菲比·吉尔曼'},{book:'逃家小兔',author:'玛格丽特·怀兹·布朗'},{book:'我爸爸',author:'安东尼·布朗'},{book:'我妈妈',author:'安东尼·布朗'}]
     },
     grade1:{
       pinyin:[
@@ -622,9 +692,19 @@ const Bank = {
         {q:'z',a:'资',opts:['资','次','思','日']},
         {q:'c',a:'次',opts:['次','资','思','日']},
         {q:'s',a:'思',opts:['思','资','次','日']},
-        {q:'ai',a:'爱',opts:['爱','诶','熬','欧']},
+        {q:'ai',a:'爱',opts:['爱','欸','熬','欧']},
         {q:'ei',a:'欸',opts:['欸','爱','熬','欧']},
-        {q:'ao',a:'熬',opts:['熬','爱','欸','欧']}
+        {q:'ao',a:'熬',opts:['熬','爱','欸','欧']},
+        {q:'ou',a:'欧',opts:['欧','爱','欸','熬']},
+        {q:'iu',a:'优',opts:['优','爱','欸','欧']},
+        {q:'ie',a:'耶',opts:['耶','约','弯','温']},
+        {q:'üe',a:'约',opts:['约','耶','弯','温']},
+        {q:'er',a:'儿',opts:['儿','耶','约','优']},
+        {q:'an',a:'安',opts:['安','恩','昂','鞥']},
+        {q:'en',a:'恩',opts:['恩','安','昂','鞥']},
+        {q:'in',a:'因',opts:['因','安','恩','晕']},
+        {q:'un',a:'温',opts:['温','弯','因','晕']},
+        {q:'ün',a:'晕',opts:['晕','温','因','弯']}
       ],
       calligraphy:[{char:'日',radical:'日',strokes:4},{char:'月',radical:'月',strokes:4},{char:'水',radical:'水',strokes:4},{char:'火',radical:'火',strokes:4},{char:'山',radical:'山',strokes:3},{char:'石',radical:'石',strokes:5},{char:'田',radical:'田',strokes:5},{char:'禾',radical:'禾',strokes:5}],
       poetry:[
@@ -632,9 +712,14 @@ const Bank = {
         {title:'春晓',author:'孟浩然',content:'春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。',pinyin:'chūn mián bù jué xiǎo,chù chù wén tí niǎo。yè lái fēng yǔ shēng,huā luò zhī duō shǎo。',analysis:'描写春日清晨景象，含蓄表达惜春之情。'},
         {title:'池上',author:'白居易',content:'小娃撑小艇，偷采白莲回。不解藏踪迹，浮萍一道开。',pinyin:'xiǎo wá chēng xiǎo tǐng,tōu cǎi bái lián huí。bù jiě cáng zōng jì,fú píng yī dào kāi。',analysis:'写儿童偷采莲蓬的趣事，天真可爱。'},
         {title:'寻隐者不遇',author:'贾岛',content:'松下问童子，言师采药去。只在此山中，云深不知处。',pinyin:'sōng xià wèn tóng zǐ,yán shī cǎi yào qù。zhǐ zài cǐ shān zhōng,yún shēn bù zhī chù。',analysis:'一问一答，写出隐者高逸，云深不知处意境悠远。'},
-        {title:'画鸡',author:'唐寅',content:'头上红冠不用裁，满身雪白走将来。平生不敢轻言语，一叫千门万户开。',pinyin:'tóu shàng hóng guān bù yòng cái,mǎn shēn xuě bái zǒu jiāng lái。píng shēng bù gǎn qīng yán yǔ,yī jiào qiān mén wàn hù kāi。',analysis:'写公鸡威武神气，"一叫千门万户开"气势非凡。'}
+        {title:'画鸡',author:'唐寅',content:'头上红冠不用裁，满身雪白走将来。平生不敢轻言语，一叫千门万户开。',pinyin:'tóu shàng hóng guān bù yòng cái,mǎn shēn xuě bái zǒu jiāng lái。píng shēng bù gǎn qīng yán yǔ,yī jiào qiān mén wàn hù kāi。',analysis:'写公鸡威武神气，"一叫千门万户开"气势非凡。'},
+        {title:'赠汪伦',author:'李白',content:'李白乘舟将欲行，忽闻岸上踏歌声。桃花潭水深千尺，不及汪伦送我情。',pinyin:'lǐ bái chéng zhōu jiāng yù xíng,hū wén àn shàng tà gē shēng。táo huā tán shuǐ shēn qiān chǐ,bù jí wāng lún sòng wǒ qíng。',analysis:'以潭水之深衬托友情之厚，比喻巧妙动人。'},
+        {title:'绝句·迟日江山丽',author:'杜甫',content:'迟日江山丽，春风花草香。泥融飞燕子，沙暖睡鸳鸯。',pinyin:'chí rì jiāng shān lì,chūn fēng huā cǎo xiāng。ní róng fēi yàn zi,shā nuǎn shuì yuān yāng。',analysis:'写春日明丽景色，燕子鸳鸯悠然自得。'},
+        {title:'夜宿山寺',author:'李白',content:'危楼高百尺，手可摘星辰。不敢高声语，恐惊天上人。',pinyin:'wēi lóu gāo bǎi chǐ,shǒu kě zhāi xīng chén。bù gǎn gāo shēng yǔ,kǒng jīng tiān shàng rén。',analysis:'夸张手法写楼之高，想象奇绝。'},
+        {title:'逢雪宿芙蓉山主人',author:'刘长卿',content:'日暮苍山远，天寒白屋贫。柴门闻犬吠，风雪夜归人。',pinyin:'rì mù cāng shān yuǎn,tiān hán bái wū pín。chái mén wén quǎn fèi,fēng xuě yè guī rén。',analysis:'写风雪夜投宿山村的情景，画面感极强。'},
+        {title:'江畔独步寻花',author:'杜甫',content:'黄四娘家花满蹊，千朵万朵压枝低。留连戏蝶时时舞，自在娇莺恰恰啼。',pinyin:'huáng sì niáng jiā huā mǎn xī,qiān duǒ wàn duǒ yā zhī dī。liú lián xì dié shí shí wǔ,zì zài jiāo yīng qià qià tí。',analysis:'写黄四娘家繁花似锦，蝶舞莺啼生机盎然。'}
       ],
-      reading:[{book:'小猪唏哩呼噜',author:'孙幼军'},{book:'一年级大个子二年级小个子',author:'古田足日'},{book:'蚯蚓的日记',author:'朵琳·克罗宁'},{book:'落叶跳舞',author:'伊东宽'}]
+      reading:[{book:'小猪唏哩呼噜',author:'孙幼军'},{book:'一年级大个子二年级小个子',author:'古田足日'},{book:'蚯蚓的日记',author:'朵琳·克罗宁'},{book:'落叶跳舞',author:'伊东宽'},{book:'鸭子骑车记',author:'大卫·香农'},{book:'月亮的味道',author:'麦克·格雷涅茨'}]
     },
     grade2:{
       pinyin:[
@@ -647,17 +732,32 @@ const Bank = {
         {q:'ua',a:'蛙',opts:['蛙','窝','歪','威']},
         {q:'uo',a:'窝',opts:['窝','蛙','歪','威']},
         {q:'uai',a:'歪',opts:['歪','蛙','窝','威']},
-        {q:'ue',a:'约',opts:['约','蛙','窝','歪']}
+        {q:'ue',a:'约',opts:['约','蛙','窝','歪']},
+        {q:'zhi',a:'织',opts:['织','吃','诗','资']},
+        {q:'chi',a:'吃',opts:['吃','织','诗','次']},
+        {q:'shi',a:'狮',opts:['狮','织','吃','思']},
+        {q:'yi',a:'衣',opts:['衣','屋','鱼','夜']},
+        {q:'wu',a:'屋',opts:['屋','衣','鱼','夜']},
+        {q:'yu',a:'鱼',opts:['鱼','衣','屋','月']},
+        {q:'ye',a:'夜',opts:['夜','衣','屋','月']},
+        {q:'yue',a:'月',opts:['月','夜','衣','云']},
+        {q:'yin',a:'因',opts:['因','英','温','晕']},
+        {q:'yun',a:'云',opts:['云','因','英','温']}
       ],
       calligraphy:[{char:'树',radical:'木',strokes:9},{char:'林',radical:'木',strokes:8},{char:'森',radical:'木',strokes:12},{char:'说',radical:'言',strokes:9},{char:'话',radical:'言',strokes:8},{char:'读',radical:'言',strokes:10},{char:'听',radical:'口',strokes:7},{char:'写',radical:'冖',strokes:5}],
       poetry:[
         {title:'登鹳雀楼',author:'王之涣',content:'白日依山尽，黄河入海流。欲穷千里目，更上一层楼。',pinyin:'bái rì yī shān jìn,huáng hé rù hǎi liú。yù qióng qiān lǐ mù,gèng shàng yī céng lóu。',analysis:'前两句写景，后两句寓理，启示人要不断进取。'},
         {title:'望庐山瀑布',author:'李白',content:'日照香炉生紫烟，遥看瀑布挂前川。飞流直下三千尺，疑是银河落九天。',pinyin:'rì zhào xiāng lú shēng zǐ yān,yáo kàn pù bù guà qián chuān。fēi liú zhí xià sān qiān chǐ,yí shì yín hé luò jiǔ tiān。',analysis:'用夸张比喻写瀑布壮观，"飞流直下"气势磅礴。'},
         {title:'草',author:'白居易',content:'离离原上草，一岁一枯荣。野火烧不尽，春风吹又生。',pinyin:'lí lí yuán shàng cǎo,yī suì yī kū róng。yě huǒ shāo bù jìn,chūn fēng chuī yòu shēng。',analysis:'赞颂野草顽强生命力，"烧不尽""吹又生"对仗精妙。'},
-        {title:'绝句',author:'杜甫',content:'两个黄鹂鸣翠柳，一行白鹭上青天。窗含西岭千秋雪，门泊东吴万里船。',pinyin:'liǎng gè huáng lí míng cuì liǔ,yī xíng bái lù shàng qīng tiān。chuāng hán xī lǐng qiān qiū xuě,mén bó dōng wú wàn lǐ chuán。',analysis:'四句四景，色彩鲜明，对仗工整，意境开阔。'},
-        {title:'悯农',author:'李绅',content:'春种一粒粟，秋收万颗子。四海无闲田，农夫犹饿死。',pinyin:'chūn zhòng yī lì sù,qiū shōu wàn kē zǐ。sì hǎi wú xián tián,nóng fū yóu è sǐ。',analysis:'揭露社会不公，对农民寄予深切同情。'}
+        {title:'绝句·两个黄鹂',author:'杜甫',content:'两个黄鹂鸣翠柳，一行白鹭上青天。窗含西岭千秋雪，门泊东吴万里船。',pinyin:'liǎng gè huáng lí míng cuì liǔ,yī xíng bái lù shàng qīng tiān。chuāng hán xī lǐng qiān qiū xuě,mén bó dōng wú wàn lǐ chuán。',analysis:'四句四景，色彩鲜明，对仗工整，意境开阔。'},
+        {title:'悯农·其一',author:'李绅',content:'春种一粒粟，秋收万颗子。四海无闲田，农夫犹饿死。',pinyin:'chūn zhòng yī lì sù,qiū shōu wàn kē zǐ。sì hǎi wú xián tián,nóng fū yóu è sǐ。',analysis:'揭露社会不公，对农民寄予深切同情。'},
+        {title:'咏柳',author:'贺知章',content:'碧玉妆成一树高，万条垂下绿丝绦。不知细叶谁裁出，二月春风似剪刀。',pinyin:'bì yù zhuāng chéng yī shù gāo,wàn tiáo chuí xià lǜ sī tāo。bù zhī xì yè shéi cái chū,èr yuè chūn fēng sì jiǎn dāo。',analysis:'把春风比作剪刀，构思新颖，赞美春天。'},
+        {title:'晓出净慈寺送林子方',author:'杨万里',content:'毕竟西湖六月中，风光不与四时同。接天莲叶无穷碧，映日荷花别样红。',pinyin:'bì jìng xī hú liù yuè zhōng,fēng guāng bù yǔ sì shí tóng。jiē tiān lián yè wú qióng bì,yìng rì hé huā bié yàng hóng。',analysis:'写六月西湖荷花盛景，红碧相映，壮美绝伦。'},
+        {title:'舟夜书所见',author:'查慎行',content:'月黑见渔灯，孤光一点萤。微微风簇浪，散作满河星。',pinyin:'yuè hēi jiàn yú dēng,gū guāng yī diǎn yíng。wēi wēi fēng cù làng,sàn zuò mǎn hé xīng。',analysis:'写夜晚河上渔灯如星的奇妙景象。'},
+        {title:'村居',author:'高鼎',content:'草长莺飞二月天，拂堤杨柳醉春烟。儿童散学归来早，忙趁东风放纸鸢。',pinyin:'cǎo zhǎng yīng fēi èr yuè tiān,fú dī yáng liǔ zuì chūn yān。ér tóng sàn xué guī lái zǎo,máng chèn dōng fēng fàng zhǐ yuān。',analysis:'写早春二月儿童放风筝的快乐场景。'},
+        {title:'所见',author:'袁枚',content:'牧童骑黄牛，歌声振林樾。意欲捕鸣蝉，忽然闭口立。',pinyin:'mù tóng qí huáng niú,gē shēng zhèn lín yuè。yì yù bǔ míng chán,hū rán bì kǒu lì。',analysis:'捕捉牧童捕蝉瞬间的神态，天真可爱。'}
       ],
-      reading:[{book:'神笔马良',author:'洪汛涛'},{book:'大头儿子小头爸爸',author:'郑春华'},{book:'了不起的狐狸爸爸',author:'罗尔德·达尔'},{book:'没头脑和不高兴',author:'任溶溶'}]
+      reading:[{book:'神笔马良',author:'洪汛涛'},{book:'大头儿子小头爸爸',author:'郑春华'},{book:'了不起的狐狸爸爸',author:'罗尔德·达尔'},{book:'没头脑和不高兴',author:'任溶溶'},{book:'七色花',author:'瓦·卡达耶夫'},{book:'愿望的实现',author:'泰戈尔'}]
     },
     grade3:{
       pinyin:[
@@ -668,7 +768,17 @@ const Bank = {
         {q:'uan',a:'弯',opts:['弯','温','汪','翁']},
         {q:'uen',a:'温',opts:['温','弯','汪','翁']},
         {q:'üan',a:'冤',opts:['冤','弯','温','汪']},
-        {q:'üe',a:'约',opts:['约','冤','弯','温']}
+        {q:'üe',a:'约',opts:['约','冤','弯','温']},
+        {q:'zhi',a:'织',opts:['织','吃','诗','日']},
+        {q:'chi',a:'吃',opts:['吃','织','诗','日']},
+        {q:'shi',a:'狮',opts:['狮','织','吃','日']},
+        {q:'ri',a:'日',opts:['日','狮','织','吃']},
+        {q:'zi',a:'资',opts:['资','次','思','日']},
+        {q:'ci',a:'次',opts:['次','资','思','日']},
+        {q:'si',a:'思',opts:['思','资','次','日']},
+        {q:'ying',a:'鹰',opts:['鹰','英','因','温']},
+        {q:'yuan',a:'圆',opts:['圆','月','云','因']},
+        {q:'yun',a:'云',opts:['云','圆','因','英']}
       ],
       calligraphy:[{char:'春',radical:'日',strokes:9},{char:'夏',radical:'夂',strokes:10},{char:'秋',radical:'禾',strokes:9},{char:'冬',radical:'夂',strokes:5},{char:'海',radical:'水',strokes:10},{char:'蓝',radical:'艹',strokes:13},{char:'绿',radical:'纟',strokes:11},{char:'红',radical:'纟',strokes:6}],
       poetry:[
@@ -676,9 +786,14 @@ const Bank = {
         {title:'望天门山',author:'李白',content:'天门中断楚江开，碧水东流至此回。两岸青山相对出，孤帆一片日边来。',pinyin:'tiān mén zhōng duàn chǔ jiāng kāi,bì shuǐ dōng liú zhì cǐ huí。liǎng àn qīng shān xiāng duì chū,gū fān yī piàn rì biān lái。',analysis:'描绘长江流经天门山的壮阔景象。'},
         {title:'饮湖上初晴后雨',author:'苏轼',content:'水光潋滟晴方好，山色空蒙雨亦奇。欲把西湖比西子，淡妆浓抹总相宜。',pinyin:'shuǐ guāng liàn yàn qíng fāng hǎo,shān sè kōng méng yǔ yì qí。yù bǎ xī hú bǐ xī zǐ,dàn zhuāng nóng mǒ zǒng xiāng yí。',analysis:'以美人喻西湖，晴雨皆美，比喻新颖。'},
         {title:'元日',author:'王安石',content:'爆竹声中一岁除，春风送暖入屠苏。千门万户曈曈日，总把新桃换旧符。',pinyin:'bào zhú shēng zhōng yī suì chú,chūn fēng sòng nuǎn rù tú sū。qiān mén wàn hù tóng tóng rì,zǒng bǎ xīn táo huàn jiù fú。',analysis:'写春节热闹景象，"新桃换旧符"寓意辞旧迎新。'},
-        {title:'清明',author:'杜牧',content:'清明时节雨纷纷，路上行人欲断魂。借问酒家何处有？牧童遥指杏花村。',pinyin:'qīng míng shí jié yǔ fēn fēn,lù shàng xíng rén yù duàn hún。jiè wèn jiǔ jiā hé chù yǒu？mù tóng yáo zhǐ xìng huā cūn。',analysis:'写清明雨景与行人愁思，"遥指杏花村"余味无穷。'}
+        {title:'清明',author:'杜牧',content:'清明时节雨纷纷，路上行人欲断魂。借问酒家何处有？牧童遥指杏花村。',pinyin:'qīng míng shí jié yǔ fēn fēn,lù shàng xíng rén yù duàn hún。jiè wèn jiǔ jiā hé chù yǒu？mù tóng yáo zhǐ xìng huā cūn。',analysis:'写清明雨景与行人愁思，"遥指杏花村"余味无穷。'},
+        {title:'赠刘景文',author:'苏轼',content:'荷尽已无擎雨盖，菊残犹有傲霜枝。一年好景君须记，最是橙黄橘绿时。',pinyin:'hé jìn yǐ wú qíng yǔ gài,jú cán yóu yǒu ào shuāng zhī。yī nián hǎo jǐng jūn xū jì,zuì shì chéng huáng jú lǜ shí。',analysis:'赞秋冬之交的丰收美景，勉励人保持傲霜品格。'},
+        {title:'夜书所见',author:'叶绍翁',content:'萧萧梧叶送寒声，江上秋风动客情。知有儿童挑促织，夜深篱落一灯明。',pinyin:'xiāo xiāo wú yè sòng hán shēng,jiāng shàng qiū fēng dòng kè qíng。zhī yǒu ér tóng tiāo cù zhī,yè shēn lí luò yī dēng míng。',analysis:'写秋夜客居见闻，儿童夜捉蟋蟀充满童趣。'},
+        {title:'早发白帝城',author:'李白',content:'朝辞白帝彩云间，千里江陵一日还。两岸猿声啼不住，轻舟已过万重山。',pinyin:'zhāo cí bái dì cǎi yún jiān,qiān lǐ jiāng líng yī rì huán。liǎng àn yuán shēng tí bù zhù,qīng zhōu yǐ guò wàn chóng shān。',analysis:'写顺流而下之快，船轻心情更轻快。'},
+        {title:'九月九日忆山东兄弟',author:'王维',content:'独在异乡为异客，每逢佳节倍思亲。遥知兄弟登高处，遍插茱萸少一人。',pinyin:'dú zài yì xiāng wéi yì kè,měi féng jiā jié bèi sī qīn。yáo zhī xiōng dì dēng gāo chù,biàn chā zhū yú shǎo yī rén。',analysis:'写重阳节思亲，"每逢佳节倍思亲"千古传诵。'},
+        {title:'采莲曲',author:'王昌龄',content:'荷叶罗裙一色裁，芙蓉向脸两边开。乱入池中看不见，闻歌始觉有人来。',pinyin:'hé yè luó qún yī sè cái,fú róng xiàng liǎn liǎng biān kāi。luàn rù chí zhōng kàn bù jiàn,wén gē shǐ jué yǒu rén lái。',analysis:'写采莲女与荷花浑然一体，构思巧妙。'}
       ],
-      reading:[{book:'稻草人',author:'叶圣陶'},{book:'格林童话',author:'格林兄弟'},{book:'安徒生童话',author:'安徒生'},{book:'伊索寓言',author:'伊索'}]
+      reading:[{book:'稻草人',author:'叶圣陶'},{book:'格林童话',author:'格林兄弟'},{book:'安徒生童话',author:'安徒生'},{book:'伊索寓言',author:'伊索'},{book:'中国古代寓言',author:'孙敬艳'},{book:'克雷洛夫寓言',author:'克雷洛夫'}]
     },
     grade4:{
       calligraphy:[{char:'潮',radical:'水',strokes:15},{char:'塔',radical:'土',strokes:12},{char:'敬',radical:'攵',strokes:12},{char:'额',radical:'页',strokes:15},{char:'雀',radical:'隹',strokes:11},{char:'幕',radical:'巾',strokes:13},{char:'境',radical:'土',strokes:14},{char:'镜',radical:'金',strokes:16}],
@@ -687,9 +802,14 @@ const Bank = {
         {title:'望洞庭',author:'刘禹锡',content:'湖光秋月两相和，潭面无风镜未磨。遥望洞庭山水翠，白银盘里一青螺。',pinyin:'hú guāng qiū yuè liǎng xiāng hé,tán miàn wú fēng jìng wèi mó。yáo wàng dòng tíng shān shuǐ cuì,bái yín pán lǐ yī qīng luó。',analysis:'以白银盘青螺喻洞庭山水，比喻奇巧。'},
         {title:'忆江南',author:'白居易',content:'江南好，风景旧曾谙。日出江花红胜火，春来江水绿如蓝。能不忆江南？',pinyin:'jiāng nán hǎo,fēng jǐng jiù céng ān。rì chū jiāng huā hóng shèng huǒ,chūn lái jiāng shuǐ lǜ rú lán。néng bù yì jiāng nán？',analysis:'追忆江南春色，色彩鲜明。'},
         {title:'浪淘沙',author:'刘禹锡',content:'九曲黄河万里沙，浪淘风簸自天涯。如今直上银河去，同到牵牛织女家。',pinyin:'jiǔ qū huáng hé wàn lǐ shā,làng táo fēng bǒ zì tiān yá。rú jīn zhí shàng yín hé qù,tóng dào qiān niú zhī nǚ jiā。',analysis:'写黄河雄浑气势，想象奔放，直上银河浪漫瑰丽。'},
-        {title:'江雪',author:'柳宗元',content:'千山鸟飞绝，万径人踪灭。孤舟蓑笠翁，独钓寒江雪。',pinyin:'qiān shān niǎo fēi jué,wàn jìng rén zōng miè。gū zhōu suō lì wēng,dú diào hán jiāng xuě。',analysis:'写雪中孤舟独钓，"绝""灭"二字写出天地寂寥，意境孤高。'}
+        {title:'江雪',author:'柳宗元',content:'千山鸟飞绝，万径人踪灭。孤舟蓑笠翁，独钓寒江雪。',pinyin:'qiān shān niǎo fēi jué,wàn jìng rén zōng miè。gū zhōu suō lì wēng,dú diào hán jiāng xuě。',analysis:'写雪中孤舟独钓，"绝""灭"二字写出天地寂寥，意境孤高。'},
+        {title:'暮江吟',author:'白居易',content:'一道残阳铺水中，半江瑟瑟半江红。可怜九月初三夜，露似真珠月似弓。',pinyin:'yī dào cán yáng pū shuǐ zhōng,bàn jiāng sè sè bàn jiāng hóng。kě lián jiǔ yuè chū sān yè,lù sì zhēn zhū yuè sì gōng。',analysis:'写傍晚江面与初夜新月，比喻精美贴切。'},
+        {title:'嫦娥',author:'李商隐',content:'云母屏风烛影深，长河渐落晓星沉。嫦娥应悔偷灵药，碧海青天夜夜心。',pinyin:'yún mǔ píng fēng zhú yǐng shēn,cháng hé jiàn luò xiǎo xīng chén。cháng é yīng huǐ tōu líng yào,bì hǎi qīng tiān yè yè xīn。',analysis:'借嫦娥写孤寂之心，意境凄美。'},
+        {title:'出塞',author:'王昌龄',content:'秦时明月汉时关，万里长征人未还。但使龙城飞将在，不教胡马度阴山。',pinyin:'qín shí míng yuè hàn shí guān,wàn lǐ cháng zhēng rén wèi huán。dàn shǐ lóng chéng fēi jiàng zài,bù jiào hú mǎ dù yīn shān。',analysis:'边塞诗代表作，气魄雄浑，饱含家国之情。'},
+        {title:'凉州词',author:'王翰',content:'葡萄美酒夜光杯，欲饮琵琶马上催。醉卧沙场君莫笑，古来征战几人回。',pinyin:'pú táo měi jiǔ yè guāng bēi,yù yǐn pí pá mǎ shàng cuī。zuì wò shā chǎng jūn mò xiào,gǔ lái zhēng zhàn jǐ rén huí。',analysis:'写边塞宴饮的豪放与悲壮，慷慨激昂。'},
+        {title:'夏日绝句',author:'李清照',content:'生当作人杰，死亦为鬼雄。至今思项羽，不肯过江东。',pinyin:'shēng dāng zuò rén jié,sǐ yì wéi guǐ xióng。zhì jīn sī xiàng yǔ,bù kěn guò jiāng dōng。',analysis:'借项羽宁死不屈讽南宋苟且偷安，气节凛然。'}
       ],
-      reading:[{book:'西游记（少儿版）',author:'吴承恩'},{book:'爱的教育',author:'亚米契斯'},{book:'昆虫记（少儿版）',author:'法布尔'},{book:'中国神话故事',author:'聂作平'}]
+      reading:[{book:'西游记（少儿版）',author:'吴承恩'},{book:'爱的教育',author:'亚米契斯'},{book:'昆虫记（少儿版）',author:'法布尔'},{book:'中国神话故事',author:'聂作平'},{book:'希腊神话故事',author:'施瓦布'},{book:'小英雄雨来',author:'管桦'}]
     },
     grade5:{
       calligraphy:[{char:'鹰',radical:'鸟',strokes:18},{char:'瀑',radical:'水',strokes:18},{char:'徽',radical:'彳',strokes:17},{char:'襄',radical:'衣',strokes:17},{char:'彝',radical:'彐',strokes:18},{char:'爵',radical:'爪',strokes:17},{char:'魂',radical:'鬼',strokes:14},{char:'峻',radical:'山',strokes:10}],
@@ -698,9 +818,14 @@ const Bank = {
         {title:'渔歌子',author:'张志和',content:'西塞山前白鹭飞，桃花流水鳜鱼肥。青箬笠，绿蓑衣，斜风细雨不须归。',pinyin:'xī sài shān qián bái lù fēi,táo huā liú shuǐ guì yú féi。qīng ruò lì,lǜ suō yī,xié fēng xì yǔ bù xū guī。',analysis:'写江南水乡渔父生活，意境优美。'},
         {title:'泊船瓜洲',author:'王安石',content:'京口瓜洲一水间，钟山只隔数重山。春风又绿江南岸，明月何时照我还。',pinyin:'jīng kǒu guā zhōu yī shuǐ jiān,zhōng shān zhǐ gé shù chóng shān。chūn fēng yòu lǜ jiāng nán àn,míng yuè hé shí zhào wǒ huán。',analysis:'"绿"字传神，写思乡之情。'},
         {title:'秋思',author:'张籍',content:'洛阳城里见秋风，欲作家书意万重。复恐匆匆说不尽，行人临发又开封。',pinyin:'luò yáng chéng lǐ jiàn qiū fēng,yù zuò jiā shū yì wàn chóng。fù kǒng cōng cōng shuō bù jìn,xíng rén lín fā yòu kāi fēng。',analysis:'写思乡写信之细，"又开封"写出万千牵挂。'},
-        {title:'长相思',author:'纳兰性德',content:'山一程，水一程，身向榆关那畔行，夜深千帐灯。风一更，雪一更，聒碎乡心梦不成，故园无此声。',pinyin:'shān yī chéng,shuǐ yī chéng,shēn xiàng yú guān nà pàn xíng,yè shēn qiān zhàng dēng。fēng yī gēng,xuě yī gēng,guō suì xiāng xīn mèng bù chéng,gù yuán wú cǐ shēng。',analysis:'写行军途中思乡之苦，"故园无此声"催人泪下。'}
+        {title:'长相思',author:'纳兰性德',content:'山一程，水一程，身向榆关那畔行，夜深千帐灯。风一更，雪一更，聒碎乡心梦不成，故园无此声。',pinyin:'shān yī chéng,shuǐ yī chéng,shēn xiàng yú guān nà pàn xíng,yè shēn qiān zhàng dēng。fēng yī gēng,xuě yī gēng,guō suì xiāng xīn mèng bù chéng,gù yuán wú cǐ shēng。',analysis:'写行军途中思乡之苦，"故园无此声"催人泪下。'},
+        {title:'题临安邸',author:'林升',content:'山外青山楼外楼，西湖歌舞几时休。暖风熏得游人醉，直把杭州作汴州。',pinyin:'shān wài qīng shān lóu wài lóu,xī hú gē wǔ jǐ shí xiū。nuǎn fēng xūn dé yóu rén zuì,zhí bǎ háng zhōu zuò biàn zhōu。',analysis:'讽刺南宋统治者偏安享乐，忧愤深沉。'},
+        {title:'观书有感',author:'朱熹',content:'半亩方塘一鉴开，天光云影共徘徊。问渠那得清如许，为有源头活水来。',pinyin:'bàn mǔ fāng táng yī jiàn kāi,tiān guāng yún yǐng gòng pái huái。wèn qú nǎ dé qīng rú xǔ,wèi yǒu yuán tóu huó shuǐ lái。',analysis:'以塘水清澈喻读书明理，富含哲理。'},
+        {title:'四时田园杂兴',author:'范成大',content:'昼出耘田夜绩麻，村庄儿女各当家。童孙未解供耕织，也傍桑阴学种瓜。',pinyin:'zhòu chū yún tián yè jì má,cūn zhuāng ér nǚ gè dāng jiā。tóng sūn wèi jiě gòng gēng zhī,yě bàng sāng yīn xué zhòng guā。',analysis:'写农村生活，孩童学种瓜充满童趣。'},
+        {title:'村晚',author:'雷震',content:'草满池塘水满陂，山衔落日浸寒漪。牧童归去横牛背，短笛无腔信口吹。',pinyin:'cǎo mǎn chí táng shuǐ mǎn bēi,shān xián luò rì jìn hán yī。mù tóng guī qù héng niú bèi,duǎn dí wú qiāng xìn kǒu chuī。',analysis:'写乡村晚景，牧童横坐牛背信口吹笛，悠然自得。'},
+        {title:'稚子弄冰',author:'杨万里',content:'稚子金盆脱晓冰，彩丝穿取当银钲。敲成玉磬穿林响，忽作玻璃碎地声。',pinyin:'zhì zǐ jīn pén tuō xiǎo bīng,cǎi sī chuān qǔ dāng yín zhēng。qiāo chéng yù qìng chuān lín xiǎng,hū zuò bō lí suì dì shēng。',analysis:'写孩童清晨玩冰的稚趣，天真烂漫。'}
       ],
-      reading:[{book:'草房子',author:'曹文轩'},{book:'窗边的小豆豆',author:'黑柳彻子'},{book:'夏洛的网',author:'E·B·怀特'},{book:'城南旧事',author:'林海音'}]
+      reading:[{book:'草房子',author:'曹文轩'},{book:'窗边的小豆豆',author:'黑柳彻子'},{book:'夏洛的网',author:'E·B·怀特'},{book:'城南旧事',author:'林海音'},{book:'西游记（青少版）',author:'吴承恩'},{book:'呼兰河传',author:'萧红'}]
     },
     grade6:{
       calligraphy:[{char:'鼎',radical:'鼎',strokes:12},{char:'瀚',radical:'水',strokes:19},{char:'曦',radical:'日',strokes:20},{char:'璨',radical:'玉',strokes:18},{char:'巍',radical:'山',strokes:20},{char:'裹',radical:'衣',strokes:14},{char:'哲',radical:'口',strokes:10},{char:'誉',radical:'言',strokes:13}],
@@ -709,20 +834,25 @@ const Bank = {
         {title:'水调歌头',author:'苏轼',content:'明月几时有？把酒问青天。不知天上宫阙，今夕是何年。但愿人长久，千里共婵娟。',pinyin:'míng yuè jǐ shí yǒu？bǎ jiǔ wèn qīng tiān。bù zhī tiān shàng gōng què,jīn xī shì hé nián。dàn yuàn rén cháng jiǔ,qiān lǐ gòng chán juān。',analysis:'中秋怀人名作，"千里共婵娟"传诵千古。'},
         {title:'示儿',author:'陆游',content:'死去元知万事空，但悲不见九州同。王师北定中原日，家祭无忘告乃翁。',pinyin:'sǐ qù yuán zhī wàn shì kōng,dàn bēi bù jiàn jiǔ zhōu tóng。wáng shī běi dìng zhōng yuán rì,jiā jì wú wàng gào nǎi wēng。',analysis:'临终遗嘱，爱国之情深沉。'},
         {title:'卜算子·送鲍浩然之浙东',author:'王观',content:'水是眼波横，山是眉峰聚。欲问行人去那边？眉眼盈盈处。才始送春归，又送君归去。若到江南赶上春，千万和春住。',pinyin:'shuǐ shì yǎn bō héng,shān shì méi fēng jù。yù wèn xíng rén qù nà biān？méi yǎn yíng yíng chù。cái shǐ sòng chūn guī,yòu sòng jūn guī qù。ruò dào jiāng nán gǎn shàng chūn,qiān wàn hé chūn zhù。',analysis:'以眉眼喻山水，构思巧妙，送别中含惜春之情。'},
-        {title:'己亥杂诗',author:'龚自珍',content:'九州生气恃风雷，万马齐喑究可哀。我劝天公重抖擞，不拘一格降人才。',pinyin:'jiǔ zhōu shēng qì shì fēng léi,wàn mǎ qí yīn jiū kě āi。wǒ quàn tiān gōng chóng dǒu sǒu,bù jū yī gé jiàng rén cái。',analysis:'期盼社会变革，"不拘一格降人才"振聋发聩。'}
+        {title:'己亥杂诗',author:'龚自珍',content:'九州生气恃风雷，万马齐喑究可哀。我劝天公重抖擞，不拘一格降人才。',pinyin:'jiǔ zhōu shēng qì shì fēng léi,wàn mǎ qí yīn jiū kě āi。wǒ quàn tiān gōng chóng dǒu sǒu,bù jū yī gé jiàng rén cái。',analysis:'期盼社会变革，"不拘一格降人才"振聋发聩。'},
+        {title:'游子吟',author:'孟郊',content:'慈母手中线，游子身上衣。临行密密缝，意恐迟迟归。谁言寸草心，报得三春晖。',pinyin:'cí mǔ shǒu zhōng xiàn,yóu zǐ shēn shàng yī。lín xíng mì mì féng,yì kǒng chí chí guī。shuí yán cùn cǎo xīn,bào dé sān chūn huī。',analysis:'写母爱如春晖，"谁言寸草心"感人至深。'},
+        {title:'石灰吟',author:'于谦',content:'千锤万凿出深山，烈火焚烧若等闲。粉骨碎身浑不怕，要留清白在人间。',pinyin:'qiān chuí wàn záo chū shēn shān,liè huǒ fén shāo ruò děng xián。fěn gǔ suì shēn hún bù pà,yào liú qīng bái zài rén jiān。',analysis:'以石灰自喻，表达坚守清白的志向。'},
+        {title:'竹石',author:'郑燮',content:'咬定青山不放松，立根原在破岩中。千磨万击还坚劲，任尔东西南北风。',pinyin:'yǎo dìng qīng shān bù fàng sōng,lì gēn yuán zài pò yán zhōng。qiān mó wàn jī hái jiān jìng,rèn ěr dōng xī nán běi fēng。',analysis:'咏竹言志，写出坚韧不屈的品格。'},
+        {title:'回乡偶书',author:'贺知章',content:'少小离家老大回，乡音无改鬓毛衰。儿童相见不相识，笑问客从何处来。',pinyin:'shào xiǎo lí jiā lǎo dà huí,xiāng yīn wú gǎi bìn máo cuī。ér tóng xiāng jiàn bù xiāng shí,xiào wèn kè cóng hé chù lái。',analysis:'写久别回乡的感慨，童趣中含岁月沧桑。'},
+        {title:'长歌行',author:'汉乐府',content:'百川东到海，何时复西归。少壮不努力，老大徒伤悲。',pinyin:'bǎi chuān dōng dào hǎi,hé shí fù xī guī。shào zhuàng bù nǔ lì,lǎo dà tú shāng bēi。',analysis:'劝人珍惜时光，"少壮不努力"是千古箴言。'}
       ],
-      reading:[{book:'鲁滨逊漂流记',author:'笛福'},{book:'三国演义（少儿版）',author:'罗贯中'},{book:'汤姆·索亚历险记',author:'马克·吐温'},{book:'小王子',author:'圣埃克苏佩里'}]
+      reading:[{book:'鲁滨逊漂流记',author:'笛福'},{book:'三国演义（少儿版）',author:'罗贯中'},{book:'汤姆·索亚历险记',author:'马克·吐温'},{book:'小王子',author:'圣埃克苏佩里'},{book:'爱丽丝漫游奇境',author:'刘易斯·卡罗尔'},{book:'骑鹅旅行记',author:'塞尔玛·拉格洛夫'}]
     }
   },
   // 英语
   english:{
-    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl',emoji:'🍎'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə',emoji:'🍌'},{en:'cat',cn:'猫',phonetic:'kæt',emoji:'🐱'},{en:'dog',cn:'狗',phonetic:'dɒɡ',emoji:'🐶'},{en:'egg',cn:'蛋',phonetic:'eɡ',emoji:'🥚'},{en:'fish',cn:'鱼',phonetic:'fɪʃ',emoji:'🐟'},{en:'milk',cn:'牛奶',phonetic:'mɪlk',emoji:'🥛'},{en:'sun',cn:'太阳',phonetic:'sʌn',emoji:'☀️'},{en:'red',cn:'红色',phonetic:'red',emoji:'🟥'},{en:'blue',cn:'蓝色',phonetic:'bluː',emoji:'🟦'},{en:'bird',cn:'鸟',phonetic:'bɜːd',emoji:'🐦'},{en:'cake',cn:'蛋糕',phonetic:'keɪk',emoji:'🎂'},{en:'orange',cn:'橙子',phonetic:'ˈɒrɪndʒ',emoji:'🍊'},{en:'grape',cn:'葡萄',phonetic:'ɡreɪp',emoji:'🍇'}],sentences:[{en:'Hello!',cn:'你好！',emoji:'👋'},{en:'Good morning.',cn:'早上好。',emoji:'🌅'},{en:'Thank you.',cn:'谢谢。',emoji:'🙏'},{en:'Goodbye.',cn:'再见。',emoji:'👋'},{en:'I love you.',cn:'我爱你。',emoji:'❤️'},{en:'How are you?',cn:'你好吗？',emoji:'😊'}]},
-    grade1:{words:[{en:'book',cn:'书',phonetic:'bʊk'},{en:'pen',cn:'笔',phonetic:'pen'},{en:'school',cn:'学校',phonetic:'skuːl'},{en:'teacher',cn:'老师',phonetic:'ˈtiːtʃə'},{en:'student',cn:'学生',phonetic:'ˈstjuːdənt'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'green',cn:'绿色',phonetic:'ɡriːn'},{en:'yellow',cn:'黄色',phonetic:'ˈjeləʊ'},{en:'pencil',cn:'铅笔',phonetic:'ˈpensl'},{en:'ruler',cn:'尺子',phonetic:'ˈruːlə'},{en:'eraser',cn:'橡皮',phonetic:'ɪˈreɪzə'}],sentences:[{en:'I am a student.',cn:'我是一名学生。'},{en:'What is your name?',cn:'你叫什么名字？'},{en:'Nice to meet you.',cn:'很高兴认识你。'},{en:'Stand up, please.',cn:'请起立。'},{en:'Open your book.',cn:'打开你的书。'},{en:'My name is Li Ming.',cn:'我的名字是李明。'}]},
-    grade2:{words:[{en:'family',cn:'家庭',phonetic:'ˈfæməli'},{en:'father',cn:'爸爸',phonetic:'ˈfɑːðə'},{en:'mother',cn:'妈妈',phonetic:'ˈmʌðə'},{en:'brother',cn:'兄弟',phonetic:'ˈbrʌðə'},{en:'sister',cn:'姐妹',phonetic:'ˈsɪstə'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'home',cn:'家',phonetic:'həʊm'},{en:'love',cn:'爱',phonetic:'lʌv'},{en:'grandma',cn:'奶奶/姥姥',phonetic:'ˈɡrænmɑː'},{en:'grandpa',cn:'爷爷/姥爷',phonetic:'ˈɡrænpɑː'},{en:'uncle',cn:'叔叔',phonetic:'ˈʌŋkl'},{en:'aunt',cn:'阿姨',phonetic:'ɑːnt'}],sentences:[{en:'This is my family.',cn:'这是我的家庭。'},{en:'I love my mom.',cn:'我爱我的妈妈。'},{en:'He is my brother.',cn:'他是我的兄弟。'},{en:'She is my friend.',cn:'她是我的朋友。'},{en:'My father is tall.',cn:'我爸爸很高。'},{en:'Where is your home?',cn:'你家在哪里？'}]},
-    grade3:{words:[{en:'weather',cn:'天气',phonetic:'ˈweðə'},{en:'sunny',cn:'晴朗',phonetic:'ˈsʌni'},{en:'rainy',cn:'下雨',phonetic:'ˈreɪni'},{en:'windy',cn:'有风',phonetic:'ˈwɪndi'},{en:'cloudy',cn:'多云',phonetic:'ˈklaʊdi'},{en:'snowy',cn:'下雪',phonetic:'ˈsnəʊi'},{en:'hot',cn:'热',phonetic:'hɒt'},{en:'cold',cn:'冷',phonetic:'kəʊld'},{en:'food',cn:'食物',phonetic:'fuːd'},{en:'rice',cn:'米饭',phonetic:'raɪs'},{en:'water',cn:'水',phonetic:'ˈwɔːtə'},{en:'animal',cn:'动物',phonetic:'ˈænɪml'}],sentences:[{en:'How is the weather?',cn:'天气怎么样？'},{en:'It is sunny today.',cn:'今天是晴天。'},{en:'I like rainy days.',cn:'我喜欢雨天。'},{en:'It is very cold.',cn:'很冷。'},{en:'Do you like apples?',cn:'你喜欢苹果吗？'},{en:'What is your favorite animal?',cn:'你最喜欢的动物是什么？'}]},
-    grade4:{words:[{en:'subject',cn:'科目',phonetic:'ˈsʌbdʒɪkt'},{en:'math',cn:'数学',phonetic:'mæθ'},{en:'English',cn:'英语',phonetic:'ˈɪŋɡlɪʃ'},{en:'science',cn:'科学',phonetic:'ˈsaɪəns'},{en:'music',cn:'音乐',phonetic:'ˈmjuːzɪk'},{en:'art',cn:'美术',phonetic:'ɑːt'},{en:'history',cn:'历史',phonetic:'ˈhɪstri'},{en:'geography',cn:'地理',phonetic:'dʒiˈɒɡrəfi'},{en:'morning',cn:'早上',phonetic:'ˈmɔːnɪŋ'},{en:'afternoon',cn:'下午',phonetic:'ˌɑːftəˈnuːn'},{en:'evening',cn:'晚上',phonetic:'ˈiːvnɪŋ'},{en:'dinner',cn:'晚餐',phonetic:'ˈdɪnə'}],sentences:[{en:'What is your favorite subject?',cn:'你最喜欢的科目是什么？'},{en:'I like English best.',cn:'我最喜欢英语。'},{en:'Math is interesting.',cn:'数学很有趣。'},{en:'We have music on Monday.',cn:'我们周一有音乐课。'},{en:'What time is it?',cn:'几点了？'},{en:'It is seven o\'clock.',cn:'现在是七点钟。'}]},
-    grade5:{words:[{en:'holiday',cn:'假期',phonetic:'ˈhɒlədeɪ'},{en:'travel',cn:'旅行',phonetic:'ˈtrævl'},{en:'mountain',cn:'山',phonetic:'ˈmaʊntən'},{en:'river',cn:'河',phonetic:'ˈrɪvə'},{en:'forest',cn:'森林',phonetic:'ˈfɒrɪst'},{en:'beach',cn:'海滩',phonetic:'biːtʃ'},{en:'city',cn:'城市',phonetic:'ˈsɪti'},{en:'village',cn:'村庄',phonetic:'ˈvɪlɪdʒ'},{en:'north',cn:'北方',phonetic:'nɔːθ'},{en:'south',cn:'南方',phonetic:'saʊθ'},{en:'east',cn:'东方',phonetic:'iːst'},{en:'west',cn:'西方',phonetic:'west'}],sentences:[{en:'Where did you go on holiday?',cn:'你假期去哪了？'},{en:'I went to Beijing.',cn:'我去了北京。'},{en:'The mountain is very high.',cn:'那座山很高。'},{en:'I love the beach.',cn:'我爱海滩。'},{en:'There is a river near my home.',cn:'我家附近有一条河。'},{en:'I live in a small village.',cn:'我住在一个小村庄。'}]},
-    grade6:{words:[{en:'environment',cn:'环境',phonetic:'ɪnˈvaɪrənmənt'},{en:'protect',cn:'保护',phonetic:'prəˈtekt'},{en:'future',cn:'未来',phonetic:'ˈfjuːtʃə'},{en:'dream',cn:'梦想',phonetic:'driːm'},{en:'success',cn:'成功',phonetic:'səkˈses'},{en:'challenge',cn:'挑战',phonetic:'ˈtʃælɪndʒ'},{en:'knowledge',cn:'知识',phonetic:'ˈnɒlɪdʒ'},{en:'experience',cn:'经验',phonetic:'ɪkˈspɪəriəns'},{en:'earth',cn:'地球',phonetic:'ɜːθ'},{en:'energy',cn:'能源',phonetic:'ˈenədʒi'},{en:'recycle',cn:'回收利用',phonetic:'ˌriːˈsaɪkl'},{en:'volunteer',cn:'志愿者',phonetic:'ˌvɒlənˈtɪə'}],sentences:[{en:'We should protect the environment.',cn:'我们应该保护环境。'},{en:'What is your dream?',cn:'你的梦想是什么？'},{en:'My dream is to be a doctor.',cn:'我的梦想是当医生。'},{en:'Knowledge is power.',cn:'知识就是力量。'},{en:'I want to travel around the world.',cn:'我想环游世界。'},{en:'Planting trees is good for the earth.',cn:'植树对地球有好处。'}]}
+    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl',emoji:'🍎'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə',emoji:'🍌'},{en:'cat',cn:'猫',phonetic:'kæt',emoji:'🐱'},{en:'dog',cn:'狗',phonetic:'dɒɡ',emoji:'🐶'},{en:'egg',cn:'蛋',phonetic:'eɡ',emoji:'🥚'},{en:'fish',cn:'鱼',phonetic:'fɪʃ',emoji:'🐟'},{en:'milk',cn:'牛奶',phonetic:'mɪlk',emoji:'🥛'},{en:'sun',cn:'太阳',phonetic:'sʌn',emoji:'☀️'},{en:'red',cn:'红色',phonetic:'red',emoji:'🟥'},{en:'blue',cn:'蓝色',phonetic:'bluː',emoji:'🟦'},{en:'bird',cn:'鸟',phonetic:'bɜːd',emoji:'🐦'},{en:'cake',cn:'蛋糕',phonetic:'keɪk',emoji:'🎂'},{en:'orange',cn:'橙子',phonetic:'ˈɒrɪndʒ',emoji:'🍊'},{en:'grape',cn:'葡萄',phonetic:'ɡreɪp',emoji:'🍇'},{en:'duck',cn:'鸭子',phonetic:'dʌk',emoji:'🦆'},{en:'pig',cn:'猪',phonetic:'pɪɡ',emoji:'🐷'},{en:'star',cn:'星星',phonetic:'stɑː',emoji:'⭐'},{en:'moon',cn:'月亮',phonetic:'muːn',emoji:'🌙'},{en:'tree',cn:'树',phonetic:'triː',emoji:'🌳'},{en:'flower',cn:'花',phonetic:'ˈflaʊə',emoji:'🌸'},{en:'rain',cn:'雨',phonetic:'reɪn',emoji:'🌧️'},{en:'snow',cn:'雪',phonetic:'snəʊ',emoji:'❄️'},{en:'eye',cn:'眼睛',phonetic:'aɪ',emoji:'👁️'},{en:'nose',cn:'鼻子',phonetic:'nəʊz',emoji:'👃'},{en:'hand',cn:'手',phonetic:'hænd',emoji:'🤚'},{en:'car',cn:'小汽车',phonetic:'kɑː',emoji:'🚗'}],sentences:[{en:'Hello!',cn:'你好！',emoji:'👋'},{en:'Good morning.',cn:'早上好。',emoji:'🌅'},{en:'Thank you.',cn:'谢谢。',emoji:'🙏'},{en:'Goodbye.',cn:'再见。',emoji:'👋'},{en:'I love you.',cn:'我爱你。',emoji:'❤️'},{en:'How are you?',cn:'你好吗？',emoji:'😊'},{en:'Good night.',cn:'晚安。',emoji:'🌙'},{en:'I am happy.',cn:'我很开心。',emoji:'😄'},{en:'What is this?',cn:'这是什么？',emoji:'🤔'},{en:'It is a cat.',cn:'它是一只猫。',emoji:'🐱'},{en:'I like apples.',cn:'我喜欢苹果。',emoji:'🍎'},{en:'See you tomorrow.',cn:'明天见。',emoji:'👋'}]},
+    grade1:{words:[{en:'book',cn:'书',phonetic:'bʊk'},{en:'pen',cn:'笔',phonetic:'pen'},{en:'school',cn:'学校',phonetic:'skuːl'},{en:'teacher',cn:'老师',phonetic:'ˈtiːtʃə'},{en:'student',cn:'学生',phonetic:'ˈstjuːdənt'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'green',cn:'绿色',phonetic:'ɡriːn'},{en:'yellow',cn:'黄色',phonetic:'ˈjeləʊ'},{en:'pencil',cn:'铅笔',phonetic:'ˈpensl'},{en:'ruler',cn:'尺子',phonetic:'ˈruːlə'},{en:'eraser',cn:'橡皮',phonetic:'ɪˈreɪzə'},{en:'bag',cn:'书包',phonetic:'bæɡ'},{en:'desk',cn:'课桌',phonetic:'desk'},{en:'chair',cn:'椅子',phonetic:'tʃeə'},{en:'blackboard',cn:'黑板',phonetic:'ˈblækbɔːd'},{en:'classroom',cn:'教室',phonetic:'ˈklɑːsruːm'},{en:'boy',cn:'男孩',phonetic:'bɔɪ'},{en:'girl',cn:'女孩',phonetic:'ɡɜːl'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'morning',cn:'早上',phonetic:'ˈmɔːnɪŋ'},{en:'afternoon',cn:'下午',phonetic:'ˌɑːftəˈnuːn'},{en:'one',cn:'一',phonetic:'wʌn'},{en:'two',cn:'二',phonetic:'tuː'}],sentences:[{en:'I am a student.',cn:'我是一名学生。'},{en:'What is your name?',cn:'你叫什么名字？'},{en:'Nice to meet you.',cn:'很高兴认识你。'},{en:'Stand up, please.',cn:'请起立。'},{en:'Open your book.',cn:'打开你的书。'},{en:'My name is Li Ming.',cn:'我的名字是李明。'},{en:'Sit down, please.',cn:'请坐下。'},{en:'Close your book.',cn:'合上你的书。'},{en:'What color is it?',cn:'它是什么颜色？'},{en:'It is red.',cn:'它是红色的。'},{en:'How old are you?',cn:'你几岁了？'},{en:'I am seven years old.',cn:'我七岁了。'}]},
+    grade2:{words:[{en:'family',cn:'家庭',phonetic:'ˈfæməli'},{en:'father',cn:'爸爸',phonetic:'ˈfɑːðə'},{en:'mother',cn:'妈妈',phonetic:'ˈmʌðə'},{en:'brother',cn:'兄弟',phonetic:'ˈbrʌðə'},{en:'sister',cn:'姐妹',phonetic:'ˈsɪstə'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'home',cn:'家',phonetic:'həʊm'},{en:'love',cn:'爱',phonetic:'lʌv'},{en:'grandma',cn:'奶奶/姥姥',phonetic:'ˈɡrænmɑː'},{en:'grandpa',cn:'爷爷/姥爷',phonetic:'ˈɡrænpɑː'},{en:'uncle',cn:'叔叔',phonetic:'ˈʌŋkl'},{en:'aunt',cn:'阿姨',phonetic:'ɑːnt'},{en:'tall',cn:'高的',phonetic:'tɔːl'},{en:'short',cn:'矮的/短的',phonetic:'ʃɔːt'},{en:'fat',cn:'胖的',phonetic:'fæt'},{en:'thin',cn:'瘦的',phonetic:'θɪn'},{en:'young',cn:'年轻的',phonetic:'jʌŋ'},{en:'old',cn:'年老的',phonetic:'əʊld'},{en:'kind',cn:'和蔼的',phonetic:'kaɪnd'},{en:'pretty',cn:'漂亮的',phonetic:'ˈprɪti'},{en:'strong',cn:'强壮的',phonetic:'strɒŋ'},{en:'cute',cn:'可爱的',phonetic:'kjuːt'},{en:'baby',cn:'婴儿',phonetic:'ˈbeɪbi'},{en:'parents',cn:'父母',phonetic:'ˈpeərənts'}],sentences:[{en:'This is my family.',cn:'这是我的家庭。'},{en:'I love my mom.',cn:'我爱我的妈妈。'},{en:'He is my brother.',cn:'他是我的兄弟。'},{en:'She is my friend.',cn:'她是我的朋友。'},{en:'My father is tall.',cn:'我爸爸很高。'},{en:'Where is your home?',cn:'你家在哪里？'},{en:'My mother is kind.',cn:'我妈妈很和蔼。'},{en:'She is tall and thin.',cn:'她又高又瘦。'},{en:'I have a baby brother.',cn:'我有一个小弟弟。'},{en:'We are a happy family.',cn:'我们是一个幸福的家庭。'},{en:'My father is strong.',cn:'我爸爸很强壮。'},{en:'This is my grandma.',cn:'这是我的奶奶。'}]},
+    grade3:{words:[{en:'weather',cn:'天气',phonetic:'ˈweðə'},{en:'sunny',cn:'晴朗',phonetic:'ˈsʌni'},{en:'rainy',cn:'下雨',phonetic:'ˈreɪni'},{en:'windy',cn:'有风',phonetic:'ˈwɪndi'},{en:'cloudy',cn:'多云',phonetic:'ˈklaʊdi'},{en:'snowy',cn:'下雪',phonetic:'ˈsnəʊi'},{en:'hot',cn:'热',phonetic:'hɒt'},{en:'cold',cn:'冷',phonetic:'kəʊld'},{en:'food',cn:'食物',phonetic:'fuːd'},{en:'rice',cn:'米饭',phonetic:'raɪs'},{en:'water',cn:'水',phonetic:'ˈwɔːtə'},{en:'animal',cn:'动物',phonetic:'ˈænɪml'},{en:'warm',cn:'暖和的',phonetic:'wɔːm'},{en:'cool',cn:'凉爽的',phonetic:'kuːl'},{en:'spring',cn:'春天',phonetic:'sprɪŋ'},{en:'summer',cn:'夏天',phonetic:'ˈsʌmə'},{en:'autumn',cn:'秋天',phonetic:'ˈɔːtəm'},{en:'winter',cn:'冬天',phonetic:'ˈwɪntə'},{en:'noodle',cn:'面条',phonetic:'ˈnuːdl'},{en:'meat',cn:'肉',phonetic:'miːt'},{en:'vegetable',cn:'蔬菜',phonetic:'ˈvedʒtəbl'},{en:'fruit',cn:'水果',phonetic:'fruːt'},{en:'panda',cn:'熊猫',phonetic:'ˈpændə'},{en:'elephant',cn:'大象',phonetic:'ˈelɪfənt'}],sentences:[{en:'How is the weather?',cn:'天气怎么样？'},{en:'It is sunny today.',cn:'今天是晴天。'},{en:'I like rainy days.',cn:'我喜欢雨天。'},{en:'It is very cold.',cn:'很冷。'},{en:'Do you like apples?',cn:'你喜欢苹果吗？'},{en:'What is your favorite animal?',cn:'你最喜欢的动物是什么？'},{en:'What season is it?',cn:'现在是什么季节？'},{en:'It is spring.',cn:'现在是春天。'},{en:'I like summer best.',cn:'我最喜欢夏天。'},{en:'My favorite fruit is grapes.',cn:'我最喜欢的水果是葡萄。'},{en:'The panda is cute.',cn:'熊猫很可爱。'},{en:'It is warm today.',cn:'今天很暖和。'}]},
+    grade4:{words:[{en:'subject',cn:'科目',phonetic:'ˈsʌbdʒɪkt'},{en:'math',cn:'数学',phonetic:'mæθ'},{en:'English',cn:'英语',phonetic:'ˈɪŋɡlɪʃ'},{en:'science',cn:'科学',phonetic:'ˈsaɪəns'},{en:'music',cn:'音乐',phonetic:'ˈmjuːzɪk'},{en:'art',cn:'美术',phonetic:'ɑːt'},{en:'history',cn:'历史',phonetic:'ˈhɪstri'},{en:'geography',cn:'地理',phonetic:'dʒiˈɒɡrəfi'},{en:'morning',cn:'早上',phonetic:'ˈmɔːnɪŋ'},{en:'afternoon',cn:'下午',phonetic:'ˌɑːftəˈnuːn'},{en:'evening',cn:'晚上',phonetic:'ˈiːvnɪŋ'},{en:'dinner',cn:'晚餐',phonetic:'ˈdɪnə'},{en:'Chinese',cn:'语文',phonetic:'ˌtʃaɪˈniːz'},{en:'PE',cn:'体育',phonetic:'ˌpiː ˈiː'},{en:'computer',cn:'电脑',phonetic:'kəmˈpjuːtə'},{en:'week',cn:'星期',phonetic:'wiːk'},{en:'weekend',cn:'周末',phonetic:'ˌwiːkˈend'},{en:'today',cn:'今天',phonetic:'təˈdeɪ'},{en:'tomorrow',cn:'明天',phonetic:'təˈmɒrəʊ'},{en:'yesterday',cn:'昨天',phonetic:'ˈjestədeɪ'},{en:'breakfast',cn:'早餐',phonetic:'ˈbrekfəst'},{en:'lunch',cn:'午餐',phonetic:'lʌntʃ'},{en:'class',cn:'班级',phonetic:'klɑːs'},{en:'lesson',cn:'课',phonetic:'ˈlesn'}],sentences:[{en:'What is your favorite subject?',cn:'你最喜欢的科目是什么？'},{en:'I like English best.',cn:'我最喜欢英语。'},{en:'Math is interesting.',cn:'数学很有趣。'},{en:'We have music on Monday.',cn:'我们周一有音乐课。'},{en:'What time is it?',cn:'几点了？'},{en:'It is seven o\'clock.',cn:'现在是七点钟。'},{en:'Today is Monday.',cn:'今天是星期一。'},{en:'We have PE on Tuesday.',cn:'我们周二有体育课。'},{en:'What do you have for breakfast?',cn:'你早餐吃什么？'},{en:'I have Chinese and math today.',cn:'我今天有语文和数学课。'},{en:'Yesterday was Sunday.',cn:'昨天是星期天。'},{en:'I play computer games on weekends.',cn:'我周末玩电脑游戏。'}]},
+    grade5:{words:[{en:'holiday',cn:'假期',phonetic:'ˈhɒlədeɪ'},{en:'travel',cn:'旅行',phonetic:'ˈtrævl'},{en:'mountain',cn:'山',phonetic:'ˈmaʊntən'},{en:'river',cn:'河',phonetic:'ˈrɪvə'},{en:'forest',cn:'森林',phonetic:'ˈfɒrɪst'},{en:'beach',cn:'海滩',phonetic:'biːtʃ'},{en:'city',cn:'城市',phonetic:'ˈsɪti'},{en:'village',cn:'村庄',phonetic:'ˈvɪlɪdʒ'},{en:'north',cn:'北方',phonetic:'nɔːθ'},{en:'south',cn:'南方',phonetic:'saʊθ'},{en:'east',cn:'东方',phonetic:'iːst'},{en:'west',cn:'西方',phonetic:'west'},{en:'map',cn:'地图',phonetic:'mæp'},{en:'road',cn:'路',phonetic:'rəʊd'},{en:'train',cn:'火车',phonetic:'treɪn'},{en:'plane',cn:'飞机',phonetic:'pleɪn'},{en:'ship',cn:'轮船',phonetic:'ʃɪp'},{en:'bike',cn:'自行车',phonetic:'baɪk'},{en:'visit',cn:'参观',phonetic:'ˈvɪzɪt'},{en:'photo',cn:'照片',phonetic:'ˈfəʊtəʊ'},{en:'present',cn:'礼物',phonetic:'ˈpreznt'},{en:'delicious',cn:'美味的',phonetic:'dɪˈlɪʃəs'},{en:'camera',cn:'相机',phonetic:'ˈkæmərə'},{en:'ticket',cn:'票',phonetic:'ˈtɪkɪt'}],sentences:[{en:'Where did you go on holiday?',cn:'你假期去哪了？'},{en:'I went to Beijing.',cn:'我去了北京。'},{en:'The mountain is very high.',cn:'那座山很高。'},{en:'I love the beach.',cn:'我爱海滩。'},{en:'There is a river near my home.',cn:'我家附近有一条河。'},{en:'I live in a small village.',cn:'我住在一个小村庄。'},{en:'How do you go to school?',cn:'你怎么去上学？'},{en:'I go to school by bike.',cn:'我骑自行车上学。'},{en:'The train is faster than the bike.',cn:'火车比自行车快。'},{en:'I took many photos on my holiday.',cn:'我假期拍了很多照片。'},{en:'The food is delicious.',cn:'食物很美味。'},{en:'I bought a present for my friend.',cn:'我给朋友买了一份礼物。'}]},
+    grade6:{words:[{en:'environment',cn:'环境',phonetic:'ɪnˈvaɪrənmənt'},{en:'protect',cn:'保护',phonetic:'prəˈtekt'},{en:'future',cn:'未来',phonetic:'ˈfjuːtʃə'},{en:'dream',cn:'梦想',phonetic:'driːm'},{en:'success',cn:'成功',phonetic:'səkˈses'},{en:'challenge',cn:'挑战',phonetic:'ˈtʃælɪndʒ'},{en:'knowledge',cn:'知识',phonetic:'ˈnɒlɪdʒ'},{en:'experience',cn:'经验',phonetic:'ɪkˈspɪəriəns'},{en:'earth',cn:'地球',phonetic:'ɜːθ'},{en:'energy',cn:'能源',phonetic:'ˈenədʒi'},{en:'recycle',cn:'回收利用',phonetic:'ˌriːˈsaɪkl'},{en:'volunteer',cn:'志愿者',phonetic:'ˌvɒlənˈtɪə'},{en:'pollution',cn:'污染',phonetic:'pəˈluːʃn'},{en:'waste',cn:'浪费',phonetic:'weɪst'},{en:'save',cn:'节约',phonetic:'seɪv'},{en:'plant',cn:'种植',phonetic:'plɑːnt'},{en:'wild',cn:'野生的',phonetic:'waɪld'},{en:'danger',cn:'危险',phonetic:'ˈdeɪndʒə'},{en:'hope',cn:'希望',phonetic:'həʊp'},{en:'hard-working',cn:'勤奋的',phonetic:'ˌhɑːd ˈwɜːkɪŋ'},{en:'polite',cn:'礼貌的',phonetic:'pəˈlaɪt'},{en:'honest',cn:'诚实的',phonetic:'ˈɒnɪst'},{en:'brave',cn:'勇敢的',phonetic:'breɪv'},{en:'remember',cn:'记得',phonetic:'rɪˈmembə'}],sentences:[{en:'We should protect the environment.',cn:'我们应该保护环境。'},{en:'What is your dream?',cn:'你的梦想是什么？'},{en:'My dream is to be a doctor.',cn:'我的梦想是当医生。'},{en:'Knowledge is power.',cn:'知识就是力量。'},{en:'I want to travel around the world.',cn:'我想环游世界。'},{en:'Planting trees is good for the earth.',cn:'植树对地球有好处。'},{en:'We should save water.',cn:'我们应该节约用水。'},{en:'Don\'t waste food.',cn:'不要浪费食物。'},{en:'Wild animals are our friends.',cn:'野生动物是我们的朋友。'},{en:'Please remember to turn off the light.',cn:'请记得关灯。'},{en:'I hope to be a scientist.',cn:'我希望成为一名科学家。'},{en:'Be brave and never give up.',cn:'勇敢一点，永不放弃。'}]}
   },
   // 体育：广西中考体育标准
   sports:{
@@ -783,13 +913,25 @@ const Bank = {
       {char:'三',pinyin:'sān',word:'三个',sentence:'我家有三口人。',emoji:'🔢',radical:'三'},
       {char:'四',pinyin:'sì',word:'四季',sentence:'一年有四季。',emoji:'🍀',radical:'囗'},
       {char:'五',pinyin:'wǔ',word:'五颜六色',sentence:'花园里五颜六色。',emoji:'🌈',radical:'五'},
+      {char:'六',pinyin:'liù',word:'六个',sentence:'桌上有六个杯子。',emoji:'🎲',radical:'八'},
+      {char:'七',pinyin:'qī',word:'七彩',sentence:'彩虹有七种颜色。',emoji:'🌈',radical:'一'},
+      {char:'八',pinyin:'bā',word:'八个',sentence:'章鱼有八条腿。',emoji:'🐙',radical:'八'},
+      {char:'九',pinyin:'jiǔ',word:'九个',sentence:'我有九颗糖。',emoji:'🍬',radical:'乙'},
+      {char:'十',pinyin:'shí',word:'十个',sentence:'十个手指头。',emoji:'🙌',radical:'十'},
       {char:'上',pinyin:'shàng',word:'上学',sentence:'我高高兴兴上学去。',emoji:'⬆️',radical:'上'},
       {char:'下',pinyin:'xià',word:'下雨',sentence:'今天下雨了。',emoji:'☔',radical:'一'},
       {char:'左',pinyin:'zuǒ',word:'左手',sentence:'我用左手拿笔。',emoji:'👈',radical:'工'},
       {char:'右',pinyin:'yòu',word:'右手',sentence:'我用右手吃饭。',emoji:'👉',radical:'口'},
       {char:'中',pinyin:'zhōng',word:'中国',sentence:'中国是我的祖国。',emoji:'🇨🇳',radical:'丨'},
       {char:'大',pinyin:'dà',word:'大人',sentence:'大人在工作。',emoji:'🐘',radical:'大'},
-      {char:'小',pinyin:'xiǎo',word:'小朋友',sentence:'小朋友真可爱。',emoji:'🐭',radical:'小'}
+      {char:'小',pinyin:'xiǎo',word:'小朋友',sentence:'小朋友真可爱。',emoji:'🐭',radical:'小'},
+      {char:'口',pinyin:'kǒu',word:'口水',sentence:'要多喝水口不干。',emoji:'👄',radical:'口'},
+      {char:'目',pinyin:'mù',word:'目光',sentence:'他的目光很温柔。',emoji:'👁️',radical:'目'},
+      {char:'耳',pinyin:'ěr',word:'耳朵',sentence:'小兔的耳朵长长的。',emoji:'👂',radical:'耳'},
+      {char:'手',pinyin:'shǒu',word:'小手',sentence:'我的小手真能干。',emoji:'🤚',radical:'手'},
+      {char:'足',pinyin:'zú',word:'足球',sentence:'我喜欢踢足球。',emoji:'⚽',radical:'足'},
+      {char:'日',pinyin:'rì',word:'日子',sentence:'日子过得真快。',emoji:'☀️',radical:'日'},
+      {char:'月',pinyin:'yuè',word:'月亮',sentence:'月亮弯弯像小船。',emoji:'🌙',radical:'月'}
     ],
     grade1:[
       {char:'天',pinyin:'tiān',word:'天空',sentence:'天空蓝蓝的。',emoji:'🌤️',radical:'大'},
@@ -803,7 +945,19 @@ const Bank = {
       {char:'水',pinyin:'shuǐ',word:'喝水',sentence:'多喝水身体好。',emoji:'💧',radical:'水'},
       {char:'火',pinyin:'huǒ',word:'火车',sentence:'火车开来了。',emoji:'🔥',radical:'火'},
       {char:'山',pinyin:'shān',word:'高山',sentence:'高山真雄伟。',emoji:'⛰️',radical:'山'},
-      {char:'石',pinyin:'shí',word:'石头',sentence:'石头硬硬的。',emoji:'🪨',radical:'石'}
+      {char:'石',pinyin:'shí',word:'石头',sentence:'石头硬硬的。',emoji:'🪨',radical:'石'},
+      {char:'白',pinyin:'bái',word:'白云',sentence:'白云飘在天上。',emoji:'☁️',radical:'白'},
+      {char:'田',pinyin:'tián',word:'田地',sentence:'农民伯伯在田里劳动。',emoji:'🌾',radical:'田'},
+      {char:'河',pinyin:'hé',word:'小河',sentence:'小河的水清清的。',emoji:'🏞️',radical:'氵'},
+      {char:'米',pinyin:'mǐ',word:'大米',sentence:'大米香喷喷。',emoji:'🍚',radical:'米'},
+      {char:'竹',pinyin:'zhú',word:'竹子',sentence:'熊猫爱吃竹子。',emoji:'🎋',radical:'竹'},
+      {char:'瓜',pinyin:'guā',word:'西瓜',sentence:'夏天吃西瓜真凉快。',emoji:'🍉',radical:'瓜'},
+      {char:'果',pinyin:'guǒ',word:'水果',sentence:'多吃水果身体好。',emoji:'🍎',radical:'木'},
+      {char:'雪',pinyin:'xuě',word:'雪人',sentence:'冬天堆雪人真好玩。',emoji:'⛄',radical:'雨'},
+      {char:'门',pinyin:'mén',word:'大门',sentence:'请把门关好。',emoji:'🚪',radical:'门'},
+      {char:'飞',pinyin:'fēi',word:'飞机',sentence:'飞机飞得真高。',emoji:'✈️',radical:'飞'},
+      {char:'走',pinyin:'zǒu',word:'走路',sentence:'我走路去上学。',emoji:'🚶',radical:'走'},
+      {char:'坐',pinyin:'zuò',word:'坐下',sentence:'上课要坐端正。',emoji:'🪑',radical:'土'}
     ],
     grade2:[
       {char:'树',pinyin:'shù',word:'树木',sentence:'树木要爱护。',emoji:'🌳',radical:'木'},
@@ -817,7 +971,19 @@ const Bank = {
       {char:'鸟',pinyin:'niǎo',word:'小鸟',sentence:'小鸟在歌唱。',emoji:'🐦',radical:'鸟'},
       {char:'鱼',pinyin:'yú',word:'小鱼',sentence:'小鱼游啊游。',emoji:'🐟',radical:'鱼'},
       {char:'虫',pinyin:'chóng',word:'昆虫',sentence:'昆虫真有趣。',emoji:'🐛',radical:'虫'},
-      {char:'马',pinyin:'mǎ',word:'小马',sentence:'小马跑得快。',emoji:'🐴',radical:'马'}
+      {char:'马',pinyin:'mǎ',word:'小马',sentence:'小马跑得快。',emoji:'🐴',radical:'马'},
+      {char:'远',pinyin:'yuǎn',word:'远方',sentence:'远方有高山。',emoji:'🔭',radical:'辶'},
+      {char:'近',pinyin:'jìn',word:'附近',sentence:'我家附近有公园。',emoji:'📍',radical:'辶'},
+      {char:'听',pinyin:'tīng',word:'听话',sentence:'上课认真听讲。',emoji:'👂',radical:'口'},
+      {char:'说',pinyin:'shuō',word:'说话',sentence:'说话要有礼貌。',emoji:'💬',radical:'言'},
+      {char:'看',pinyin:'kàn',word:'看书',sentence:'我爱看图书。',emoji:'📖',radical:'目'},
+      {char:'写',pinyin:'xiě',word:'写字',sentence:'写字要工整。',emoji:'✍️',radical:'冖'},
+      {char:'读',pinyin:'dú',word:'读书',sentence:'读书使人聪明。',emoji:'📕',radical:'言'},
+      {char:'书',pinyin:'shū',word:'书包',sentence:'书包里有课本。',emoji:'🎒',radical:'乙'},
+      {char:'笔',pinyin:'bǐ',word:'铅笔',sentence:'铅笔写字真好看。',emoji:'✏️',radical:'竹'},
+      {char:'纸',pinyin:'zhǐ',word:'白纸',sentence:'白纸上画画。',emoji:'📄',radical:'纟'},
+      {char:'字',pinyin:'zì',word:'汉字',sentence:'汉字真神奇。',emoji:'🔤',radical:'子'},
+      {char:'文',pinyin:'wén',word:'语文',sentence:'语文课真有趣。',emoji:'📚',radical:'文'}
     ],
     grade3:[
       {char:'春',pinyin:'chūn',word:'春天',sentence:'春天来了，花儿开了。',emoji:'🌸',radical:'日'},
@@ -831,7 +997,19 @@ const Bank = {
       {char:'黄',pinyin:'huáng',word:'黄色',sentence:'香蕉是黄色的。',emoji:'🟡',radical:'黄'},
       {char:'紫',pinyin:'zǐ',word:'紫色',sentence:'葡萄是紫色的。',emoji:'🟣',radical:'糸'},
       {char:'晨',pinyin:'chén',word:'早晨',sentence:'早晨空气真好。',emoji:'🌅',radical:'日'},
-      {char:'晚',pinyin:'wǎn',word:'晚上',sentence:'晚上星星亮了。',emoji:'🌃',radical:'日'}
+      {char:'晚',pinyin:'wǎn',word:'晚上',sentence:'晚上星星亮了。',emoji:'🌃',radical:'日'},
+      {char:'彩',pinyin:'cǎi',word:'彩色',sentence:'彩色气球飞上天。',emoji:'🎈',radical:'彡'},
+      {char:'虹',pinyin:'hóng',word:'彩虹',sentence:'雨后天边挂彩虹。',emoji:'🌈',radical:'虫'},
+      {char:'湖',pinyin:'hú',word:'湖水',sentence:'湖水清清的。',emoji:'🏞️',radical:'氵'},
+      {char:'岛',pinyin:'dǎo',word:'海岛',sentence:'海岛上有椰子树。',emoji:'🏝️',radical:'山'},
+      {char:'桥',pinyin:'qiáo',word:'大桥',sentence:'大桥横跨江面。',emoji:'🌉',radical:'木'},
+      {char:'屋',pinyin:'wū',word:'房屋',sentence:'房屋盖得真漂亮。',emoji:'🏠',radical:'尸'},
+      {char:'街',pinyin:'jiē',word:'街道',sentence:'街道干净整洁。',emoji:'🛣️',radical:'行'},
+      {char:'路',pinyin:'lù',word:'马路',sentence:'过马路要看红绿灯。',emoji:'🚏',radical:'足'},
+      {char:'忙',pinyin:'máng',word:'忙碌',sentence:'爸爸工作很忙碌。',emoji:'🏃',radical:'忄'},
+      {char:'累',pinyin:'lèi',word:'疲劳',sentence:'运动后有点累。',emoji:'😮‍💨',radical:'糸'},
+      {char:'喜',pinyin:'xǐ',word:'喜欢',sentence:'我喜欢读书。',emoji:'😊',radical:'口'},
+      {char:'怒',pinyin:'nù',word:'生气',sentence:'不要随便生气。',emoji:'😠',radical:'心'}
     ],
     grade4:[
       {char:'潮',pinyin:'cháo',word:'潮水',sentence:'潮水涨起来了。'},
@@ -845,7 +1023,19 @@ const Bank = {
       {char:'稳',pinyin:'wěn',word:'稳定',sentence:'桌子放得很稳。'},
       {char:'隐',pinyin:'yǐn',word:'隐藏',sentence:'小兔隐藏在草丛里。'},
       {char:'筑',pinyin:'zhù',word:'建筑',sentence:'工人在建筑高楼。'},
-      {char:'繁',pinyin:'fán',word:'繁华',sentence:'这是一条繁华的街道。'}
+      {char:'繁',pinyin:'fán',word:'繁华',sentence:'这是一条繁华的街道。'},
+      {char:'职',pinyin:'zhí',word:'职业',sentence:'医生是崇高的职业。'},
+      {char:'业',pinyin:'yè',word:'作业',sentence:'认真完成作业。'},
+      {char:'勇',pinyin:'yǒng',word:'勇敢',sentence:'勇敢面对困难。'},
+      {char:'敢',pinyin:'gǎn',word:'敢于',sentence:'要敢于发言。'},
+      {char:'聪',pinyin:'cōng',word:'聪明',sentence:'他是个聪明的孩子。'},
+      {char:'明',pinyin:'míng',word:'明亮',sentence:'教室明亮整洁。'},
+      {char:'观',pinyin:'guān',word:'观察',sentence:'仔细观察小蚂蚁。'},
+      {char:'察',pinyin:'chá',word:'警察',sentence:'警察叔叔指挥交通。'},
+      {char:'继',pinyin:'jì',word:'继续',sentence:'继续努力加油。'},
+      {char:'续',pinyin:'xù',word:'连续',sentence:'连续三天晴天。'},
+      {char:'丰',pinyin:'fēng',word:'丰收',sentence:'秋天是丰收的季节。'},
+      {char:'富',pinyin:'fù',word:'富裕',sentence:'我们的生活越来越富裕。'}
     ],
     grade5:[
       {char:'鹰',pinyin:'yīng',word:'老鹰',sentence:'老鹰在天空盘旋。'},
@@ -859,7 +1049,19 @@ const Bank = {
       {char:'峻',pinyin:'jùn',word:'险峻',sentence:'山势非常险峻。'},
       {char:'峡',pinyin:'xiá',word:'峡谷',sentence:'峡谷又深又长。'},
       {char:'推',pinyin:'tuī',word:'推动',sentence:'科技进步推动了社会。'},
-      {char:'拆',pinyin:'chāi',word:'拆除',sentence:'工人拆除了旧围墙。'}
+      {char:'拆',pinyin:'chāi',word:'拆除',sentence:'工人拆除了旧围墙。'},
+      {char:'悔',pinyin:'huǐ',word:'后悔',sentence:'他很后悔说了谎。'},
+      {char:'悟',pinyin:'wù',word:'领悟',sentence:'我领悟了其中的道理。'},
+      {char:'糟',pinyin:'zāo',word:'糟糕',sentence:'今天天气真糟糕。'},
+      {char:'糕',pinyin:'gāo',word:'蛋糕',sentence:'生日蛋糕真甜。'},
+      {char:'豪',pinyin:'háo',word:'自豪',sentence:'我为祖国而自豪。'},
+      {char:'迈',pinyin:'mài',word:'迈步',sentence:'迈步走向新时代。'},
+      {char:'抑',pinyin:'yì',word:'抑制',sentence:'他抑制住激动的心情。'},
+      {char:'扬',pinyin:'yáng',word:'飞扬',sentence:'柳絮在空中飞扬。'},
+      {char:'挫',pinyin:'cuò',word:'挫折',sentence:'勇敢面对挫折。'},
+      {char:'折',pinyin:'zhé',word:'打折',sentence:'商店商品打折了。'},
+      {char:'慷',pinyin:'kāng',word:'慷慨',sentence:'他慷慨地捐出了零花钱。'},
+      {char:'慨',pinyin:'kǎi',word:'感慨',sentence:'爷爷感慨万千。'}
     ],
     grade6:[
       {char:'鼎',pinyin:'dǐng',word:'钟鼎',sentence:'钟鼎是古代的器具。'},
@@ -873,7 +1075,19 @@ const Bank = {
       {char:'殉',pinyin:'xùn',word:'殉职',sentence:'英雄为事业殉职。'},
       {char:'葬',pinyin:'zàng',word:'埋葬',sentence:'人们埋葬了烈士。'},
       {char:'协',pinyin:'xié',word:'协作',sentence:'同学们协作完成了任务。'},
-      {char:'奏',pinyin:'zòu',word:'演奏',sentence:'乐队演奏了动人的乐曲。'}
+      {char:'奏',pinyin:'zòu',word:'演奏',sentence:'乐队演奏了动人的乐曲。'},
+      {char:'废',pinyin:'fèi',word:'废物',sentence:'废物要分类回收。'},
+      {char:'墟',pinyin:'xū',word:'废墟',sentence:'地震后一片废墟。'},
+      {char:'忧',pinyin:'yōu',word:'忧虑',sentence:'不要过度忧虑。'},
+      {char:'虑',pinyin:'lǜ',word:'考虑',sentence:'做事要考虑周全。'},
+      {char:'鉴',pinyin:'jiàn',word:'鉴赏',sentence:'他很有艺术品鉴赏力。'},
+      {char:'赏',pinyin:'shǎng',word:'欣赏',sentence:'我们欣赏美丽的风景。'},
+      {char:'瑞',pinyin:'ruì',word:'瑞雪',sentence:'瑞雪兆丰年。'},
+      {char:'陶',pinyin:'táo',word:'陶瓷',sentence:'景德镇陶瓷闻名世界。'},
+      {char:'瓷',pinyin:'cí',word:'瓷器',sentence:'瓷器是中国的伟大发明。'},
+      {char:'韵',pinyin:'yùn',word:'韵律',sentence:'这首诗韵律优美。'},
+      {char:'味',pinyin:'wèi',word:'品味',sentence:'细细品味生活。'},
+      {char:'悟',pinyin:'wù',word:'觉悟',sentence:'他觉悟到自己的错误。'}
     ]
   }
 };
@@ -1089,25 +1303,6 @@ const Pet = {
       }
     };
   },
-  // 装扮商城定义
-  defaultOutfits(){
-    return[
-      {id:'hat_top',name:'礼帽',icon:'🎩',slot:'hat',cost:50,desc:'绅士风度'},
-      {id:'hat_crown',name:'皇冠',icon:'👑',slot:'hat',cost:200,desc:'王者风范'},
-      {id:'hat_bow',name:'蝴蝶结',icon:'🎀',slot:'hat',cost:30,desc:'可爱装扮'},
-      {id:'hat_cap',name:'棒球帽',icon:'🧢',slot:'hat',cost:40,desc:'运动风'},
-      {id:'col_gold',name:'金链',icon:'🔗',slot:'collar',cost:80,desc:'闪亮金色'},
-      {id:'col_pink',name:'粉蝴蝶结',icon:'🌸',slot:'collar',cost:30,desc:'甜美系'},
-      {id:'col_diamond',name:'钻石项圈',icon:'💎',slot:'collar',cost:150,desc:'奢华钻石'},
-      {id:'nest_basic',name:'普通窝',icon:'🛏️',slot:'nest',cost:50,desc:'舒适小窝'},
-      {id:'nest_castle',name:'城堡窝',icon:'🏰',slot:'nest',cost:300,desc:'梦幻城堡'},
-      {id:'nest_garden',name:'花园窝',icon:'🌺',slot:'nest',cost:200,desc:'花香满溢'},
-      {id:'toy_yarn',name:'毛线球',icon:'🧶',slot:'toy',cost:20,desc:'猫咪最爱'},
-      {id:'toy_bone',name:'骨头',icon:'🦴',slot:'toy',cost:20,desc:'狗狗最爱'},
-      {id:'toy_ball',name:'网球',icon:'🎾',slot:'toy',cost:30,desc:'追逐网球'}
-    ];
-  },
-  outfits(){return Store.data.petOutfits||this.defaultOutfits();},
   list(){return Store.data.petDefs;},
   // 羁绊等级计算（亲密度→1-10级）
   bondLevelFromIntimacy(intimacy){
@@ -1117,7 +1312,7 @@ const Pet = {
     const def=this.list()[type];if(!def)return false;
     if(!spendSunlight(def.cost,'领养'+def.name))return false;
     const c=curChild();
-    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,health:100,bondLevel:4,status:'healthy',purchasedAt:nowISO(),lastDecayAt:Date.now(),canRegret:true,outfits:{},toys:[],lastDailyReward:''};
+    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,health:100,bondLevel:4,status:'healthy',purchasedAt:nowISO(),lastDecayAt:Date.now(),canRegret:true,lastDailyReward:''};
     c.pets.push(pet);
     Log.pet('领养',pet.id,def.name);
     Audio.play('pet');Store.save();
@@ -1219,75 +1414,11 @@ const Pet = {
     p.health=clamp((p.health||100)+15,0,200);p.lastWashAt=Date.now();this.updateStatus(p);
     Log.pet('洗澡',p.id,'健康+15');Audio.play('pet');Store.save();UI.render();
   },
-  photo(petId){ // 合照：免费，亲密度+5
-    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
-    const def=this.list()[p.type];
-    p.intimacy=clamp(p.intimacy+5,0,200);p.lastPhotoAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
-    Log.pet('合照',p.id,'亲密+5');Audio.play('pet');Store.save();UI.render();
-    // 弹窗显示合照
-    const dateStr=new Date().toLocaleDateString('zh-CN');
-    showModal('📸 宠物合照',`<div style="text-align:center;padding:10px;">
-      <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:16px;border:2px dashed var(--primary);">
-        <div style="font-size:60px;">${def.emoji} 🧒</div>
-        <div style="font-size:16px;font-weight:700;margin:8px 0;">${c.profile.name} & ${p.name}</div>
-        <div style="font-size:12px;color:var(--text-soft);">${dateStr}</div>
-        <div style="margin-top:6px;font-size:13px;color:var(--primary-d);">羁绊 Lv.${p.bondLevel||1} · 亲密度 ${p.intimacy}</div>
-      </div>
-    </div>`,`<button class="btn sm" onclick="closeModal()">真好看！</button>`);
-  },
-  miniGame(petId){ // 迷你游戏：猜数字
-    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
-    if(this._miniGame)return; // 防止重复打开
-    const target=1+rnd(10);
-    let attempts=3;
-    this._miniGame={target,attempts,petId};
-    const renderGame=(hint)=>{
-      const mg=this._miniGame;
-      showModal('🎮 迷你游戏：猜数字',`<div style="text-align:center;padding:10px;">
-        <div style="font-size:40px;margin-bottom:8px;">🎲</div>
-        <p style="font-size:13px;color:var(--text-soft);margin-bottom:8px;">猜一个 1-10 的数字，${mg.attempts} 次机会</p>
-        ${hint?`<div style="font-size:14px;font-weight:700;color:var(--primary-d);margin-bottom:8px;">${hint}</div>`:''}
-        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;">
-          ${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button class="btn sm" style="width:42px;height:42px;font-size:16px;" onclick="UI.guessNum(${n})">${n}</button>`).join('')}
-        </div>
-      </div>`,`<button class="btn ghost sm" onclick="UI.exitMiniGame()">退出</button>`,true);
-    };
-    this._renderMiniGame=renderGame;
-    renderGame('');
-  },
   heal(petId){
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     const cost=this._healCost||150;
     if(!spendSunlight(cost,'治疗'+p.name))return;
     p.satiety=clamp(p.satiety+50,0,200);p.intimacy=clamp(p.intimacy+50,0,200);p.health=clamp((p.health||100)+80,0,200);p.status='healthy';this.updateBondLevel(p);Log.pet('治疗',p.id,'恢复健康');Audio.play('pet');Store.save();UI.render();
-  },
-  // ============ 装扮系统 ============
-  buyOutfit(outfitId){
-    const outfit=this.outfits().find(o=>o.id===outfitId);if(!outfit)return;
-    const c=curChild();
-    if(!c.ownedOutfits)c.ownedOutfits=[];
-    if(c.ownedOutfits.includes(outfitId)){toast('已拥有此装扮');return;}
-    if(!spendSunlight(outfit.cost,'购买装扮：'+outfit.name))return;
-    c.ownedOutfits.push(outfitId);
-    Log.pet('购买装扮','',outfit.name);
-    Store.save();UI.render();
-    toast('已购买'+outfit.name+'！');
-  },
-  equipOutfit(petId,outfitId){
-    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
-    const outfit=this.outfits().find(o=>o.id===outfitId);if(!outfit)return;
-    if(!c.ownedOutfits||!c.ownedOutfits.includes(outfitId)){toast('未拥有此装扮');return;}
-    if(!p.outfits)p.outfits={};
-    // 同槽位切换
-    p.outfits[outfit.slot]=outfitId;
-    Store.save();UI.render();
-    toast('已穿戴'+outfit.name);
-  },
-  unequipOutfit(petId,slot){
-    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
-    if(!p.outfits||!p.outfits[slot])return;
-    delete p.outfits[slot];
-    Store.save();UI.render();
   },
   // ============ 状态与等级 ============
   updateStatus(p){
@@ -2603,8 +2734,8 @@ const UI = {
     // 记录测试来源视图，退出时返回该页面
     this._quizOriginView=State.view;
     const c=curChild();const grade=c.grade;
-    // 幼小衔接每天5题，其他年级10题
-    const qCount=grade==='gradeK'?5:10;
+    // 幼小衔接每天8题，其他年级15题
+    const qCount=grade==='gradeK'?8:15;
     let questions=[];
     let title='';
     if(taskId==='cn_literacy'){
@@ -2628,7 +2759,7 @@ const UI = {
       const bank=Bank.chinese[grade]?.poetry||[];
       const p=pick(bank,Math.min(qCount,Math.max(1,bank.length)));
       // 一半作者题，一半填空题（用其他诗人名作干扰项）
-      const allAuthors=['李白','杜甫','白居易','苏轼','王安石','陆游','杜牧','孟浩然','骆宾王','张继','刘禹锡','张志和'];
+      const allAuthors=['李白','杜甫','白居易','苏轼','王安石','陆游','杜牧','孟浩然','骆宾王','张继','刘禹锡','张志和','王维','李商隐','贺知章','王昌龄','李清照','朱熹','孟郊','龚自珍','杨万里','范成大','白朴','刘长卿'];
       questions=p.map((po,idx)=>{
         if(idx%2===0){
           return{q:'《'+po.title+'》的作者是？',opts:shuffle([po.author,...pick(allAuthors.filter(a=>a!==po.author),3)]),a:po.author};
@@ -2953,8 +3084,6 @@ const UI = {
     // 检查每日奖励
     Pet.checkDailyReward();
     const c=curChild();const defs=Pet.list();
-    const allOutfits=Pet.outfits();
-    const ownedOutfits=c.ownedOutfits||[];
     const petHtml=c.pets.length?c.pets.map(p=>{
       const def=defs[p.type];
       // 根据宠物状态选择图片
@@ -2994,17 +3123,12 @@ const UI = {
           petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';animClass='pet-anim wag';
         }
       }
-      // 装扮图标
-      const outfitIcons=p.outfits?Object.entries(p.outfits).map(([slot,oid])=>{
-        const o=allOutfits.find(x=>x.id===oid);
-        return o?o.icon:'';
-      }).join(''):'';
       // 羁绊等级
       const bondLv=p.bondLevel||Pet.bondLevelFromIntimacy(p.intimacy);
       // 健康值
       const health=p.health||100;
       const imgHtml=petImgSrc?`<div class="${animClass}"><img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div></div>`:`<div class="${animClass}"><div class="pet-emoji">${def.emoji}</div></div>`;
-      return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}${outfitIcons?`<div class="outfit-icons">${outfitIcons}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️ <span class="bond-badge">羁绊 Lv.${bondLv}</span></div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
+      return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️ <span class="bond-badge">羁绊 Lv.${bondLv}</span></div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
       <div><div class="bar-label"><span>饱食度</span><span>${p.satiety}</span></div><div class="bar-wrap"><div class="bar-fill sat" style="width:${clamp(p.satiety/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>❤️ 健康值</span><span>${health}</span></div><div class="bar-wrap"><div class="bar-fill" style="width:${clamp(health/200*100,0,100)}%;background:linear-gradient(90deg,#ef5350,#e53935);"></div></div></div>
@@ -3025,86 +3149,16 @@ const UI = {
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
         <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.walk('${p.id}')" title="遛宠 10阳光">🦮10</button>
-        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.miniGame('${p.id}')" title="迷你游戏">🎮游戏</button>
-        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.photo('${p.id}')" title="合照 免费">📸合照</button>
-        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="UI.showOutfitPicker('${p.id}')" title="装扮">👗装扮</button>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
         ${p.status==='sick'?'<button class="btn danger sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.heal(\''+p.id+'\')">💊治疗'+(Pet._healCost||150)+'</button>':''}
         <button class="btn ghost sm" style="font-size:11px;padding:4px 8px;color:var(--danger);" onclick="Pet.abandon('${p.id}')" title="弃养 300阳光">💔弃养</button>
       </div></div>`;
     }).join(''):'<div style="text-align:center;color:var(--text-light);padding:20px;">还没有宠物，快去领养一只吧！🐾</div>';
-    // 装扮商城
-    const outfitHtml=allOutfits.map(o=>{
-      const owned=ownedOutfits.includes(o.id);
-      return `<div class="task-card" style="text-align:center;"><div style="font-size:36px;">${o.icon}</div><div class="t-title" style="justify-content:center;font-size:13px;">${o.name}</div><div class="t-desc" style="text-align:center;font-size:10px;">${o.desc||''} · ${({hat:'头饰',collar:'项圈',nest:'宠物窝',toy:'玩具'})[o.slot]}</div><div class="t-foot" style="justify-content:center;">${owned?'<span style="color:var(--primary-d);font-size:11px;">✅ 已拥有</span>':`<button class="btn orange sm" style="font-size:11px;" ${c.sunlight.total>=o.cost?'':'disabled'} onclick="Pet.buyOutfit('${o.id}')">${o.cost}☀️</button>`}</div></div>`;
-    }).join('');
     return `<div class="card"><div class="card-title">🐾 我的宠物 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showPetHelp()">📖 玩法介绍</button></div><div class="grid grid-2">${petHtml}</div></div>
       <div class="card"><div class="card-title">🏪 宠物商店</div><div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const cardImg=d.img?`<img src="${d.img}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto;display:block;">`:`<div style="font-size:50px;">${d.emoji}</div>`;
         return `<div class="task-card"><div style="text-align:center;">${cardImg}</div><div class="t-title" style="justify-content:center;margin-top:4px;">${d.name}</div><div class="t-desc" style="text-align:center;font-size:11px;min-height:36px;">${d.desc||''}</div><div class="t-foot" style="justify-content:center;"><button class="btn orange sm" ${c.sunlight.total>=d.cost?'':'disabled'} onclick="Pet.buy('${k}')">领养 ${d.cost}☀️</button></div></div>`;
       }).join('')}</div></div>
-      <div class="card"><div class="card-title">👗 装扮商城</div><div style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">用学习阳光兑换装扮，穿戴后会在宠物卡片上显示。全部仅用阳光兑换，无付费。</div><div class="grid grid-3">${outfitHtml}</div></div>
       <div class="card"><div class="card-title">📋 宠物日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.pet.map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()} · ${l.detail||''}</div></div></div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无宠物日志</div>'}</div></div>`;
-  },
-  // 装扮选择弹窗
-  showOutfitPicker(petId){
-    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
-    const allOutfits=Pet.outfits();
-    const owned=c.ownedOutfits||[];
-    const slots=['hat','collar','nest','toy'];
-    const slotNames={hat:'头饰',collar:'项圈',nest:'宠物窝',toy:'玩具'};
-    const html=slots.map(slot=>{
-      const items=allOutfits.filter(o=>o.slot===slot);
-      const equipped=p.outfits&&p.outfits[slot];
-      return `<div style="margin-bottom:12px;"><div style="font-size:13px;font-weight:700;color:var(--primary-d);margin-bottom:6px;">${slotNames[slot]}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${items.map(o=>{
-        const isOwned=owned.includes(o.id);
-        const isEquipped=equipped===o.id;
-        return `<div style="text-align:center;padding:6px;border-radius:8px;border:2px solid ${isEquipped?'var(--primary)':'var(--border)'};background:${isEquipped?'var(--bg)':'#fff'};cursor:${isOwned?'pointer':'default'};opacity:${isOwned?1:.5};" ${isOwned?`onclick="Pet.equipOutfit('${petId}','${o.id}')"`:''}>
-          <div style="font-size:24px;">${o.icon}</div><div style="font-size:10px;">${o.name}</div>${isEquipped?'<div style="font-size:9px;color:var(--primary-d);">✅穿戴中</div>':''}
-        </div>`;
-      }).join('')}${equipped?`<button class="btn ghost sm" style="font-size:10px;align-self:center;" onclick="Pet.unequipOutfit('${petId}','${slot}')">脱下</button>`:''}</div></div>`;
-    }).join('');
-    showModal('👗 装扮 '+p.name,`<div style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">点击已拥有的装扮穿戴，未拥有的请去装扮商城购买。</div>${html}`,`<button class="btn sm" onclick="closeModal()">完成</button>`,true);
-  },
-  // 迷你游戏：猜数字
-  guessNum(n){
-    const mg=Pet._miniGame;if(!mg)return;
-    if(n===mg.target){
-      // 猜中
-      const c=curChild();const p=c.pets.find(x=>x.id===mg.petId);if(p){
-        p.intimacy=clamp(p.intimacy+20,0,200);Pet.updateBondLevel(p);Pet.updateStatus(p);
-        addSunlight(5,'迷你游戏获胜');
-        Log.pet('迷你游戏获胜',p.id,'亲密+20 阳光+5');
-        Store.save();
-      }
-      Pet._miniGame=null;
-      closeModal();
-      toast('🎉 恭喜猜中！亲密度+20，阳光+5');
-      UI.render();
-    }else{
-      mg.attempts--;
-      if(mg.attempts<=0){
-        // 用完机会
-        const c=curChild();const p=c.pets.find(x=>x.id===mg.petId);if(p){
-          p.intimacy=clamp(p.intimacy+5,0,200);Pet.updateBondLevel(p);Pet.updateStatus(p);
-          Log.pet('迷你游戏参与',p.id,'亲密+5');
-          Store.save();
-        }
-        Pet._miniGame=null;
-        closeModal();
-        toast('答案是'+mg.target+'，再接再厉！亲密度+5');
-        UI.render();
-      }else{
-        const hint=n<mg.target?'太小了，再大一点':'太大了，再小一点';
-        if(Pet._renderMiniGame)Pet._renderMiniGame(hint);
-      }
-    }
-  },
-  exitMiniGame(){
-    Pet._miniGame=null;
-    closeModal();
-    toast('已退出迷你游戏');
   },
   showPetHelp(){
     showModal('🐾 宠物养成介绍',`<div style="line-height:1.7;font-size:13px;">
@@ -3131,11 +3185,7 @@ const UI = {
         <li>🎾 <b>玩玩具</b>（5☀️）亲密度+15，健康+3</li>
         <li>🛁 <b>洗澡</b>（10☀️）健康+15</li>
         <li>🦮 <b>遛宠</b>（10☀️）亲密度+10</li>
-        <li>🎮 <b>迷你游戏</b>猜数字，猜中亲密度+20，阳光+5</li>
-        <li>📸 <b>合照</b>（免费）亲密度+5，生成合照卡片</li>
       </ul>
-      <h4 style="color:var(--primary-d);margin:12px 0 6px;">👗 装扮商城</h4>
-      <p style="font-size:12px;">用学习阳光兑换头饰、项圈、宠物窝、玩具，自由穿戴。全部仅用阳光兑换，无付费。</p>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">📊 属性系统</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li><b>饱食度</b>：喂食恢复，影响饥饿/生病</li>
