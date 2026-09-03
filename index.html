@@ -530,8 +530,8 @@ const Bank = {
   gradeNames:{gradeK:'幼小衔接',grade1:'一年级',grade2:'二年级',grade3:'三年级',grade4:'四年级',grade5:'五年级',grade6:'六年级'},
   // 数学：动态生成
   mathGen:{
-    oralAdd:(grade)=>{const max={gradeK:10,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(max-a+1);return{q:a+' + '+b+' = ?',a:String(a+b)};},
-    oralSub:(grade)=>{const max={gradeK:10,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(a+1);return{q:a+' - '+b+' = ?',a:String(a-b)};},
+    oralAdd:(grade)=>{const max={gradeK:20,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(max-a+1);return{q:a+' + '+b+' = ?',a:String(a+b)};},
+    oralSub:(grade)=>{const max={gradeK:20,grade1:20,grade2:100,grade3:999,grade4:9999,grade5:99999,grade6:99999}[grade]||100;const a=rnd(max+1),b=rnd(a+1);return{q:a+' - '+b+' = ?',a:String(a-b)};},
     mul:(grade)=>{if(grade==='grade2'){const a=1+rnd(9),b=1+rnd(9);return{q:a+' × '+b+' = ?',a:String(a*b)};}if(grade==='grade3'){const a=10+rnd(90),b=1+rnd(9);return{q:a+' × '+b+' = ?',a:String(a*b)};}const t={grade4:99,grade5:99,grade6:99}[grade]||99;const c=1+rnd(t),d=1+rnd(t);return{q:c+' × '+d+' = ?',a:String(c*d)};},
     thinking:(grade)=>{
       // 苏教版思维训练：按年级分级选题
@@ -567,7 +567,33 @@ const Bank = {
         '小白兔拔了9个萝卜，小灰兔比它多拔6个，两只兔子共拔几个？|24个',
         '排队报数，从前往后小明报第7，从后往前也报第7，这队共几人？|13人',
         '一本故事书80页，第一天看了20页，第二天看了30页，还剩多少页？|30页',
-        '一个西瓜切4刀（井字形），最多能切成几块？|9块'
+        '一个西瓜切4刀（井字形），最多能切成几块？|9块',
+        // 幼升小名校入学检测卷风格补充
+        '9+4-6=?|7',
+        '9+4-5=?|8',
+        '10-5+8=?|13',
+        '2+7+5=?|14',
+        '5+4+6=?|15',
+        '11-6+6=?|11',
+        '12+4-9=?|7',
+        '7+8=?|15',
+        '6+9=?|15',
+        '13-4=?|9',
+        '15-7=?|8',
+        '14-9=?|5',
+        '5+?+3=12，问号填几？|4',
+        '?+6+2=13，问号填几？|5',
+        '15-?-4=6，问号填几？|5',
+        '12-5+?=10，问号填几？|3',
+        '比较：7+8 ___ 16（填>、<或=）|>',
+        '比较：13-6 ___ 8（填>、<或=）|<',
+        '找规律：2,4,6,8,?|10',
+        '找规律：1,3,5,7,?|9',
+        '9和8合起来是多少？|17',
+        '17可以分成9和几？|8',
+        '14可以分成6和几？|8',
+        '小明有8颗糖，小红给他5颗，现在有几颗？|13颗',
+        '树上有12只鸟，飞走4只，又飞来3只，现在有几只？|11只'
       ];
       const midBank=[ // 3-4年级：植树/排队/图形
         '一条路长100米，每隔5米种一棵树（两端都种），要种几棵？|21棵',
@@ -663,10 +689,55 @@ const Bank = {
         {q:'sh',a:'诗',hint:'狮子狮子',emoji:'🦁',opts:['诗','知','吃','日']},
         {q:'r',a:'日',hint:'日出日出',emoji:'🌅',opts:['日','知','吃','诗']},
         {q:'z',a:'资',hint:'写字写字',emoji:'✏️',opts:['资','次','思','日']},
-        {q:'c',a:'次',hint:'刺猬刺猬刺猬',emoji:'🦔',opts:['次','资','思','日']},
+        {q:'c',a:'次',hint:'刺猬刺猬',emoji:'🦔',opts:['次','资','思','日']},
         {q:'s',a:'思',hint:'丝绸丝绸',emoji:'🎀',opts:['思','资','次','日']},
         {q:'y',a:'医',hint:'医生医生',emoji:'🩺',opts:['医','屋','西','欺']},
-        {q:'w',a:'屋',hint:'房屋房屋',emoji:'🏠',opts:['屋','医','西','欺']}
+        {q:'w',a:'屋',hint:'房屋房屋',emoji:'🏠',opts:['屋','医','西','欺']},
+        // 单韵母
+        {q:'a',a:'啊',hint:'张大嘴巴',emoji:'😮',opts:['啊','哦','鹅','衣']},
+        {q:'o',a:'哦',hint:'公鸡打鸣',emoji:'🐓',opts:['哦','啊','鹅','乌']},
+        {q:'e',a:'鹅',hint:'白鹅白鹅',emoji:'🦢',opts:['鹅','啊','哦','衣']},
+        {q:'i',a:'衣',hint:'一件衣服',emoji:'👕',opts:['衣','乌','迂','啊']},
+        {q:'u',a:'乌',hint:'乌鸦乌鸦',emoji:'🐦‍⬛',opts:['乌','衣','迂','啊']},
+        {q:'ü',a:'迂',hint:'小鱼吐泡',emoji:'🐟',opts:['迂','衣','乌','啊']},
+        // 复韵母
+        {q:'ai',a:'爱',hint:'挨近挨近',emoji:'❤️',opts:['爱','欸','熬','欧']},
+        {q:'ei',a:'欸',hint:'诶呀诶呀',emoji:'😲',opts:['欸','爱','熬','欧']},
+        {q:'ui',a:'威',hint:'围巾围巾',emoji:'🧣',opts:['威','爱','欸','欧']},
+        {q:'ao',a:'熬',hint:'棉袄棉袄',emoji:'🧥',opts:['熬','爱','欸','欧']},
+        {q:'ou',a:'欧',hint:'海鸥海鸥',emoji:'🕊️',opts:['欧','爱','欸','熬']},
+        {q:'iu',a:'优',hint:'游鱼游鱼',emoji:'🐠',opts:['优','爱','欸','欧']},
+        {q:'ie',a:'耶',hint:'椰子椰子',emoji:'🥥',opts:['耶','约','弯','温']},
+        {q:'üe',a:'约',hint:'月亮月亮',emoji:'🌙',opts:['约','耶','弯','温']},
+        {q:'er',a:'儿',hint:'耳朵耳朵',emoji:'👂',opts:['儿','耶','约','优']},
+        // 前鼻韵母
+        {q:'an',a:'安',hint:'安全安全',emoji:'🛡️',opts:['安','恩','昂','鞥']},
+        {q:'en',a:'恩',hint:'恩情恩情',emoji:'🙏',opts:['恩','安','昂','鞥']},
+        {q:'in',a:'因',hint:'音乐音乐',emoji:'🎵',opts:['因','安','恩','晕']},
+        {q:'un',a:'温',hint:'温暖温暖',emoji:'🌡️',opts:['温','弯','因','晕']},
+        {q:'ün',a:'晕',hint:'头晕头晕',emoji:'😵',opts:['晕','温','因','弯']},
+        // 后鼻韵母
+        {q:'ang',a:'昂',hint:'昂首昂首',emoji:'🦒',opts:['昂','安','恩','翁']},
+        {q:'eng',a:'鞥',hint:'风筝风筝',emoji:'🪁',opts:['鞥','昂','安','恩']},
+        {q:'ing',a:'英',hint:'老鹰老鹰',emoji:'🦅',opts:['英','昂','安','恩']},
+        {q:'ong',a:'翁',hint:'老翁老翁',emoji:'👴',opts:['翁','英','昂','安']},
+        // 整体认读音节
+        {q:'zhi',a:'织',hint:'织女织女',emoji:'🧵',opts:['织','吃','诗','资']},
+        {q:'chi',a:'吃',hint:'吃饭吃饭',emoji:'🍚',opts:['吃','织','诗','资']},
+        {q:'shi',a:'狮',hint:'狮子狮子',emoji:'🦁',opts:['狮','织','吃','思']},
+        {q:'ri',a:'日',hint:'日出日出',emoji:'🌅',opts:['日','织','吃','诗']},
+        {q:'zi',a:'字',hint:'写字写字',emoji:'✏️',opts:['字','次','思','日']},
+        {q:'ci',a:'次',hint:'刺猬刺猬',emoji:'🦔',opts:['次','字','思','日']},
+        {q:'si',a:'丝',hint:'丝绸丝绸',emoji:'🎀',opts:['丝','字','次','日']},
+        {q:'yi',a:'衣',hint:'衣服衣服',emoji:'👕',opts:['衣','屋','鱼','医']},
+        {q:'wu',a:'屋',hint:'房屋房屋',emoji:'🏠',opts:['屋','衣','鱼','医']},
+        {q:'yu',a:'鱼',hint:'小鱼小鱼',emoji:'🐟',opts:['鱼','衣','屋','医']},
+        {q:'ye',a:'夜',hint:'夜晚夜晚',emoji:'🌃',opts:['夜','月','衣','云']},
+        {q:'yue',a:'月',hint:'月亮月亮',emoji:'🌙',opts:['月','夜','衣','云']},
+        {q:'yuan',a:'元',hint:'一元钱',emoji:'💰',opts:['元','因','晕','云']},
+        {q:'yin',a:'音',hint:'音乐音乐',emoji:'🎵',opts:['音','英','温','晕']},
+        {q:'yun',a:'云',hint:'白云白云',emoji:'☁️',opts:['云','因','英','温']},
+        {q:'ying',a:'鹰',hint:'老鹰老鹰',emoji:'🦅',opts:['鹰','因','英','云']}
       ],
       calligraphy:[{char:'一',radical:'横',strokes:1},{char:'二',radical:'横',strokes:2},{char:'三',radical:'横',strokes:3},{char:'十',radical:'十',strokes:2},{char:'口',radical:'口',strokes:3},{char:'人',radical:'人',strokes:2},{char:'大',radical:'大',strokes:3},{char:'小',radical:'小',strokes:3}],
       poetry:[
@@ -846,7 +917,7 @@ const Bank = {
   },
   // 英语
   english:{
-    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl',emoji:'🍎'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə',emoji:'🍌'},{en:'cat',cn:'猫',phonetic:'kæt',emoji:'🐱'},{en:'dog',cn:'狗',phonetic:'dɒɡ',emoji:'🐶'},{en:'egg',cn:'蛋',phonetic:'eɡ',emoji:'🥚'},{en:'fish',cn:'鱼',phonetic:'fɪʃ',emoji:'🐟'},{en:'milk',cn:'牛奶',phonetic:'mɪlk',emoji:'🥛'},{en:'sun',cn:'太阳',phonetic:'sʌn',emoji:'☀️'},{en:'red',cn:'红色',phonetic:'red',emoji:'🟥'},{en:'blue',cn:'蓝色',phonetic:'bluː',emoji:'🟦'},{en:'bird',cn:'鸟',phonetic:'bɜːd',emoji:'🐦'},{en:'cake',cn:'蛋糕',phonetic:'keɪk',emoji:'🎂'},{en:'orange',cn:'橙子',phonetic:'ˈɒrɪndʒ',emoji:'🍊'},{en:'grape',cn:'葡萄',phonetic:'ɡreɪp',emoji:'🍇'},{en:'duck',cn:'鸭子',phonetic:'dʌk',emoji:'🦆'},{en:'pig',cn:'猪',phonetic:'pɪɡ',emoji:'🐷'},{en:'star',cn:'星星',phonetic:'stɑː',emoji:'⭐'},{en:'moon',cn:'月亮',phonetic:'muːn',emoji:'🌙'},{en:'tree',cn:'树',phonetic:'triː',emoji:'🌳'},{en:'flower',cn:'花',phonetic:'ˈflaʊə',emoji:'🌸'},{en:'rain',cn:'雨',phonetic:'reɪn',emoji:'🌧️'},{en:'snow',cn:'雪',phonetic:'snəʊ',emoji:'❄️'},{en:'eye',cn:'眼睛',phonetic:'aɪ',emoji:'👁️'},{en:'nose',cn:'鼻子',phonetic:'nəʊz',emoji:'👃'},{en:'hand',cn:'手',phonetic:'hænd',emoji:'🤚'},{en:'car',cn:'小汽车',phonetic:'kɑː',emoji:'🚗'}],sentences:[{en:'Hello!',cn:'你好！',emoji:'👋'},{en:'Good morning.',cn:'早上好。',emoji:'🌅'},{en:'Thank you.',cn:'谢谢。',emoji:'🙏'},{en:'Goodbye.',cn:'再见。',emoji:'👋'},{en:'I love you.',cn:'我爱你。',emoji:'❤️'},{en:'How are you?',cn:'你好吗？',emoji:'😊'},{en:'Good night.',cn:'晚安。',emoji:'🌙'},{en:'I am happy.',cn:'我很开心。',emoji:'😄'},{en:'What is this?',cn:'这是什么？',emoji:'🤔'},{en:'It is a cat.',cn:'它是一只猫。',emoji:'🐱'},{en:'I like apples.',cn:'我喜欢苹果。',emoji:'🍎'},{en:'See you tomorrow.',cn:'明天见。',emoji:'👋'}]},
+    gradeK:{words:[{en:'apple',cn:'苹果',phonetic:'ˈæpəl',emoji:'🍎'},{en:'banana',cn:'香蕉',phonetic:'bəˈnɑːnə',emoji:'🍌'},{en:'cat',cn:'猫',phonetic:'kæt',emoji:'🐱'},{en:'dog',cn:'狗',phonetic:'dɒɡ',emoji:'🐶'},{en:'egg',cn:'蛋',phonetic:'eɡ',emoji:'🥚'},{en:'fish',cn:'鱼',phonetic:'fɪʃ',emoji:'🐟'},{en:'milk',cn:'牛奶',phonetic:'mɪlk',emoji:'🥛'},{en:'sun',cn:'太阳',phonetic:'sʌn',emoji:'☀️'},{en:'red',cn:'红色',phonetic:'red',emoji:'🟥'},{en:'blue',cn:'蓝色',phonetic:'bluː',emoji:'🟦'},{en:'bird',cn:'鸟',phonetic:'bɜːd',emoji:'🐦'},{en:'cake',cn:'蛋糕',phonetic:'keɪk',emoji:'🎂'},{en:'orange',cn:'橙子',phonetic:'ˈɒrɪndʒ',emoji:'🍊'},{en:'grape',cn:'葡萄',phonetic:'ɡreɪp',emoji:'🍇'},{en:'duck',cn:'鸭子',phonetic:'dʌk',emoji:'🦆'},{en:'pig',cn:'猪',phonetic:'pɪɡ',emoji:'🐷'},{en:'star',cn:'星星',phonetic:'stɑː',emoji:'⭐'},{en:'moon',cn:'月亮',phonetic:'muːn',emoji:'🌙'},{en:'tree',cn:'树',phonetic:'triː',emoji:'🌳'},{en:'flower',cn:'花',phonetic:'ˈflaʊə',emoji:'🌸'},{en:'rain',cn:'雨',phonetic:'reɪn',emoji:'🌧️'},{en:'snow',cn:'雪',phonetic:'snəʊ',emoji:'❄️'},{en:'eye',cn:'眼睛',phonetic:'aɪ',emoji:'👁️'},{en:'nose',cn:'鼻子',phonetic:'nəʊz',emoji:'👃'},{en:'hand',cn:'手',phonetic:'hænd',emoji:'🤚'},{en:'car',cn:'小汽车',phonetic:'kɑː',emoji:'🚗'},{en:'blueberry',cn:'蓝莓',phonetic:'ˈbluːbəri',emoji:'🫐'},{en:'lemon',cn:'柠檬',phonetic:'ˈlemən',emoji:'🍋'},{en:'watermelon',cn:'西瓜',phonetic:'ˈwɔːtəmelən',emoji:'🍉'},{en:'strawberry',cn:'草莓',phonetic:'ˈstrɔːbəri',emoji:'🍓'},{en:'peach',cn:'桃子',phonetic:'piːtʃ',emoji:'🍑'},{en:'pear',cn:'梨',phonetic:'peə',emoji:'🍐'},{en:'tomato',cn:'西红柿',phonetic:'təˈmɑːtəʊ',emoji:'🍅'},{en:'potato',cn:'土豆',phonetic:'pəˈteɪtəʊ',emoji:'🥔'},{en:'carrot',cn:'胡萝卜',phonetic:'ˈkærət',emoji:'🥕'},{en:'cabbage',cn:'卷心菜',phonetic:'ˈkæbɪdʒ',emoji:'🥬'},{en:'cucumber',cn:'黄瓜',phonetic:'ˈkjuːkʌmbə',emoji:'🥒'},{en:'eggplant',cn:'茄子',phonetic:'ˈeɡplɑːnt',emoji:'🍆'},{en:'pumpkin',cn:'南瓜',phonetic:'ˈpʌmpkɪn',emoji:'🎃'},{en:'onion',cn:'洋葱',phonetic:'ˈʌnjən',emoji:'🧅'},{en:'vegetable',cn:'蔬菜',phonetic:'ˈvedʒtəbl',emoji:'🥗'},{en:'fruit',cn:'水果',phonetic:'fruːt',emoji:'🍒'}],sentences:[{en:'Hello!',cn:'你好！',emoji:'👋'},{en:'Good morning.',cn:'早上好。',emoji:'🌅'},{en:'Thank you.',cn:'谢谢。',emoji:'🙏'},{en:'Goodbye.',cn:'再见。',emoji:'👋'},{en:'I love you.',cn:'我爱你。',emoji:'❤️'},{en:'How are you?',cn:'你好吗？',emoji:'😊'},{en:'Good night.',cn:'晚安。',emoji:'🌙'},{en:'I am happy.',cn:'我很开心。',emoji:'😄'},{en:'What is this?',cn:'这是什么？',emoji:'🤔'},{en:'It is a cat.',cn:'它是一只猫。',emoji:'🐱'},{en:'I like apples.',cn:'我喜欢苹果。',emoji:'🍎'},{en:'See you tomorrow.',cn:'明天见。',emoji:'👋'},{en:'I see a man in a van.',cn:'我看见货车里的一个男人。',emoji:'🚐'},{en:'A cat in a hat.',cn:'戴帽子的猫。',emoji:'🐱'},{en:'I like oranges.',cn:'我喜欢橙子。',emoji:'🍊'},{en:'This is a lemon.',cn:'这是一个柠檬。',emoji:'🍋'},{en:'I like blueberries.',cn:'我喜欢蓝莓。',emoji:'🫐'},{en:'I see an apple.',cn:'我看见一个苹果。',emoji:'🍎'},{en:'It is a dog.',cn:'它是一只狗。',emoji:'🐶'},{en:'I have a book.',cn:'我有一本书。',emoji:'📖'}]},
     grade1:{words:[{en:'book',cn:'书',phonetic:'bʊk'},{en:'pen',cn:'笔',phonetic:'pen'},{en:'school',cn:'学校',phonetic:'skuːl'},{en:'teacher',cn:'老师',phonetic:'ˈtiːtʃə'},{en:'student',cn:'学生',phonetic:'ˈstjuːdənt'},{en:'red',cn:'红色',phonetic:'red'},{en:'blue',cn:'蓝色',phonetic:'bluː'},{en:'green',cn:'绿色',phonetic:'ɡriːn'},{en:'yellow',cn:'黄色',phonetic:'ˈjeləʊ'},{en:'pencil',cn:'铅笔',phonetic:'ˈpensl'},{en:'ruler',cn:'尺子',phonetic:'ˈruːlə'},{en:'eraser',cn:'橡皮',phonetic:'ɪˈreɪzə'},{en:'bag',cn:'书包',phonetic:'bæɡ'},{en:'desk',cn:'课桌',phonetic:'desk'},{en:'chair',cn:'椅子',phonetic:'tʃeə'},{en:'blackboard',cn:'黑板',phonetic:'ˈblækbɔːd'},{en:'classroom',cn:'教室',phonetic:'ˈklɑːsruːm'},{en:'boy',cn:'男孩',phonetic:'bɔɪ'},{en:'girl',cn:'女孩',phonetic:'ɡɜːl'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'morning',cn:'早上',phonetic:'ˈmɔːnɪŋ'},{en:'afternoon',cn:'下午',phonetic:'ˌɑːftəˈnuːn'},{en:'one',cn:'一',phonetic:'wʌn'},{en:'two',cn:'二',phonetic:'tuː'}],sentences:[{en:'I am a student.',cn:'我是一名学生。'},{en:'What is your name?',cn:'你叫什么名字？'},{en:'Nice to meet you.',cn:'很高兴认识你。'},{en:'Stand up, please.',cn:'请起立。'},{en:'Open your book.',cn:'打开你的书。'},{en:'My name is Li Ming.',cn:'我的名字是李明。'},{en:'Sit down, please.',cn:'请坐下。'},{en:'Close your book.',cn:'合上你的书。'},{en:'What color is it?',cn:'它是什么颜色？'},{en:'It is red.',cn:'它是红色的。'},{en:'How old are you?',cn:'你几岁了？'},{en:'I am seven years old.',cn:'我七岁了。'}]},
     grade2:{words:[{en:'family',cn:'家庭',phonetic:'ˈfæməli'},{en:'father',cn:'爸爸',phonetic:'ˈfɑːðə'},{en:'mother',cn:'妈妈',phonetic:'ˈmʌðə'},{en:'brother',cn:'兄弟',phonetic:'ˈbrʌðə'},{en:'sister',cn:'姐妹',phonetic:'ˈsɪstə'},{en:'friend',cn:'朋友',phonetic:'frend'},{en:'home',cn:'家',phonetic:'həʊm'},{en:'love',cn:'爱',phonetic:'lʌv'},{en:'grandma',cn:'奶奶/姥姥',phonetic:'ˈɡrænmɑː'},{en:'grandpa',cn:'爷爷/姥爷',phonetic:'ˈɡrænpɑː'},{en:'uncle',cn:'叔叔',phonetic:'ˈʌŋkl'},{en:'aunt',cn:'阿姨',phonetic:'ɑːnt'},{en:'tall',cn:'高的',phonetic:'tɔːl'},{en:'short',cn:'矮的/短的',phonetic:'ʃɔːt'},{en:'fat',cn:'胖的',phonetic:'fæt'},{en:'thin',cn:'瘦的',phonetic:'θɪn'},{en:'young',cn:'年轻的',phonetic:'jʌŋ'},{en:'old',cn:'年老的',phonetic:'əʊld'},{en:'kind',cn:'和蔼的',phonetic:'kaɪnd'},{en:'pretty',cn:'漂亮的',phonetic:'ˈprɪti'},{en:'strong',cn:'强壮的',phonetic:'strɒŋ'},{en:'cute',cn:'可爱的',phonetic:'kjuːt'},{en:'baby',cn:'婴儿',phonetic:'ˈbeɪbi'},{en:'parents',cn:'父母',phonetic:'ˈpeərənts'}],sentences:[{en:'This is my family.',cn:'这是我的家庭。'},{en:'I love my mom.',cn:'我爱我的妈妈。'},{en:'He is my brother.',cn:'他是我的兄弟。'},{en:'She is my friend.',cn:'她是我的朋友。'},{en:'My father is tall.',cn:'我爸爸很高。'},{en:'Where is your home?',cn:'你家在哪里？'},{en:'My mother is kind.',cn:'我妈妈很和蔼。'},{en:'She is tall and thin.',cn:'她又高又瘦。'},{en:'I have a baby brother.',cn:'我有一个小弟弟。'},{en:'We are a happy family.',cn:'我们是一个幸福的家庭。'},{en:'My father is strong.',cn:'我爸爸很强壮。'},{en:'This is my grandma.',cn:'这是我的奶奶。'}]},
     grade3:{words:[{en:'weather',cn:'天气',phonetic:'ˈweðə'},{en:'sunny',cn:'晴朗',phonetic:'ˈsʌni'},{en:'rainy',cn:'下雨',phonetic:'ˈreɪni'},{en:'windy',cn:'有风',phonetic:'ˈwɪndi'},{en:'cloudy',cn:'多云',phonetic:'ˈklaʊdi'},{en:'snowy',cn:'下雪',phonetic:'ˈsnəʊi'},{en:'hot',cn:'热',phonetic:'hɒt'},{en:'cold',cn:'冷',phonetic:'kəʊld'},{en:'food',cn:'食物',phonetic:'fuːd'},{en:'rice',cn:'米饭',phonetic:'raɪs'},{en:'water',cn:'水',phonetic:'ˈwɔːtə'},{en:'animal',cn:'动物',phonetic:'ˈænɪml'},{en:'warm',cn:'暖和的',phonetic:'wɔːm'},{en:'cool',cn:'凉爽的',phonetic:'kuːl'},{en:'spring',cn:'春天',phonetic:'sprɪŋ'},{en:'summer',cn:'夏天',phonetic:'ˈsʌmə'},{en:'autumn',cn:'秋天',phonetic:'ˈɔːtəm'},{en:'winter',cn:'冬天',phonetic:'ˈwɪntə'},{en:'noodle',cn:'面条',phonetic:'ˈnuːdl'},{en:'meat',cn:'肉',phonetic:'miːt'},{en:'vegetable',cn:'蔬菜',phonetic:'ˈvedʒtəbl'},{en:'fruit',cn:'水果',phonetic:'fruːt'},{en:'panda',cn:'熊猫',phonetic:'ˈpændə'},{en:'elephant',cn:'大象',phonetic:'ˈelɪfənt'}],sentences:[{en:'How is the weather?',cn:'天气怎么样？'},{en:'It is sunny today.',cn:'今天是晴天。'},{en:'I like rainy days.',cn:'我喜欢雨天。'},{en:'It is very cold.',cn:'很冷。'},{en:'Do you like apples?',cn:'你喜欢苹果吗？'},{en:'What is your favorite animal?',cn:'你最喜欢的动物是什么？'},{en:'What season is it?',cn:'现在是什么季节？'},{en:'It is spring.',cn:'现在是春天。'},{en:'I like summer best.',cn:'我最喜欢夏天。'},{en:'My favorite fruit is grapes.',cn:'我最喜欢的水果是葡萄。'},{en:'The panda is cute.',cn:'熊猫很可爱。'},{en:'It is warm today.',cn:'今天很暖和。'}]},
@@ -931,7 +1002,14 @@ const Bank = {
       {char:'手',pinyin:'shǒu',word:'小手',sentence:'我的小手真能干。',emoji:'🤚',radical:'手'},
       {char:'足',pinyin:'zú',word:'足球',sentence:'我喜欢踢足球。',emoji:'⚽',radical:'足'},
       {char:'日',pinyin:'rì',word:'日子',sentence:'日子过得真快。',emoji:'☀️',radical:'日'},
-      {char:'月',pinyin:'yuè',word:'月亮',sentence:'月亮弯弯像小船。',emoji:'🌙',radical:'月'}
+      {char:'月',pinyin:'yuè',word:'月亮',sentence:'月亮弯弯像小船。',emoji:'🌙',radical:'月'},
+      {char:'禾',pinyin:'hé',word:'禾苗',sentence:'田里的禾苗绿油油。',emoji:'🌾',radical:'禾'},
+      {char:'苗',pinyin:'miáo',word:'禾苗',sentence:'禾苗长高了。',emoji:'🌱',radical:'艹'},
+      {char:'出',pinyin:'chū',word:'出发',sentence:'太阳出来了。',emoji:'🌅',radical:'凵'},
+      {char:'学',pinyin:'xué',word:'学习',sentence:'我爱学习。',emoji:'📚',radical:'子'},
+      {char:'边',pinyin:'biān',word:'路边',sentence:'路边有棵大树。',emoji:'🛣️',radical:'辶'},
+      {char:'汽',pinyin:'qì',word:'汽车',sentence:'汽车跑得真快。',emoji:'🚗',radical:'氵'},
+      {char:'雪',pinyin:'xuě',word:'雪白',sentence:'雪白的棉花像云朵。',emoji:'❄️',radical:'雨'}
     ],
     grade1:[
       {char:'天',pinyin:'tiān',word:'天空',sentence:'天空蓝蓝的。',emoji:'🌤️',radical:'大'},
