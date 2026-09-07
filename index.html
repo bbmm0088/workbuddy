@@ -265,6 +265,8 @@ const $ = (s,p=document)=>p.querySelector(s);
 const $$ = (s,p=document)=>[...p.querySelectorAll(s)];
 const todayStr = ()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const nowISO = ()=>new Date().toISOString();
+// 计算两个 'YYYY-MM-DD' 日期字符串之间的真实日历天数差（本地时区，按午夜切分）
+const daysBetween = (a,b)=>{const d1=new Date(a+'T00:00:00'),d2=new Date(b+'T00:00:00');return Math.round((d2-d1)/86400000);};
 const rnd = (n)=>Math.floor(Math.random()*n);
 const pick = (arr,n)=>{const c=[...arr];const r=[];for(let i=0;i<n&&c.length;i++){r.push(c.splice(rnd(c.length),1)[0]);}return r;};
 const shuffle = (arr)=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
@@ -482,6 +484,8 @@ const Store = {
       if(z.row===undefined)z.row=idx%5;
     });
     if(c.garden.zombies.length===0&&d_settings().zombieEnabled) c.garden.zombies.push(this.newZombie());
+    if(c.garden.lastCatchupDate===undefined) c.garden.lastCatchupDate='';
+    if(c.garden.lastCatchupDays===undefined) c.garden.lastCatchupDays=0;
     if(!c.pets) c.pets=[];
     // 为已有宠物补充新字段（兼容旧数据）
     c.pets.forEach(p=>{
@@ -1312,27 +1316,44 @@ const Garden = {
     Store.save();return true;
   },
 };
-// 每日结算：产阳光+攻击僵尸+僵尸移动（遍历所有孩子时使用，日志直接写入对应孩子）
-function gardenSettleFor(c){
+// 每日结算：产阳光+攻击僵尸+僵尸移动
+// 参数 days：实际补算的天数（默认1；离线N天后打开App会传N，最多7）。
+// 第1天用昨日真实完成率（c.today 里仍有昨天数据），
+// 第2~N天用补算方式（视为孩子该天未完成任务，rate=0、doneCount=0）。
+function gardenSettleFor(c, days=1){
   const defs=Garden.plantList();
-  let produce=0,totalAttack=0,hasWallnut=false;
-  for(let r=0;r<5;r++)for(let col=0;col<9;col++){
-    const cell=c.garden.grid[r][col];if(!cell)continue;
-    const d=defs[cell.type];if(!d)continue;
-    if(d.produce)produce+=d.produce;
-    if(d.attack)totalAttack+=d.attack;
-    if(d.block){hasWallnut=true;cell.hp-=100;if(cell.hp<=0)c.garden.grid[r][col]=null;}
+  const realRate=dailyRate(c);
+  const realDone=todayTaskList(c).filter(t=>c.today.tasks[t.id]?.completed).length;
+  let produce=0;
+  for(let day=0; day<days; day++){
+    // 第1天用昨日真实数据，后续补算天按0处理（当天没做任务）
+    const rate=day===0?realRate:0;
+    const doneCount=day===0?realDone:0;
+    let totalAttack=0,hasWallnut=false;
+    for(let r=0;r<5;r++)for(let col=0;col<9;col++){
+      const cell=c.garden.grid[r][col];if(!cell)continue;
+      const d=defs[cell.type];if(!d)continue;
+      if(d.produce)produce+=d.produce;
+      if(d.attack)totalAttack+=d.attack;
+      if(d.block){hasWallnut=true;cell.hp-=100;if(cell.hp<=0)c.garden.grid[r][col]=null;}
+    }
+    // 普通攻击型植物：每轮攻击第一只僵尸
+    if(c.garden.zombies.length>0&&totalAttack>0){
+      c.garden.zombies[0].hp-=totalAttack;
+      if(c.garden.zombies[0].hp<=0)c.garden.zombies.shift();
+    }
+    if(d_settings().zombieEnabled){
+      // 僵尸前进
+      if(rate<0.5&&!hasWallnut)c.garden.zombies.forEach(z=>{z.pos=Math.min(8,z.pos+1);});
+      // 保底：当日完成任意2项任务，不再新增僵尸
+      if(rate<0.3&&c.garden.zombies.length<5&&doneCount<2)c.garden.zombies.push(Store.newZombie());
+    }
   }
-  if(produce>0){c.sunlight.total+=produce;c.today.sunlight+=produce;c.logs.sunlight.unshift({time:nowISO(),action:'花园产出阳光',delta:produce,balance:c.sunlight.total});}
-  // 普通攻击型植物：攻击第一只僵尸
-  if(c.garden.zombies.length>0&&totalAttack>0){c.garden.zombies[0].hp-=totalAttack;if(c.garden.zombies[0].hp<=0)c.garden.zombies.shift();}
-  if(d_settings().zombieEnabled){
-    const rate=dailyRate(c);
-    const tasks=todayTaskList(c);
-    const doneCount=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
-    if(rate<0.5&&!hasWallnut)c.garden.zombies.forEach(z=>{z.pos=Math.min(8,z.pos+1);});
-    // 保底：当日完成任意2项任务，不再新增僵尸
-    if(rate<0.3&&c.garden.zombies.length<5&&doneCount<2)c.garden.zombies.push(Store.newZombie());
+  if(produce>0){
+    c.sunlight.total+=produce;
+    c.today.sunlight+=produce;
+    const note=days>1?`花园产出阳光（补算${days}天）`:'花园产出阳光';
+    c.logs.sunlight.unshift({time:nowISO(),action:note,delta:produce,balance:c.sunlight.total});
   }
 }
 
@@ -1689,8 +1710,10 @@ function todayTaskList(c){
 function dailyReset(){
   const today=todayStr();
   if(d_settings().lastResetDate===today)return;
+  // 真实日历天数差（漏掉N天就补算N天，封顶7天防止长假后失衡）
+  const missed=Math.max(1,Math.min(7,daysBetween(d_settings().lastResetDate,today)));
   Object.values(Store.data.children).forEach(c=>{
-    // 连续打卡判定
+    // 连续打卡判定（沿用昨日真实完成率）
     if(c.stats.lastActiveDate===d_settings().lastResetDate&&dailyRate(c)>=0.5){c.stats.streakDays++;}
     else if(dailyRate(c)<0.5){c.stats.streakDays=0;}
     // 心情归档
@@ -1698,7 +1721,9 @@ function dailyReset(){
     // 错题本：将昨日错题标记为待复习
     c.wrongQuestions.forEach(wq=>{wq.retry=true;wq.answered=false;});
     // 花园结算（必须在清空任务前，用昨日完成率判定僵尸移动）
-    gardenSettleFor(c);
+    gardenSettleFor(c, missed);
+    c.garden.lastCatchupDate=today;
+    c.garden.lastCatchupDays=missed;
     // 清空当日
     c.today={date:today,sunlight:0,tasks:{},quizRecords:{},mood:''};
     // 宠物衰减（每小时衰减由定时器处理，跨天也补一次）
@@ -1706,6 +1731,10 @@ function dailyReset(){
   });
   d_settings().lastResetDate=today;
   Store.save();
+  // 离线补算提示（仅在 App 打开时触发的那次 dailyReset 给出反馈，UI 层也会展示）
+  if(missed>1){
+    try{dispatchEvent(new CustomEvent('garden-catchup',{detail:{days:missed}}));}catch(e){}
+  }
 }
 // 每分钟检测跨天
 setInterval(dailyReset,60000);
@@ -2165,6 +2194,11 @@ const UI = {
       const c=curChild();const tasks=todayTaskList(c);
       const done=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
       const rate=tasks.length?Math.round(done/tasks.length*100):0;
+      // 花园补算提示：今天刚结算过且补算了多天时提示
+      let settleNote='';
+      if(c.garden&&c.garden.lastCatchupDate===todayStr()&&c.garden.lastCatchupDays>1){
+        settleNote=`✅ 花园已按 ${c.garden.lastCatchupDays} 天补算产出与战斗`;
+      }
       // 分科进度
       const cats={};tasks.forEach(t=>{cats[t.cat]=cats[t.cat]||{total:0,done:0};cats[t.cat].total++;if(c.today.tasks[t.id]?.completed)cats[t.cat].done++;});
       const catBars=Object.entries(cats).map(([cat,d])=>`<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span>${cat}</span><span>${d.done}/${d.total}</span></div><div class="progress-bar" style="height:10px;"><div class="progress-fill" style="width:${d.total?Math.round(d.done/d.total*100):0}%;background:linear-gradient(90deg,#66bb6a,#43a047);"></div></div></div>`).join('');
@@ -2194,6 +2228,7 @@ const UI = {
           <div style="font-size:13px;">当前僵尸：<b>${c.garden.zombies.length}</b> 只 ${c.garden.zombies.length>0?`· 最近一只血量 ${c.garden.zombies[0].hp}/${c.garden.zombies[0].maxHp}`:''}</div>
           ${rate<0.5&&c.garden.zombies.length>0?'<div style="color:var(--danger);font-size:12px;margin-top:4px;">⚠️ 完成率不足50%，僵尸会前进！</div>':''}
           ${rate>=0.8?'<div style="color:var(--primary-d);font-size:12px;margin-top:4px;">✨ 完成率≥80%，僵尸被冻结！</div>':''}
+          ${settleNote?'<div style="color:var(--primary-d);font-size:12px;margin-top:4px;">'+settleNote+'</div>':''}
         </div>
         ${c.pets.length?`<div class="floating-pet" onclick="Router.navigate('pet')" title="去看看${c.pets[0].name}">${Pet.list()[c.pets[0].type].emoji}</div>`:''}`;
     },
@@ -3184,7 +3219,7 @@ const UI = {
     const zSummary=zCount>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(74,74,74,.85);border-radius:8px;color:#fff;font-size:12px;display:flex;align-items:center;gap:8px;">🧟 <b>${zCount}</b> 只僵尸入侵花园！<span style="margin-left:auto;font-size:11px;opacity:.8;">点击僵尸查看详情/消灭</span></div>`:'<div style="margin-top:6px;padding:6px 10px;background:rgba(76,175,80,.2);border-radius:8px;color:#2e7d32;font-size:12px;">✅ 花园安全，暂无僵尸入侵</div>';
     return `<div class="card"><div class="card-title">🌻 我的花园 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showGardenHelp()">📖 玩法介绍</button></div>
       <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>${zSummary}</div>
-      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击僵尸。僵尸从右侧入侵，完成任务可阻止前进。</p></div>
+      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击僵尸。僵尸从右侧入侵，完成任务可阻止前进。<br><b style="color:var(--primary-d);">☀️ 离线会自动按天数补算产出与战斗（最多补 7 天）。</b></p></div>
       <div class="card"><div class="card-title">🛒 植物商店 <span style="font-size:11px;color:var(--text-soft);font-weight:400;margin-left:8px;">点击植物卡片 → 选择格子种植</span></div>
       <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const plantImg=d.img?`<img src="${d.img}" style="width:60px;height:60px;object-fit:contain;margin:0 auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:32px;">${d.emoji}</div>`:`<div style="font-size:32px;">${d.emoji}</div>`;
@@ -3223,6 +3258,7 @@ const UI = {
         <li>100 阳光可手动消灭 1 只僵尸</li>
         <li>所有植物攻击伤害可叠加</li>
         <li>每日凌晨统一结算产出与伤害</li>
+        <li><b>离线自动补算</b>：连续离线天数都会按真实日历补算产出/攻击/僵尸前进，最多 7 天</li>
       </ul>
     </div>`,`<button class="btn sm" onclick="closeModal()">明白了</button>`,false);
   },
@@ -3927,6 +3963,16 @@ const App = {
 function init(){
   Store.load();
   Sync.init();
+  // 离线花园补算提示（监听必须在 dailyReset 之前注册，且只提示一次）
+  let _catchupShown=false;
+  const onCatchup=(e)=>{
+    if(_catchupShown)return;_catchupShown=true;
+    const days=e.detail?.days||0;
+    if(days>1){
+      setTimeout(()=>toast(`☀️ 已补算 ${days} 天的花园产出（最多补7天）`,2400),400);
+    }
+  };
+  window.addEventListener('garden-catchup',onCatchup);
   dailyReset();
   // 更新lastActiveDate
   const c=curChild();
@@ -3952,6 +3998,7 @@ window.App=App;window.UI=UI;window.Router=Router;window.Store=Store;
 window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=undoTask;
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
 window.Pet=Pet;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;
+window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;
 
 })();
 </script>
