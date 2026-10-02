@@ -1255,9 +1255,9 @@ const Garden = {
     return{
       sunflower:{name:'向日葵',emoji:'🌻',img:'images/sunflower.png?v=1',cost:50,produce:5,attack:0,desc:'每日产出5阳光'},
       sunshroom:{name:'阳光菇',emoji:'🍄',img:'images/mushroom.png?v=1',cost:25,produce:2,attack:0,desc:'每日产出2阳光'},
-      peashooter:{name:'豌豆射手',emoji:'🟢',img:'images/peashooter.png?v=2',cost:100,produce:0,attack:10,desc:'每日攻击僵尸10血'},
-      snowpea:{name:'寒冰射手',emoji:'💙',img:'images/snowpea.png?v=2',cost:175,produce:0,attack:15,desc:'每日攻击僵尸15血'},
-      firepea:{name:'火焰豌豆',emoji:'🔥',img:'images/firepea.png?v=2',cost:200,produce:0,attack:20,desc:'每日攻击僵尸20血'},
+      peashooter:{name:'豌豆射手',emoji:'🟢',img:'images/peashooter.png?v=2',cost:100,produce:0,attack:10,desc:'每日攻击本行僵尸10血'},
+      snowpea:{name:'寒冰射手',emoji:'💙',img:'images/snowpea.png?v=2',cost:175,produce:0,attack:15,desc:'每日攻击本行僵尸15血'},
+      firepea:{name:'火焰豌豆',emoji:'🔥',img:'images/firepea.png?v=2',cost:200,produce:0,attack:20,desc:'每日攻击本行僵尸20血'},
       cherrybomb:{name:'樱桃炸弹',emoji:'🍒',img:'images/cherrybomb.png?v=2',cost:250,produce:0,attack:0,bomb:true,desc:'炸毁周围4格内所有僵尸'},
       wallnut:{name:'坚果墙',emoji:'🥜',img:'images/wallnut.png?v=2',cost:50,produce:0,attack:0,block:true,desc:'阻挡僵尸前进1天'}
     };
@@ -1329,18 +1329,26 @@ function gardenSettleFor(c, days=1){
     // 第1天用昨日真实数据，后续补算天按0处理（当天没做任务）
     const rate=day===0?realRate:0;
     const doneCount=day===0?realDone:0;
-    let totalAttack=0,hasWallnut=false;
+    let hasWallnut=false;
+    const rowAttack=[0,0,0,0,0];
     for(let r=0;r<5;r++)for(let col=0;col<9;col++){
       const cell=c.garden.grid[r][col];if(!cell)continue;
       const d=defs[cell.type];if(!d)continue;
       if(d.produce)produce+=d.produce;
-      if(d.attack)totalAttack+=d.attack;
+      if(d.attack)rowAttack[r]+=d.attack;
       if(d.block){hasWallnut=true;cell.hp-=100;if(cell.hp<=0)c.garden.grid[r][col]=null;}
     }
-    // 普通攻击型植物：每轮攻击第一只僵尸
-    if(c.garden.zombies.length>0&&totalAttack>0){
-      c.garden.zombies[0].hp-=totalAttack;
-      if(c.garden.zombies[0].hp<=0)c.garden.zombies.shift();
+    // 按行赛道攻击：本行所有攻击植物伤害叠加，只打本行最深入（pos最大）的僵尸
+    let killed=0;
+    for(let r=0;r<5;r++){
+      if(rowAttack[r]<=0)continue;
+      let target=null;
+      c.garden.zombies.forEach(z=>{if((z.row||0)===r&&(!target||(z.pos||0)>(target.pos||0)))target=z;});
+      if(target){target.hp-=rowAttack[r];if(target.hp<=0)killed++;}
+    }
+    if(killed>0){
+      c.garden.zombies=c.garden.zombies.filter(z=>z.hp>0);
+      c.logs.sunlight.unshift({time:nowISO(),action:`⚔️ 花园植物击杀了 ${killed} 只僵尸！`,delta:0,balance:c.sunlight.total});
     }
     if(d_settings().zombieEnabled){
       // 僵尸前进
@@ -3216,10 +3224,15 @@ const UI = {
     }}
     // 僵尸汇总信息栏（仅在有僵尸时显示）
     const zCount=c.garden.zombies.length;
-    const zSummary=zCount>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(74,74,74,.85);border-radius:8px;color:#fff;font-size:12px;display:flex;align-items:center;gap:8px;">🧟 <b>${zCount}</b> 只僵尸入侵花园！<span style="margin-left:auto;font-size:11px;opacity:.8;">点击僵尸查看详情/消灭</span></div>`:'<div style="margin-top:6px;padding:6px 10px;background:rgba(76,175,80,.2);border-radius:8px;color:#2e7d32;font-size:12px;">✅ 花园安全，暂无僵尸入侵</div>';
+    // 找出有僵尸但没有攻击植物把守的行（提醒孩子补防线）
+    const atkRows=new Set();
+    for(let r=0;r<5;r++)for(let col=0;col<9;col++){const cell=c.garden.grid[r][col];if(cell&&defs[cell.type]&&defs[cell.type].attack)atkRows.add(r);}
+    const undefendedRows=[...new Set(c.garden.zombies.map(z=>z.row!==undefined?z.row:0))].filter(r=>!atkRows.has(r)).sort((a,b)=>a-b);
+    const undefendTip=(zCount>0&&undefendedRows.length>0)?`<span style="color:#ff8a65;margin-left:8px;">⚠️ 第${undefendedRows.map(r=>r+1).join('、')}行没有攻击植物！</span>`:'';
+    const zSummary=zCount>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(74,74,74,.85);border-radius:8px;color:#fff;font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">🧟 <b>${zCount}</b> 只僵尸入侵花园！${undefendTip}<span style="margin-left:auto;font-size:11px;opacity:.8;">点击僵尸查看详情/消灭</span></div>`:'<div style="margin-top:6px;padding:6px 10px;background:rgba(76,175,80,.2);border-radius:8px;color:#2e7d32;font-size:12px;">✅ 花园安全，暂无僵尸入侵</div>';
     return `<div class="card"><div class="card-title">🌻 我的花园 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showGardenHelp()">📖 玩法介绍</button></div>
       <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>${zSummary}</div>
-      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击僵尸。僵尸从右侧入侵，完成任务可阻止前进。<br><b style="color:var(--primary-d);">☀️ 离线会自动按天数补算产出与战斗（最多补 7 天）。</b></p></div>
+      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击<b>本行</b>僵尸，同一行的伤害叠加。僵尸从右侧入侵，完成任务可阻止前进。<br><b style="color:var(--primary-d);">☀️ 离线会自动按天数补算产出与战斗（最多补 7 天）。</b></p></div>
       <div class="card"><div class="card-title">🛒 植物商店 <span style="font-size:11px;color:var(--text-soft);font-weight:400;margin-left:8px;">点击植物卡片 → 选择格子种植</span></div>
       <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const plantImg=d.img?`<img src="${d.img}" style="width:60px;height:60px;object-fit:contain;margin:0 auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:32px;">${d.emoji}</div>`:`<div style="font-size:32px;">${d.emoji}</div>`;
@@ -3237,9 +3250,9 @@ const UI = {
       <ul style="padding-left:18px;font-size:12px;">
         <li>🌻 <b>向日葵</b>（50☀️）每日产出 5 阳光</li>
         <li>🍄 <b>阳光菇</b>（25☀️）每日产出 2 阳光</li>
-        <li>🟢 <b>豌豆射手</b>（100☀️）每日攻击僵尸 10 血</li>
-        <li>💙 <b>寒冰射手</b>（175☀️）每日攻击 15 血</li>
-        <li>🔥 <b>火焰豌豆</b>（200☀️）每日攻击 20 血</li>
+        <li>🟢 <b>豌豆射手</b>（100☀️）每日攻击本行僵尸 10 血</li>
+        <li>💙 <b>寒冰射手</b>（175☀️）每日攻击本行僵尸 15 血</li>
+        <li>🔥 <b>火焰豌豆</b>（200☀️）每日攻击本行僵尸 20 血</li>
         <li>🍒 <b>樱桃炸弹</b>（250☀️）炸毁周围四格所有僵尸</li>
         <li>🥜 <b>坚果墙</b>（50☀️）阻挡僵尸前进 1 天</li>
       </ul>
@@ -3252,11 +3265,17 @@ const UI = {
         <li><b>完成率≥80%</b>：僵尸冻结不动</li>
         <li><b>当日完成任意 2 项任务</b>：保底不再新增僵尸</li>
       </ul>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">⚔️ 攻击规则（按行赛道）</h4>
+      <ul style="padding-left:18px;font-size:12px;">
+        <li>每行是一条独立赛道：<b>同一行的攻击植物伤害叠加</b>，只打本行最深入（最靠左）的那只僵尸</li>
+        <li>想守住哪一行，就要在那一种攻击植物；<b>某行没有攻击植物时，该行僵尸不受伤害</b></li>
+        <li>行与行之间互不干扰，植物不会跨行攻击</li>
+      </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">💡 小贴士</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>首次撤销种植免费，后续每次扣 10 阳光</li>
         <li>100 阳光可手动消灭 1 只僵尸</li>
-        <li>所有植物攻击伤害可叠加</li>
+        <li>同一行内植物攻击伤害可叠加</li>
         <li>每日凌晨统一结算产出与伤害</li>
         <li><b>离线自动补算</b>：连续离线天数都会按真实日历补算产出/攻击/僵尸前进，最多 7 天</li>
       </ul>
