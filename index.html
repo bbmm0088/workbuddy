@@ -1391,7 +1391,10 @@ const Pet = {
           normal:'images/labrador.jpg?v=3',
           happy:'images/labrador.jpg?v=3',
           sad:'images/labrador_sad.jpg?v=3',
-          feed:'images/labrador_feed.jpg?v=3'
+          feed:'images/labrador_feed.jpg?v=3',
+          touch:'images/labrador_touch.jpg?v=1',
+          play:'images/labrador_play.jpg?v=1',
+          wash:'images/labrador_wash.jpg?v=1'
         },
         desc:'温柔的拉布拉多，戴橙色项圈，最喜欢和主人玩耍。',cost:100,attrs:{饱食:'高',亲密:'高',攻击:'低',防御:'中'}
       },
@@ -3364,31 +3367,21 @@ const UI = {
       let animClass='pet-anim blink'; // 默认闲置眨眼
       if(def.imgs){
         const now=Date.now();
-        const recentFeed=p.lastFeedAt&&(now-p.lastFeedAt)<10000;
-        const recentTouch=p.lastTouchAt&&(now-p.lastTouchAt)<10000;
-        const recentCall=p.lastCallAt&&(now-p.lastCallAt)<8000;
-        const recentPlay=p.lastPlayAt&&(now-p.lastPlayAt)<10000;
-        const recentWash=p.lastWashAt&&(now-p.lastWashAt)<10000;
+        // 收集时间窗口内触发过的互动，按触发时间取最近的一次显示（最近互动最直观）
+        const acts=[
+          {at:p.lastFeedAt,win:10000,img:def.imgs.feed||def.imgs.happy,label:'🍖 吃东西',anim:'pet-anim eat'},
+          {at:p.lastPlayAt,win:10000,img:def.imgs.play||def.imgs.happy,label:'🎾 玩耍中',anim:'pet-anim play'},
+          {at:p.lastWashAt,win:10000,img:def.imgs.wash||def.imgs.happy,label:'🛁 洗澡中',anim:'pet-anim wash'},
+          {at:p.lastTouchAt,win:10000,img:def.imgs.touch||def.imgs.happy,label:def.imgs.touch?'🤗 抚摸中':'😊 好开心',anim:'pet-anim happy'},
+          {at:p.lastCallAt,win:8000,img:def.imgs.happy,label:'📢 听到名字了',anim:'pet-anim call'}
+        ].filter(a=>a.img);
+        const recent=acts.filter(a=>a.at&&(now-a.at)<a.win).sort((a,b)=>b.at-a.at)[0];
         if(p.status==='dead'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';animClass='';
         }else if(p.status==='sick'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='🤒 生病了';animClass='pet-anim sick';
-        }else if(recentFeed&&def.imgs.feed){
-          petImgSrc=def.imgs.feed;petStateLabel='🍖 吃东西';animClass='pet-anim eat';
-        }else if(recentPlay&&def.imgs.play){
-          petImgSrc=def.imgs.play;petStateLabel='🎾 玩耍中';animClass='pet-anim play';
-        }else if(recentPlay&&def.imgs.happy){
-          petImgSrc=def.imgs.happy;petStateLabel='🎾 玩耍中';animClass='pet-anim play';
-        }else if(recentWash&&def.imgs.wash){
-          petImgSrc=def.imgs.wash;petStateLabel='🛁 洗澡中';animClass='pet-anim wash';
-        }else if(recentWash&&def.imgs.happy){
-          petImgSrc=def.imgs.happy;petStateLabel='🛁 洗澡中';animClass='pet-anim wash';
-        }else if(recentTouch&&def.imgs.touch){
-          petImgSrc=def.imgs.touch;petStateLabel='🤗 抚摸中';animClass='pet-anim happy';
-        }else if(recentTouch&&def.imgs.happy){
-          petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';animClass='pet-anim happy';
-        }else if(recentCall&&def.imgs.happy){
-          petImgSrc=def.imgs.happy;petStateLabel='📢 听到名字了';animClass='pet-anim call';
+        }else if(recent){
+          petImgSrc=recent.img;petStateLabel=recent.label;animClass=recent.anim;
         }else if(p.status==='hungry'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='😟 饿了';animClass='pet-anim wag';
         }else if(def.imgs.happy){
@@ -3999,13 +3992,15 @@ function init(){
   UI.render();
   // 首次交互激活音频
   document.addEventListener('click',()=>Audio.init(),{once:true});
-  // 宠物图片自动刷新：喂食/抚摸后10秒自动恢复开心图
+  // 宠物图片自动刷新：喂食/抚摸/玩耍/洗澡后10秒自动恢复常驻图
   setInterval(()=>{
     const cc=curChild();if(!cc)return;
     const need=cc.pets.some(p=>{
       const now=Date.now();
       return (p.lastFeedAt&&(now-p.lastFeedAt)>9800&&(now-p.lastFeedAt)<10200)
-          || (p.lastTouchAt&&(now-p.lastTouchAt)>9800&&(now-p.lastTouchAt)<10200);
+          || (p.lastTouchAt&&(now-p.lastTouchAt)>9800&&(now-p.lastTouchAt)<10200)
+          || (p.lastPlayAt&&(now-p.lastPlayAt)>9800&&(now-p.lastPlayAt)<10200)
+          || (p.lastWashAt&&(now-p.lastWashAt)>9800&&(now-p.lastWashAt)<10200);
     });
     if(need&&State.view==='pet')UI.renderPet&&UI.render();
   },1000);
