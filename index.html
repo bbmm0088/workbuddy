@@ -1484,6 +1484,95 @@ function gardenSettleFor(c, days=1){
   }
 }
 
+/* ============ PetVoice 宠物唤名声音模块 ============ */
+const PetVoice = {
+  recorder:null, chunks:[], stream:null, recordingId:null,
+  _audioEl:null,
+  // 播放宠物唤名声音：优先自定义录音(dataURL)，否则语音合成
+  play(pet){
+    const src=pet&&pet.callSound;
+    if(src){
+      try{
+        if(this._audioEl){try{this._audioEl.pause();}catch(e){}}
+        // 注意：应用内 const Audio 是音效模块，会遮蔽原生构造器，必须用 window.Audio
+        const a=new window.Audio(src);this._audioEl=a;a.volume=1;
+        const pr=a.play();
+        if(pr&&pr.catch)pr.catch(()=>{speak(pet.name);});
+        return;
+      }catch(e){/* 回退到语音合成 */}
+    }
+    speak(pet&&pet.name?pet.name:'');
+  },
+  // 是否支持录音
+  supported(){return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);},
+  // 开始录音（针对某只宠物）
+  async startRecord(petId){
+    if(!this.supported()){toast('当前浏览器不支持录音，可改用「上传音频」');return;}
+    if(State.mode!=='parent'){toast('请先进入家长模式');return;}
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      this.stream=stream;this.chunks=[];this.recordingId=petId;
+      const mime=MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':(MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'');
+      const rec=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
+      this.recorder=rec;
+      rec.ondataavailable=(e)=>{if(e.data&&e.data.size)this.chunks.push(e.data);};
+      rec.onstop=()=>{
+        try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
+        this.stream=null;
+        const blob=new Blob(this.chunks,{type:rec.mimeType||'audio/webm'});
+        this._blobToDataURL(blob,(dataUrl)=>{
+          const c=curChild();const p=c.pets.find(x=>x.id===this.recordingId);
+          if(p){p.callSound=dataUrl;p.callSoundAt=nowISO();Store.save();toast('🎤 已保存「'+p.name+'」的唤名声音');UI.render();}
+        });
+        this.recorder=null;
+        const st=$('#pvStatus');if(st)st.textContent='录音结束，已保存';
+      };
+      rec.start();
+      const st=$('#pvStatus');if(st)st.textContent='🎙️ 正在录音…点击「停止」结束';
+      toast('开始录音，请清晰地说出宠物名字');
+    }catch(e){
+      toast('无法访问麦克风：'+(e&&e.message?e.message:'请检查权限'));
+    }
+  },
+  stopRecord(){
+    if(this.recorder&&this.recorder.state!=='inactive'){
+      try{this.recorder.stop();}catch(e){}
+    }else{
+      toast('当前没有在录音');
+    }
+  },
+  _blobToDataURL(blob,cb){
+    const r=new FileReader();
+    r.onload=()=>cb(r.result);
+    r.onerror=()=>toast('录音读取失败');
+    r.readAsDataURL(blob);
+  },
+  // 上传本地音频文件
+  upload(petId,input){
+    const f=input&&input.files&&input.files[0];
+    if(!f){return;}
+    if(f.size>1024*1024*2){toast('音频文件请小于 2MB');return;}
+    const r=new FileReader();
+    r.onload=()=>{
+      const c=curChild();const p=c.pets.find(x=>x.id===petId);
+      if(p){p.callSound=r.result;p.callSoundAt=nowISO();Store.save();toast('📁 已上传「'+p.name+'」的唤名声音');UI.render();}
+    };
+    r.onerror=()=>toast('文件读取失败');
+    r.readAsDataURL(f);
+  },
+  // 删除自定义声音
+  clear(petId){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    delete p.callSound;delete p.callSoundAt;
+    Store.save();toast('已删除「'+p.name+'」的自定义声音，恢复默认朗读');UI.render();
+  },
+  // 试听
+  preview(pet){
+    if(pet.callSound){this.play(pet);}
+    else{speak(pet.name);toast('暂无自定义声音，正在朗读默认名字');}
+  }
+};
+
 /* ============ Pet 模块 ============ */
 const Pet = {
   defaultDefs(){
@@ -1641,11 +1730,11 @@ const Pet = {
     p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
     Log.pet('遛宠',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();
   },
-  call(petId){ // 唤名：不限次数，每天仅首次加亲密度；始终朗读名字（真的发出声音）
+  call(petId){ // 唤名：不限次数，每天仅首次加亲密度；优先播放家长自定义录音，否则语音合成
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     const today=todayStr();
-    // 每次唤名都朗读宠物名字（语音合成发音）
-    speak(p.name);
+    // 播放唤名声音：有自定义录音用录音，否则用语音合成朗读名字
+    PetVoice.play(p);
     p.lastCallAt=Date.now();
     if(p.lastCallRewardDate!==today){
       p.lastCallRewardDate=today;
@@ -1655,7 +1744,8 @@ const Pet = {
     }else{
       toast('🔊 '+p.name+'！今天已经叫过啦，明天再来～');
     }
-    Audio.play('pet');Store.save();UI.render();
+    if(!p.callSound)Audio.play('pet'); // 有自定义录音时不播蜂鸣，避免盖住录音
+    Store.save();UI.render();
   },
   play(petId){ // 玩玩具：5阳光，亲密度+15，健康+3
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
@@ -3638,7 +3728,7 @@ const UI = {
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🎮 互动玩法</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>🤗 <b>抚摸</b>（10☀️）亲密度+10</li>
-        <li>📢 <b>唤名</b>（免费）不限次数，每天<b>首次</b>亲密度+3，之后只发声不计分，宠物会有反应</li>
+        <li>📢 <b>唤名</b>（免费）不限次数，每天<b>首次</b>亲密度+3，之后只发声不计分，宠物会有反应（家长可在家长模式为宠物设置自定义唤名声音）</li>
         <li>🎾 <b>玩玩具</b>（5☀️）亲密度+15，健康+3</li>
         <li>🛁 <b>洗澡</b>（10☀️）健康+15</li>
         <li>🦮 <b>遛宠</b>（10☀️）亲密度+10</li>
@@ -3913,6 +4003,23 @@ const UI = {
         </div>
         <p style="font-size:12px;color:var(--text-soft);margin-top:4px;">审核模式开启后，练字/阅读/运动/家务/德育需家长确认才算完成</p>
         <button class="btn sm" style="margin-top:10px;" onclick="UI.saveSettings()">保存设置</button>
+      </div>
+      <div class="card"><div class="card-title">🎤 宠物唤名声音 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长可录制/上传，孩子唤名时播放）</span></div>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">「唤名」时若设置了自定义声音则播放该录音，否则用语音合成朗读名字。录音建议 1-3 秒，清晰地说出宠物名字。</p>
+        ${c.pets.length?`<div id="pvStatus" style="font-size:12px;color:var(--primary-d);min-height:16px;margin-bottom:6px;"></div>
+        ${c.pets.map(p=>`<div class="log-item" style="flex-wrap:wrap;">
+          <span style="display:flex;align-items:center;gap:6px;">
+            <b>${(Pet.list()[p.type]||{}).emoji||'🐾'} ${p.name}</b>
+            ${p.callSound?'<span style="font-size:11px;color:var(--primary-d);">✅ 已有自定义声音</span>':'<span style="font-size:11px;color:var(--text-light);">默认语音朗读</span>'}
+          </span>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+            <button class="btn sm" style="font-size:11px;" onclick="PetVoice.startRecord('${p.id}')">🎙️ 录音</button>
+            <button class="btn ghost sm" style="font-size:11px;" onclick="PetVoice.stopRecord()">⏹️ 停止</button>
+            <label class="btn ghost sm" style="font-size:11px;cursor:pointer;">📁 上传<input type="file" accept="audio/*" style="display:none;" onchange="PetVoice.upload('${p.id}',this)"></label>
+            <button class="btn sky sm" style="font-size:11px;" onclick="PetVoice.preview(curChild().pets.find(x=>x.id==='${p.id}'))">🔊 试听</button>
+            ${p.callSound?`<button class="btn danger sm" style="font-size:11px;" onclick="PetVoice.clear('${p.id}')">🗑️ 删除</button>`:''}
+          </div>
+        </div>`).join('')}`:'<div style="color:var(--text-light);text-align:center;padding:10px;font-size:12px;">还没有宠物，先在孩子模式领养宠物后可设置唤名声音</div>'}
       </div>
       ${(d_settings().hiddenTasks||[]).length?`<div class="card"><div class="card-title">🚫 已隐藏任务 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（点击恢复显示）</span></div><div style="display:flex;gap:4px;flex-wrap:wrap;">${(d_settings().hiddenTasks||[]).map(id=>{
         // 尝试从任务定义中查找名称
@@ -4205,7 +4312,7 @@ init();
 window.App=App;window.UI=UI;window.Router=Router;window.Store=Store;
 window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=undoTask;
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
-window.Pet=Pet;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;
+window.Pet=Pet;window.PetVoice=PetVoice;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;
 window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;window.recordZombieKill=recordZombieKill;
 
 })();
