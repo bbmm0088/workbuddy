@@ -272,6 +272,8 @@ const pick = (arr,n)=>{const c=[...arr];const r=[];for(let i=0;i<n&&c.length;i++
 const shuffle = (arr)=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
 const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+// 唤名录音单条上限（base64 前），建议 1-3 秒清晰说出名字
+const MAX_VOICE_BYTES = 200*1024;
 
 function toast(msg,ms=1800){const r=$('#toastRoot');const t=document.createElement('div');t.className='toast';t.textContent=msg;r.appendChild(t);setTimeout(()=>t.remove(),ms);}
 function sunFloat(x,y,txt){const f=document.createElement('div');f.className='sun-float';f.textContent=txt;f.style.left=x+'px';f.style.top=y+'px';document.body.appendChild(f);setTimeout(()=>f.remove(),1200);}
@@ -413,7 +415,39 @@ const Store = {
     this.migrate();
     return this.data;
   },
-  save(){try{localStorage.setItem(this.KEY,JSON.stringify(this.data));Sync.broadcast();}catch(e){console.warn('save fail',e);}},
+  save(){
+    try{
+      localStorage.setItem(this.KEY,JSON.stringify(this.data));
+      this._quotaWarned=false;
+      Sync.broadcast();
+    }catch(e){
+      // 配额超限（常见于录入多个唤名录音后）——不能静默失败，否则后续所有改动都会丢
+      const isQuota=(e&&(e.name==='QuotaExceededError'||e.code===22||e.code===1014||/quota/i.test(e.message||'')));
+      if(isQuota){
+        if(!this._quotaWarned){
+          this._quotaWarned=true;
+          const size=this.approxSizeMB();
+          try{toast('⚠️ 本地存储已满（约'+size+'MB），最新改动未保存！请在家长模式删除部分唤名录音或导出备份后清理');}catch(_){}
+        }
+        // 抛出标记，便于上层感知（不阻断其它逻辑）
+        this._lastQuotaError={at:Date.now(),size:this.approxSizeMB()};
+      }else{
+        console.warn('save fail',e);
+      }
+    }
+  },
+  // 估算当前数据体积（MB，保留两位）
+  approxSizeMB(){
+    try{return Math.round((JSON.stringify(this.data).length/1024/1024)*100)/100;}catch(e){return 0;}
+  },
+  // 统计所有孩子唤名录音数量与体积（用于家长页展示）
+  voiceUsage(){
+    let count=0,bytes=0;
+    Object.values(this.data.children||{}).forEach(ch=>{
+      (ch.pets||[]).forEach(p=>{if(p.callSound){count++;bytes+=p.callSound.length;}});
+    });
+    return {count,bytes,kb:Math.round(bytes/1024)};
+  },
   migrate(){
     const d=this.data;
     if(!d.version) d.version='1.0';
@@ -1528,6 +1562,13 @@ const PetVoice = {
         try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
         this.stream=null;
         const blob=new Blob(this.chunks,{type:rec.mimeType||'audio/webm'});
+        // 录音体积保护：base64 后过大容易撑爆 localStorage
+        if(blob.size>MAX_VOICE_BYTES){
+          toast('录音太长（'+Math.round(blob.size/1024)+'KB），请控制在 '+(MAX_VOICE_BYTES/1024)+'KB 以内（约 1-3 秒）');
+          this.recorder=null;
+          const st0=$('#pvStatus');if(st0)st0.textContent='录音过大，未保存，请重录';
+          return;
+        }
         this._blobToDataURL(blob,(dataUrl)=>{
           const p=this._findPet(this.recordingChildId,this.recordingId);
           if(p){p.callSound=dataUrl;p.callSoundAt=nowISO();Store.save();toast('🎤 已保存「'+p.name+'」的唤名声音');UI.render();}
@@ -1559,7 +1600,7 @@ const PetVoice = {
   upload(petId,input,childId){
     const f=input&&input.files&&input.files[0];
     if(!f){return;}
-    if(f.size>1024*1024*2){toast('音频文件请小于 2MB');return;}
+    if(f.size>MAX_VOICE_BYTES){toast('音频文件请小于 '+(MAX_VOICE_BYTES/1024)+'KB（约 1-3 秒），太大易撑爆本地存储');return;}
     const r=new FileReader();
     r.onload=()=>{
       const p=this._findPet(childId,petId);
@@ -4025,7 +4066,8 @@ const UI = {
         <button class="btn sm" style="margin-top:10px;" onclick="UI.saveSettings()">保存设置</button>
       </div>
       <div class="card"><div class="card-title">🎤 宠物唤名声音 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（按孩子分开管理，孩子唤名时播放）</span></div>
-        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">「唤名」时若设置了自定义声音则播放该录音，否则用语音合成朗读名字。录音建议 1-3 秒，清晰说出宠物名字。每个孩子的宠物声音互相独立。</p>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">「唤名」时若设置了自定义声音则播放该录音，否则用语音合成朗读名字。录音建议 1-3 秒，清晰说出宠物名字。每个孩子的宠物声音互相独立。<b>录音会随数据一起导出/云同步</b>。</p>
+        ${(()=>{const u=Store.voiceUsage();const total=Store.approxSizeMB();return `<div style="font-size:11px;color:var(--text-soft);margin-bottom:8px;background:var(--bg);border-radius:8px;padding:6px 8px;">📦 唤名录音：<b style="color:var(--primary-d);">${u.count}</b> 条，约 <b>${u.kb}</b> KB ｜ 本地数据总体积约 <b>${total}</b> MB（浏览器上限约 5MB）</div>`;})()}
         <div id="pvStatus" style="font-size:12px;color:var(--primary-d);min-height:16px;margin-bottom:6px;"></div>
         ${Object.entries(children).map(([cid,ch])=>{
           const isCur=cid===d_settings().currentChildId;
@@ -4039,7 +4081,7 @@ const UI = {
             ${pets.length?pets.map(p=>`<div class="log-item" style="flex-wrap:wrap;margin-bottom:4px;">
               <span style="display:flex;align-items:center;gap:6px;">
                 <b>${(Pet.list()[p.type]||{}).emoji||'🐾'} ${p.name}</b>
-                ${p.callSound?'<span style="font-size:11px;color:var(--primary-d);">✅ 已有自定义声音</span>':'<span style="font-size:11px;color:var(--text-light);">默认语音朗读</span>'}
+                ${p.callSound?'<span style="font-size:11px;color:var(--primary-d);">✅ 已有自定义声音（约 '+Math.round(p.callSound.length/1024)+'KB）</span>':'<span style="font-size:11px;color:var(--text-light);">默认语音朗读</span>'}
               </span>
               <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
                 <button class="btn sm" style="font-size:11px;" onclick="PetVoice.startRecord('${p.id}','${cid}')">🎙️ 录音</button>
