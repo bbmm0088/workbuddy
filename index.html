@@ -459,6 +459,11 @@ const Store = {
       });
     }
     if(!d.achievementDefs) d.achievementDefs=Ach.defaultDefs();
+    else{
+      // 合并后续版本新增的内置勋章（不覆盖家长自定义的）
+      const have=new Set(d.achievementDefs.map(a=>a.id));
+      Ach.defaultDefs().forEach(a=>{if(!have.has(a.id))d.achievementDefs.push(a);});
+    }
     if(d.settings.reviewMode===undefined) d.settings.reviewMode=false;
     if(!d.settings.hiddenTasks) d.settings.hiddenTasks=[];
     if(!d.deedDefs) d.deedDefs=Bank.defaultDeeds();
@@ -1301,7 +1306,7 @@ const Garden = {
       return true;
     }
     c.garden.grid[row][col]={type,plantedAt:nowISO(),hp:def.block?200:100};
-    Audio.play('plant');Store.save();return true;
+    Audio.play('plant');Ach.check();Store.save();return true;
   },
   remove(row,col){
     const c=curChild();const cell=c.garden.grid[row][col];if(!cell)return;
@@ -1441,7 +1446,7 @@ const Pet = {
     const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,health:100,bondLevel:4,status:'healthy',purchasedAt:nowISO(),lastDecayAt:Date.now(),canRegret:true,lastDailyReward:''};
     c.pets.push(pet);
     Log.pet('领养',pet.id,def.name);
-    Audio.play('pet');Store.save();
+    Audio.play('pet');Ach.check();Store.save();
     UI.promptName(pet.id,'给宠物起个名字吧～');
     return true;
   },
@@ -1650,7 +1655,17 @@ const Ach = {
       {id:'fullday',name:'每日全勤',icon:'⭐',cond:'一天内完成所有任务',custom:false},
       {id:'reader',name:'阅读达人',icon:'📚',cond:'累计阅读5次',custom:false},
       {id:'math100',name:'口算满分',icon:'🧮',cond:'口算测试全对',custom:false},
-      {id:'sport',name:'运动坚持',icon:'🏃',cond:'累计运动打卡7天',custom:false}
+      {id:'sport',name:'运动坚持',icon:'🏃',cond:'累计运动打卡7天',custom:false},
+      {id:'pet1',name:'宠物新手',icon:'🐣',cond:'养1只宠物',custom:false},
+      {id:'pet2',name:'宠物达人',icon:'🐕',cond:'养2只宠物',custom:false},
+      {id:'pet3',name:'宠物专家',icon:'🐈',cond:'养3只宠物',custom:false},
+      {id:'pet4',name:'宠物大师',icon:'🎖️',cond:'养4只宠物',custom:false},
+      {id:'pet5',name:'宠物传说',icon:'👑',cond:'养5只宠物',custom:false},
+      {id:'plant1',name:'种植新手',icon:'🌱',cond:'花园种植1棵植物',custom:false},
+      {id:'plant3',name:'种植达人',icon:'🌿',cond:'花园种植3棵植物',custom:false},
+      {id:'plant5',name:'种植专家',icon:'🌷',cond:'花园种植5棵植物',custom:false},
+      {id:'plant10',name:'种植大师',icon:'🌳',cond:'花园种植10棵植物',custom:false},
+      {id:'plant15',name:'种植传说',icon:'🌻',cond:'花园种植15棵植物',custom:false}
     ];
   },
   check(){
@@ -1667,6 +1682,12 @@ const Ach = {
     if(c.stats.perfectMathCount>=1)unlock('math100');
     // 运动坚持
     if(c.stats.sportsDays>=7)unlock('sport');
+    // 宠物养成阶梯（按当前拥有宠物数量：1新手/2达人/3专家/4大师/5传说）
+    const petCount=(c.pets||[]).length;
+    [[1,'pet1'],[2,'pet2'],[3,'pet3'],[4,'pet4'],[5,'pet5']].forEach(([n,id])=>{if(petCount>=n)unlock(id);});
+    // 花园种植阶梯（按当前花园植物数量：1新手/3达人/5专家/10大师/15传说）
+    const plantCount=(c.garden.grid||[]).flat().filter(Boolean).length;
+    [[1,'plant1'],[3,'plant3'],[5,'plant5'],[10,'plant10'],[15,'plant15']].forEach(([n,id])=>{if(plantCount>=n)unlock(id);});
     Store.save();
   }
 };
@@ -3992,6 +4013,8 @@ function init(){
   // 更新lastActiveDate
   const c=curChild();
   if(c.stats.lastActiveDate!==todayStr()){c.stats.lastActiveDate=todayStr();Store.save();}
+  // 兜底同步成就（老用户已有宠物/植物但未获得对应勋章时补发）
+  Ach.check();
   UI.render();
   // 首次交互激活音频
   document.addEventListener('click',()=>Audio.init(),{once:true});
@@ -4015,7 +4038,7 @@ window.App=App;window.UI=UI;window.Router=Router;window.Store=Store;
 window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=undoTask;
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
 window.Pet=Pet;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;
-window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;
+window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;
 
 })();
 </script>
