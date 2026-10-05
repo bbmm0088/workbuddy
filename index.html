@@ -502,7 +502,7 @@ const Store = {
     if(!c.achievements) c.achievements=[];
     if(!c.logs) c.logs={sunlight:[],pet:[]};
     if(!c.wrongQuestions) c.wrongQuestions=[];
-    if(!c.stats) c.stats={streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[]};
+    if(!c.stats) c.stats={streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[],zombieKills:0};
     if(c.stats.focusMinutes===undefined) c.stats.focusMinutes=0;
     if(c.stats.level===undefined) c.stats.level=0;
     if(!c.stats.levelGifts) c.stats.levelGifts=[];
@@ -525,7 +525,7 @@ const Store = {
           garden:{grid:this.emptyGrid(),zombies:[this.newZombie()],undoFree:true,undoCount:0},
           pets:[],achievements:[],logs:{sunlight:[],pet:[]},
           wrongQuestions:[],
-          stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[]}
+          stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[],zombieKills:0}
         }
       },
       shopItems:Shop.defaultItems(),
@@ -1295,6 +1295,7 @@ const Garden = {
         if(killed>0){
           c.logs.sunlight.unshift({time:nowISO(),action:`🍒 樱桃炸弹爆炸，炸飞 ${killed} 只僵尸！`,delta:0,balance:c.sunlight.total});
           toast(`🍒 爆炸！炸飞 ${killed} 只僵尸！`,'🎉');
+          recordZombieKill(c,killed);
         }else{
           toast('🍒 樱桃炸弹爆炸！周围没有僵尸');
         }
@@ -1321,6 +1322,12 @@ const Garden = {
     Store.save();return true;
   },
 };
+// 累计击杀僵尸并检查勋章（击杀数累加，不因僵尸重置回退）
+function recordZombieKill(c,n=1){
+  if(!c.stats)c.stats={};
+  c.stats.zombieKills=(c.stats.zombieKills||0)+n;
+  Ach.check();
+}
 // 每日结算：产阳光+攻击僵尸+僵尸移动
 // 参数 days：实际补算的天数（默认1；离线N天后打开App会传N，最多7）。
 // 第1天用昨日真实完成率（c.today 里仍有昨天数据），
@@ -1354,6 +1361,7 @@ function gardenSettleFor(c, days=1){
     if(killed>0){
       c.garden.zombies=c.garden.zombies.filter(z=>z.hp>0);
       c.logs.sunlight.unshift({time:nowISO(),action:`⚔️ 花园植物击杀了 ${killed} 只僵尸！`,delta:0,balance:c.sunlight.total});
+      recordZombieKill(c,killed);
     }
     if(d_settings().zombieEnabled){
       // 僵尸前进
@@ -1627,6 +1635,7 @@ const Shop = {
     if(item.action==='killZombie'){
       if(c.garden.zombies.length===0){toast('当前没有僵尸');return;}
       c.garden.zombies.shift();
+      recordZombieKill(c,1);
     }
     if(!spendSunlight(item.price,'兑换：'+item.name))return;
     Audio.play('redeem');
@@ -1665,7 +1674,12 @@ const Ach = {
       {id:'plant3',name:'种植达人',icon:'🌿',cond:'花园种植3棵植物',custom:false},
       {id:'plant5',name:'种植专家',icon:'🌷',cond:'花园种植5棵植物',custom:false},
       {id:'plant10',name:'种植大师',icon:'🌳',cond:'花园种植10棵植物',custom:false},
-      {id:'plant15',name:'种植传说',icon:'🌻',cond:'花园种植15棵植物',custom:false}
+      {id:'plant15',name:'种植传说',icon:'🌻',cond:'花园种植15棵植物',custom:false},
+      {id:'zombie1',name:'初战告捷',icon:'💀',cond:'累计击杀1只僵尸',custom:false},
+      {id:'zombie5',name:'僵尸克星',icon:'⚔️',cond:'累计击杀5只僵尸',custom:false},
+      {id:'zombie10',name:'花园卫士',icon:'🛡️',cond:'累计击杀10只僵尸',custom:false},
+      {id:'zombie25',name:'僵尸猎人',icon:'🏹',cond:'累计击杀25只僵尸',custom:false},
+      {id:'zombie50',name:'花园英雄',icon:'🦸',cond:'累计击杀50只僵尸',custom:false}
     ];
   },
   check(){
@@ -1688,6 +1702,9 @@ const Ach = {
     // 花园种植阶梯（按当前花园植物数量：1新手/3达人/5专家/10大师/15传说）
     const plantCount=(c.garden.grid||[]).flat().filter(Boolean).length;
     [[1,'plant1'],[3,'plant3'],[5,'plant5'],[10,'plant10'],[15,'plant15']].forEach(([n,id])=>{if(plantCount>=n)unlock(id);});
+    // 僵尸击杀阶梯（按累计击杀数：1初战/5克星/10卫士/25猎人/50英雄）
+    const kills=c.stats.zombieKills||0;
+    [[1,'zombie1'],[5,'zombie5'],[10,'zombie10'],[25,'zombie25'],[50,'zombie50']].forEach(([n,id])=>{if(kills>=n)unlock(id);});
     Store.save();
   }
 };
@@ -2461,6 +2478,12 @@ const UI = {
     const t=tasks.find(x=>x.id===id);if(!t)return'';
     return UI.taskCard(t.id,t.name,t.cat+'任务',t.reward,t.icon||'📝',t.perfectReward);
   },
+  // 任务朗读文本：任务名 + 奖励 + 说明，方便幼小衔接孩子听懂
+  taskReadText(name,desc,reward){
+    let txt=name+'，完成可得'+reward+'阳光';
+    if(desc&&desc!==name)txt+='。'+desc;
+    return txt;
+  },
   taskCard(id,name,desc,reward,icon,perfectReward){
     const c=curChild();const task=c.today.tasks[id];
     const taskDef=todayTaskList(c).find(x=>x.id===id);
@@ -2469,6 +2492,8 @@ const UI = {
     const done=task?.completed;
     const pending=task?.pendingReview;
     const isQuiz=id.startsWith('cn_pinyin')||id.startsWith('math_')||id.startsWith('en_')||id==='cn_literacy'||id==='cn_dictation'||id==='en_dictation';
+    // 幼小衔接：任务卡片提供朗读功能（孩子识字量少，靠听）
+    const readBtn=(c.grade==='gradeK')?`<button class="btn sky sm" data-speak="${encodeURIComponent(UI.taskReadText(name,desc,reward))}" data-lang="zh-CN" title="点击朗读任务">🔊</button>`:'';
     let btns='';
     if(done){
       btns=`<button class="btn done sm" disabled>✅ 已完成</button> <button class="btn ghost sm" onclick="undoTask('${id}')">撤销</button>`;
@@ -2498,7 +2523,7 @@ const UI = {
     }
     // 家长模式下显示删除按钮
     const delBtn=State.mode==='parent'?(isCustom?`<button class="btn danger sm" onclick="UI.delCustomTaskConfirm('${id}')" title="删除此自定义作业">🗑️ 删除</button>`:`<button class="btn ghost sm" style="color:var(--danger);font-size:11px;" onclick="UI.hideTask('${id}')" title="隐藏此内置作业">🚫 隐藏</button>`):'';
-    return `<div class="task-card ${done?'done':''} ${pending?'':''}"><div class="t-title">${icon} ${name} ${perfectReward?'<span class="reward-tag">满分+'+perfectReward+'</span>':''}</div><div class="t-desc">${desc}</div><div class="t-foot"><span class="reward-tag">+${reward}☀️</span><div>${btns} ${delBtn}</div></div></div>`;
+    return `<div class="task-card ${done?'done':''} ${pending?'':''}"><div class="t-title">${icon} ${name} ${readBtn} ${perfectReward?'<span class="reward-tag">满分+'+perfectReward+'</span>':''}</div><div class="t-desc">${desc}</div><div class="t-foot"><span class="reward-tag">+${reward}☀️</span><div>${btns} ${delBtn}</div></div></div>`;
   },
   // 答题系统
   curQuiz:null,
@@ -3259,7 +3284,7 @@ const UI = {
     const zSummary=zCount>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(74,74,74,.85);border-radius:8px;color:#fff;font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">🧟 <b>${zCount}</b> 只僵尸入侵花园！${undefendTip}<span style="margin-left:auto;font-size:11px;opacity:.8;">点击僵尸查看详情/消灭</span></div>`:'<div style="margin-top:6px;padding:6px 10px;background:rgba(76,175,80,.2);border-radius:8px;color:#2e7d32;font-size:12px;">✅ 花园安全，暂无僵尸入侵</div>';
     return `<div class="card"><div class="card-title">🌻 我的花园 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showGardenHelp()">📖 玩法介绍</button></div>
       <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>${zSummary}</div>
-      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击<b>本行</b>僵尸，同一行的伤害叠加。僵尸从右侧入侵，完成任务可阻止前进。<br><b style="color:var(--primary-d);">☀️ 离线会自动按天数补算产出与战斗（最多补 7 天）。</b></p></div>
+      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击<b>本行</b>僵尸，同一行的伤害叠加。僵尸从右侧入侵，完成任务可阻止前进。<br><b style="color:var(--primary-d);">☀️ 离线会自动按天数补算产出与战斗（最多补 7 天）。</b> 💀 累计击杀 <b>${c.stats.zombieKills||0}</b> 只僵尸</p></div>
       <div class="card"><div class="card-title">🛒 植物商店 <span style="font-size:11px;color:var(--text-soft);font-weight:400;margin-left:8px;">点击植物卡片 → 选择格子种植</span></div>
       <div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const plantImg=d.img?`<img src="${d.img}" style="width:60px;height:60px;object-fit:contain;margin:0 auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:32px;">${d.emoji}</div>`:`<div style="font-size:32px;">${d.emoji}</div>`;
@@ -3298,12 +3323,18 @@ const UI = {
         <li>想守住哪一行，就要在那一种攻击植物；<b>某行没有攻击植物时，该行僵尸不受伤害</b></li>
         <li>行与行之间互不干扰，植物不会跨行攻击</li>
       </ul>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">🏆 战斗勋章</h4>
+      <ul style="padding-left:18px;font-size:12px;">
+        <li>累计击杀僵尸 1/5/10/25/50 只，依次解锁：💀 初战告捷 → ⚔️ 僵尸克星 → 🛡️ 花园卫士 → 🏹 僵尸猎人 → 🦸 花园英雄</li>
+        <li>植物攻击、樱桃炸弹、手动消灭的僵尸都计入累计击杀数</li>
+      </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">💡 小贴士</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>首次撤销种植免费，后续每次扣 10 阳光</li>
         <li>100 阳光可手动消灭 1 只僵尸</li>
         <li>同一行内植物攻击伤害可叠加</li>
         <li>每日凌晨统一结算产出与伤害</li>
+        <li>当前累计击杀：<b>${curChild().stats.zombieKills||0}</b> 只僵尸</li>
         <li><b>离线自动补算</b>：连续离线天数都会按真实日历补算产出/攻击/僵尸前进，最多 7 天</li>
       </ul>
     </div>`,`<button class="btn sm" onclick="closeModal()">明白了</button>`,false);
@@ -3377,6 +3408,7 @@ const UI = {
     if(c.sunlight.total<100){toast('阳光不足');return;}
     if(!spendSunlight(100,'手动消灭僵尸'))return;
     c.garden.zombies=c.garden.zombies.filter(z=>z.id!==id);
+    recordZombieKill(c,1);
     Audio.play('zombie');toast('消灭成功！');closeModal();UI.render();
   },
   renderPet(){
@@ -3865,7 +3897,7 @@ const UI = {
   addChild(){
     const name=prompt('孩子姓名：');if(!name)return;
     const id='c_'+uid();
-    Store.data.children[id]={profile:{name,avatar:'🙂',grade:'grade1'},grade:'grade1',today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},sunlight:{total:300},garden:{grid:Store.emptyGrid(),zombies:[Store.newZombie()],undoFree:true},pets:[],achievements:[],logs:{sunlight:[],pet:[]},wrongQuestions:[],stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[]}};
+    Store.data.children[id]={profile:{name,avatar:'🙂',grade:'grade1'},grade:'grade1',today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},sunlight:{total:300},garden:{grid:Store.emptyGrid(),zombies:[Store.newZombie()],undoFree:true},pets:[],achievements:[],logs:{sunlight:[],pet:[]},wrongQuestions:[],stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[],zombieKills:0}};
     Store.fixChild(Store.data.children[id]);
     d_settings().currentChildId=id;Store.save();UI.render();toast('已添加孩子');
   },
@@ -4038,7 +4070,7 @@ window.App=App;window.UI=UI;window.Router=Router;window.Store=Store;
 window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=undoTask;
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
 window.Pet=Pet;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;
-window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;
+window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;window.recordZombieKill=recordZombieKill;
 
 })();
 </script>
