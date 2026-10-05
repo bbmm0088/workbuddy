@@ -1486,8 +1486,14 @@ function gardenSettleFor(c, days=1){
 
 /* ============ PetVoice 宠物唤名声音模块 ============ */
 const PetVoice = {
-  recorder:null, chunks:[], stream:null, recordingId:null,
+  recorder:null, chunks:[], stream:null, recordingId:null, recordingChildId:null,
   _audioEl:null,
+  // 按 childId 精确定位宠物（家长可管理任意孩子）；缺省用当前孩子
+  _findPet(childId,petId){
+    const ch=childId?Store.data.children[childId]:curChild();
+    if(!ch)return null;
+    return (ch.pets||[]).find(x=>x.id===petId)||null;
+  },
   // 播放宠物唤名声音：优先自定义录音(dataURL)，否则语音合成
   play(pet){
     const src=pet&&pet.callSound;
@@ -1505,13 +1511,15 @@ const PetVoice = {
   },
   // 是否支持录音
   supported(){return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);},
-  // 开始录音（针对某只宠物）
-  async startRecord(petId){
+  // 开始录音（针对某只宠物，可指定所属孩子）
+  async startRecord(petId,childId){
     if(!this.supported()){toast('当前浏览器不支持录音，可改用「上传音频」');return;}
     if(State.mode!=='parent'){toast('请先进入家长模式');return;}
+    const target=this._findPet(childId,petId);
+    if(!target){toast('未找到该宠物');return;}
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      this.stream=stream;this.chunks=[];this.recordingId=petId;
+      this.stream=stream;this.chunks=[];this.recordingId=petId;this.recordingChildId=childId||d_settings().currentChildId;
       const mime=MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':(MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'');
       const rec=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
       this.recorder=rec;
@@ -1521,14 +1529,14 @@ const PetVoice = {
         this.stream=null;
         const blob=new Blob(this.chunks,{type:rec.mimeType||'audio/webm'});
         this._blobToDataURL(blob,(dataUrl)=>{
-          const c=curChild();const p=c.pets.find(x=>x.id===this.recordingId);
+          const p=this._findPet(this.recordingChildId,this.recordingId);
           if(p){p.callSound=dataUrl;p.callSoundAt=nowISO();Store.save();toast('🎤 已保存「'+p.name+'」的唤名声音');UI.render();}
         });
         this.recorder=null;
         const st=$('#pvStatus');if(st)st.textContent='录音结束，已保存';
       };
       rec.start();
-      const st=$('#pvStatus');if(st)st.textContent='🎙️ 正在录音…点击「停止」结束';
+      const st=$('#pvStatus');if(st)st.textContent='🎙️ 正在为「'+target.name+'」录音…点击「停止」结束';
       toast('开始录音，请清晰地说出宠物名字');
     }catch(e){
       toast('无法访问麦克风：'+(e&&e.message?e.message:'请检查权限'));
@@ -1547,27 +1555,29 @@ const PetVoice = {
     r.onerror=()=>toast('录音读取失败');
     r.readAsDataURL(blob);
   },
-  // 上传本地音频文件
-  upload(petId,input){
+  // 上传本地音频文件（可指定所属孩子）
+  upload(petId,input,childId){
     const f=input&&input.files&&input.files[0];
     if(!f){return;}
     if(f.size>1024*1024*2){toast('音频文件请小于 2MB');return;}
     const r=new FileReader();
     r.onload=()=>{
-      const c=curChild();const p=c.pets.find(x=>x.id===petId);
+      const p=this._findPet(childId,petId);
       if(p){p.callSound=r.result;p.callSoundAt=nowISO();Store.save();toast('📁 已上传「'+p.name+'」的唤名声音');UI.render();}
+      else{toast('未找到该宠物');}
     };
     r.onerror=()=>toast('文件读取失败');
     r.readAsDataURL(f);
   },
-  // 删除自定义声音
-  clear(petId){
-    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+  // 删除自定义声音（可指定所属孩子）
+  clear(petId,childId){
+    const p=this._findPet(childId,petId);if(!p)return;
     delete p.callSound;delete p.callSoundAt;
     Store.save();toast('已删除「'+p.name+'」的自定义声音，恢复默认朗读');UI.render();
   },
-  // 试听
+  // 试听（可直接传宠物对象）
   preview(pet){
+    if(!pet)return;
     if(pet.callSound){this.play(pet);}
     else{speak(pet.name);toast('暂无自定义声音，正在朗读默认名字');}
   }
@@ -4004,22 +4014,33 @@ const UI = {
         <p style="font-size:12px;color:var(--text-soft);margin-top:4px;">审核模式开启后，练字/阅读/运动/家务/德育需家长确认才算完成</p>
         <button class="btn sm" style="margin-top:10px;" onclick="UI.saveSettings()">保存设置</button>
       </div>
-      <div class="card"><div class="card-title">🎤 宠物唤名声音 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（家长可录制/上传，孩子唤名时播放）</span></div>
-        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">「唤名」时若设置了自定义声音则播放该录音，否则用语音合成朗读名字。录音建议 1-3 秒，清晰地说出宠物名字。</p>
-        ${c.pets.length?`<div id="pvStatus" style="font-size:12px;color:var(--primary-d);min-height:16px;margin-bottom:6px;"></div>
-        ${c.pets.map(p=>`<div class="log-item" style="flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:6px;">
-            <b>${(Pet.list()[p.type]||{}).emoji||'🐾'} ${p.name}</b>
-            ${p.callSound?'<span style="font-size:11px;color:var(--primary-d);">✅ 已有自定义声音</span>':'<span style="font-size:11px;color:var(--text-light);">默认语音朗读</span>'}
-          </span>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
-            <button class="btn sm" style="font-size:11px;" onclick="PetVoice.startRecord('${p.id}')">🎙️ 录音</button>
-            <button class="btn ghost sm" style="font-size:11px;" onclick="PetVoice.stopRecord()">⏹️ 停止</button>
-            <label class="btn ghost sm" style="font-size:11px;cursor:pointer;">📁 上传<input type="file" accept="audio/*" style="display:none;" onchange="PetVoice.upload('${p.id}',this)"></label>
-            <button class="btn sky sm" style="font-size:11px;" onclick="PetVoice.preview(curChild().pets.find(x=>x.id==='${p.id}'))">🔊 试听</button>
-            ${p.callSound?`<button class="btn danger sm" style="font-size:11px;" onclick="PetVoice.clear('${p.id}')">🗑️ 删除</button>`:''}
-          </div>
-        </div>`).join('')}`:'<div style="color:var(--text-light);text-align:center;padding:10px;font-size:12px;">还没有宠物，先在孩子模式领养宠物后可设置唤名声音</div>'}
+      <div class="card"><div class="card-title">🎤 宠物唤名声音 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（按孩子分开管理，孩子唤名时播放）</span></div>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">「唤名」时若设置了自定义声音则播放该录音，否则用语音合成朗读名字。录音建议 1-3 秒，清晰说出宠物名字。每个孩子的宠物声音互相独立。</p>
+        <div id="pvStatus" style="font-size:12px;color:var(--primary-d);min-height:16px;margin-bottom:6px;"></div>
+        ${Object.entries(children).map(([cid,ch])=>{
+          const isCur=cid===d_settings().currentChildId;
+          const pets=(ch.pets||[]);
+          return `<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;padding:8px;${isCur?'background:rgba(255,193,7,0.06);border-color:var(--primary);':''}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <b style="font-size:13px;">${ch.profile.avatarImg?'📷':(ch.profile.avatar||'🙂')} ${ch.profile.name}</b>
+              ${isCur?'<span style="font-size:10px;color:var(--primary-d);background:rgba(255,193,7,0.18);border-radius:6px;padding:1px 6px;">当前孩子</span>':''}
+              ${!isCur?`<button class="btn ghost sm" style="font-size:10px;margin-left:auto;" onclick="UI.switchChild('${cid}')">切换为当前</button>`:''}
+            </div>
+            ${pets.length?pets.map(p=>`<div class="log-item" style="flex-wrap:wrap;margin-bottom:4px;">
+              <span style="display:flex;align-items:center;gap:6px;">
+                <b>${(Pet.list()[p.type]||{}).emoji||'🐾'} ${p.name}</b>
+                ${p.callSound?'<span style="font-size:11px;color:var(--primary-d);">✅ 已有自定义声音</span>':'<span style="font-size:11px;color:var(--text-light);">默认语音朗读</span>'}
+              </span>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+                <button class="btn sm" style="font-size:11px;" onclick="PetVoice.startRecord('${p.id}','${cid}')">🎙️ 录音</button>
+                <button class="btn ghost sm" style="font-size:11px;" onclick="PetVoice.stopRecord()">⏹️ 停止</button>
+                <label class="btn ghost sm" style="font-size:11px;cursor:pointer;">📁 上传<input type="file" accept="audio/*" style="display:none;" onchange="PetVoice.upload('${p.id}',this,'${cid}')"></label>
+                <button class="btn sky sm" style="font-size:11px;" onclick="PetVoice.preview(PetVoice._findPet('${cid}','${p.id}'))">🔊 试听</button>
+                ${p.callSound?`<button class="btn danger sm" style="font-size:11px;" onclick="PetVoice.clear('${p.id}','${cid}')">🗑️ 删除</button>`:''}
+              </div>
+            </div>`).join(''):'<div style="color:var(--text-light);font-size:12px;padding:4px;">该孩子还没有宠物</div>'}
+          </div>`;
+        }).join('')}
       </div>
       ${(d_settings().hiddenTasks||[]).length?`<div class="card"><div class="card-title">🚫 已隐藏任务 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（点击恢复显示）</span></div><div style="display:flex;gap:4px;flex-wrap:wrap;">${(d_settings().hiddenTasks||[]).map(id=>{
         // 尝试从任务定义中查找名称
