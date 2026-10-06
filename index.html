@@ -2073,6 +2073,42 @@ const Pet = {
       this.decay(c); // 立即检查一次：若已低于安全线马上护理
       UI.render();toast(fee>0?`🏠 已开启托管（手续费 ${fee}☀️）`:'🏠 已开启托管（今日手续费已付）');
     });
+  },
+  // 一键托管全部宠物：待托管的全部开启（手续费合并，当天已付的免收）；
+  // 全部已在托管中时，一键关闭
+  toggleAutoCareAll(){
+    const c=curChild();
+    const alive=c.pets.filter(p=>p.status!=='dead');
+    if(alive.length===0){toast('还没有宠物，先去领养一只吧 🐾');return;}
+    const off=alive.filter(p=>!p.autoCare);
+    if(off.length===0){
+      alive.forEach(p=>{p.autoCare=false;Log.pet('关闭托管',p.id,'批量关闭，恢复手动照顾');});
+      Store.save();UI.render();
+      toast('已关闭全部宠物托管');
+      return;
+    }
+    const today=todayStr();
+    const feePets=off.filter(p=>p.autoCareFeeDate!==today);
+    const fee=feePets.length*50;
+    if(fee>0&&c.sunlight.total<fee){toast(`阳光不足：本次手续费共 ${fee}☀️`);return;}
+    const names=off.map(p=>p.name).join('、');
+    confirmModal(`一键托管 ${off.length} 只宠物（${names}）？\n本次手续费共 ${fee}☀️${fee===0?'（今日均已付过，不再收取）':'（今天已付过的不再收）'}。\n之后每只每天最多扣 20☀️，属性良好时不扣费。`,()=>{
+      if(fee>0&&c.sunlight.total<fee){toast('阳光不足');return;}
+      off.forEach(p=>{
+        p.autoCare=true;p.autoCareLastDate='';
+        const needFee=p.autoCareFeeDate!==today;
+        p.autoCareFeeDate=today;
+        Log.pet('开启托管',p.id,needFee?'批量开启，缴纳手续费50☀️':'批量开启，今日手续费已付');
+      });
+      if(fee>0){
+        c.sunlight.total-=fee;
+        c.logs.sunlight.unshift({time:nowISO(),action:`🏠 宠物批量托管手续费（${feePets.length}只）`,delta:-fee,balance:c.sunlight.total});
+      }
+      Store.save();
+      this.decay(c); // 立即检查：低于安全线的马上护理
+      UI.render();
+      toast(`🏠 已托管${off.length}只宠物${fee>0?`（手续费 ${fee}☀️）`:''}`);
+    });
   }
 };
 
@@ -4321,7 +4357,10 @@ const UI = {
         ${p.autoCare?'<span style="font-size:10px;color:#0277bd;align-self:center;">自动照顾中</span>':''}
       </div></div>`;
     }).join(''):'<div style="text-align:center;color:var(--text-light);padding:20px;">还没有宠物，快去领养一只吧！🐾</div>';
-    return `<div class="card"><div class="card-title">🐾 我的宠物 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showPetHelp()">📖 玩法介绍</button></div><div class="grid grid-2">${petHtml}</div></div>
+    const alivePets=c.pets.filter(p=>p.status!=='dead');
+    const offCount=alivePets.filter(p=>!p.autoCare).length;
+    const allBtn=alivePets.length?`<button class="btn ${offCount?'sm':'ghost sm'}" style="margin-left:auto;font-size:12px;${offCount?'':'color:var(--text-soft);'}" onclick="Pet.toggleAutoCareAll()" title="${offCount?'一键托管所有宠物（手续费按只合并收取，当天已付的免收）':'一键关闭所有宠物托管'}">🏠${offCount?'全部托管':'关闭全部托管'}</button>`:'';
+    return `<div class="card"><div class="card-title">🐾 我的宠物 ${allBtn}<button class="btn ghost sm" style="font-size:12px;" onclick="UI.showPetHelp()">📖 玩法介绍</button></div><div class="grid grid-2">${petHtml}</div></div>
       <div class="card"><div class="card-title">🏪 宠物商店</div><div class="grid grid-3">${Object.entries(defs).map(([k,d])=>{
         const cardImg=d.img?`<img src="${d.img}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto;display:block;">`:`<div style="font-size:50px;">${d.emoji}</div>`;
         return `<div class="task-card"><div style="text-align:center;">${cardImg}</div><div class="t-title" style="justify-content:center;margin-top:4px;">${d.name}</div><div class="t-desc" style="text-align:center;font-size:11px;min-height:36px;">${d.desc||''}</div><div class="t-foot" style="justify-content:center;"><button class="btn orange sm" ${c.sunlight.total>=d.cost?'':'disabled'} onclick="Pet.buy('${k}')">领养 ${d.cost}☀️</button></div></div>`;
@@ -4371,7 +4410,7 @@ const UI = {
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🏠 托管模式</h4>
       <ul style="padding-left:18px;font-size:12px;">
-        <li>每只宠物可单独开启<b>托管</b>（宠物卡片上的 🏠 按钮）</li>
+        <li>每只宠物可单独开启<b>托管</b>（宠物卡片上的 🏠 按钮），也可点列表标题的<b>「🏠 全部托管」</b>一键托管所有动物</li>
         <li>开启需先支付<b> 50☀️ 手续费</b>（当天内关闭再开启<b>不重复收取</b>，次日开启再收一次）</li>
         <li>托管后系统每天自动补水、喂食、体检，<b>保证宠物不死不生病</b></li>
         <li>费用：<b>每天最多 20☀️</b>（最低护理包干），<b>属性良好时不扣费</b></li>
