@@ -3764,6 +3764,38 @@ const UI = {
     recordZombieKill(c,1);
     Audio.play('zombie');toast('消灭成功！');closeModal();UI.render();
   },
+  // 点击宠物头像：随机切换一段视频（有视频的宠物）
+  tapPet(petId){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    const def=Pet.list()[p.type];if(!def)return;
+    const vids=def.videos||{};
+    const idle=vids.idle||[];
+    this._petTapAt=this._petTapAt||{};
+    const at=Date.now();
+    this._petTapAt[petId]=at;
+    if(p.status==='sick'&&vids.sick){
+      // 生病：重播生病视频
+      Audio.play('pet');
+      const el=document.querySelector('video.pet-video[data-pid="'+petId+'"]');
+      if(el){try{el.currentTime=0;const pr=el.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}}
+      setTimeout(()=>{ if(this._petTapAt&&this._petTapAt[petId]===at){ UI.render(); } },3100);
+      return;
+    }
+    if(!idle.length){Audio.play('pet');return;}
+    // 当前实际显示的视频（用于保证切换后不同）
+    const shown=document.querySelector('video.pet-video[data-pid="'+petId+'"]');
+    const shownSrc=shown?shown.getAttribute('src'):'';
+    const pool=idle.filter(v=>v!==shownSrc);
+    const src=pool.length?pool:idle;
+    const next=src[Math.floor(Math.random()*src.length)];
+    this._petVideoPick=this._petVideoPick||{};
+    this._petVideoPick[petId]=next;
+    Audio.play('pet');
+    UI.render();
+    // 3 秒后回到正常状态显示；60 秒后清掉点击选片，回归时段轮换
+    setTimeout(()=>{ if(this._petTapAt&&this._petTapAt[petId]===at){ UI.render(); } },3100);
+    setTimeout(()=>{ if(this._petVideoPick&&this._petVideoPick[petId]===next){ delete this._petVideoPick[petId]; UI.render(); } },60000);
+  },
   renderPet(){
     // 检查每日奖励
     Pet.checkDailyReward();
@@ -3787,6 +3819,9 @@ const UI = {
         ].filter(a=>a.img);
         const recent=acts.filter(a=>a.at&&(now-a.at)<a.win).sort((a,b)=>b.at-a.at)[0];
         const vids=def.videos||{};
+        // 点击头像的临时覆盖：在 3 秒内强制显示视频（生病/死亡状态除外）
+        const tapAt=(UI._petTapAt||{})[p.id]||0;
+        const tapForce=(now-tapAt)<3000;
         if(p.status==='dead'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';animClass='';
         }else if(p.status==='sick'&&vids.sick){
@@ -3794,19 +3829,24 @@ const UI = {
           petVideoSrc=vids.sick;petStateLabel='🤒 生病了';animClass='';
         }else if(p.status==='sick'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='🤒 生病了';animClass='pet-anim sick';
-        }else if(recent){
+        }else if(recent&&!tapForce){
           // 互动窗口内：优先静态互动图（视频会打断互动反馈）
           petImgSrc=recent.img;petStateLabel=recent.label;animClass=recent.anim;
         }else if(p.status==='hungry'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='😟 饿了';animClass='pet-anim wag';
         }else if(vids.idle&&vids.idle.length){
           // 无互动待机：随机播放两个待机视频之一
-          // 用「宠物id + 时间段」做种子，同一时段内保持稳定（避免每次渲染都跳变），每 30 秒换一次
+          // 优先用「点击头像」临时选中的视频（UI._petVideoPick），否则按「宠物id + 30秒时段」稳定选片
           const list=vids.idle;
-          const slot=Math.floor(Date.now()/30000);
-          let h=slot;
-          for(let i=0;i<p.id.length;i++)h=(h*31+p.id.charCodeAt(i))>>>0;
-          petVideoSrc=list[h%list.length];
+          const picked=(UI._petVideoPick||{})[p.id];
+          if(picked&&list.includes(picked)){
+            petVideoSrc=picked;
+          }else{
+            const slot=Math.floor(Date.now()/30000);
+            let h=slot;
+            for(let i=0;i<p.id.length;i++)h=(h*31+p.id.charCodeAt(i))>>>0;
+            petVideoSrc=list[h%list.length];
+          }
           petStateLabel='';animClass='';
         }else if(def.imgs.happy){
           petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';animClass='pet-anim wag';
@@ -3819,7 +3859,9 @@ const UI = {
       const mediaHtml=petVideoSrc
         ? `<video src="${petVideoSrc}" class="pet-img pet-video" data-pid="${p.id}" autoplay loop playsinline webkit-playsinline preload="auto" style="object-fit:cover;background:#000;"></video>`
         : (petImgSrc?`<img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div>`:`<div class="pet-emoji">${def.emoji}</div>`);
-      const imgHtml=`<div class="${animClass}">${mediaHtml}</div>`;
+      // 点击头像：有视频的宠物可随机换一段视频
+      const canTap=!!(def.videos&&(def.videos.idle||def.videos.sick));
+      const imgHtml=`<div class="${animClass}" ${canTap?`onclick="UI.tapPet('${p.id}')" title="点我一下～" style="cursor:pointer;"`:''}>${mediaHtml}</div>`;
       return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️ <span class="bond-badge">羁绊 Lv.${bondLv}</span></div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
       <div><div class="bar-label"><span>饱食度</span><span>${p.satiety}</span></div><div class="bar-wrap"><div class="bar-fill sat" style="width:${clamp(p.satiety/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
