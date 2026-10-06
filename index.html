@@ -524,13 +524,13 @@ const Store = {
     if(c.game.frozen===undefined) c.game.frozen=false;
     if(c.game.frozenAt===undefined) c.game.frozenAt=0;
     if(c.game.tickAt===undefined) c.game.tickAt=0;
-    // 长时间离开后修正：未冻结的计时在会话结束时不流逝（避免关掉页面被白扣）
-    c.game.tickAt=0;
+    // 倒计时后台持续运行：tickAt 锚点保留，页面加载后由 Shop.settleGame 按真实时间补算流逝部分
     if(!c.garden) c.garden={grid:this.emptyGrid(),zombies:[],undoFree:true};
     if(!c.garden.grid||c.garden.grid.length!==5) c.garden.grid=this.emptyGrid();
     if(!c.garden.zombies) c.garden.zombies=[];
     // 花园托管：默认关闭（兼容旧数据）
     if(c.garden.autoCare===undefined)c.garden.autoCare=false;
+    if(c.garden.autoCareFeeDate===undefined)c.garden.autoCareFeeDate='';
     // 为已有僵尸补充图片和位置字段（兼容旧数据）
     c.garden.zombies.forEach((z,idx)=>{
       z.img='images/zombie.png?v=2';
@@ -548,6 +548,7 @@ const Store = {
       if(p.lastDailyReward===undefined)p.lastDailyReward='';
       if(p.autoCare===undefined)p.autoCare=false;
       if(p.autoCareLastDate===undefined)p.autoCareLastDate='';
+      if(p.autoCareFeeDate===undefined)p.autoCareFeeDate='';
     });
     if(!c.achievements) c.achievements=[];
     if(!c.logs) c.logs={sunlight:[],pet:[]};
@@ -1413,7 +1414,7 @@ function spendSunlight(amount,reason){
 
 /* ============ Garden 模块 ============ */
 const Garden = {
-  // 花园托管：每天50阳光，不再新增僵尸
+  // 花园托管：开启先付50阳光手续费（当天内不重复收），之后每天50阳光，不再新增僵尸
   toggleAutoCare(){
     const c=curChild();
     if(!c.garden)return;
@@ -1423,10 +1424,18 @@ const Garden = {
       toast('已关闭花园托管，恢复常规僵尸入侵');
       return;
     }
-    confirmModal('开启花园托管？\n每天消耗 50☀️，不再新增僵尸（已有的仍会前进，植物照常产出与攻击）。\n从下一次每日结算开始生效。',()=>{
+    const today=todayStr();
+    const fee=(c.garden.autoCareFeeDate===today)?0:50;
+    if(fee>0&&c.sunlight.total<fee){toast('阳光不足：开启托管需先支付 50☀️ 手续费');return;}
+    confirmModal(`开启花园托管？\n本次先支付 ${fee}☀️ 手续费${fee===0?'（今日已付，不再收取）':'（当天内再次开启不重复收取）'}。\n之后每天消耗 50☀️，不再新增僵尸（已有的仍会前进，植物照常产出与攻击）。\n从下一次每日结算开始生效。`,()=>{
       c.garden.autoCare=true;
+      c.garden.autoCareFeeDate=today;
+      if(fee>0){
+        c.sunlight.total-=fee;
+        c.logs.sunlight.unshift({time:nowISO(),action:'🛡️ 花园托管手续费',delta:-fee,balance:c.sunlight.total});
+      }
       Store.save();UI.render();
-      toast('🛡️ 花园托管已开启');
+      toast(fee>0?'🛡️ 花园托管已开启（手续费 50☀️）':'🛡️ 花园托管已开启（今日手续费已付）');
     });
   },
   defaultDefs(){
@@ -2049,12 +2058,20 @@ const Pet = {
       Store.save();UI.render();toast('已关闭托管，恢复手动照顾');
       return;
     }
-    confirmModal(`开启 ${p.name} 的托管？\n每天最多扣 20☀️（最低护理包干），属性良好时不扣费。\n系统自动补水喂食体检，保证宠物不死不生病。`,()=>{
+    const today=todayStr();
+    const fee=(p.autoCareFeeDate===today)?0:50;
+    if(fee>0&&c.sunlight.total<fee){toast('阳光不足：开启托管需先支付 50☀️ 手续费');return;}
+    confirmModal(`开启 ${p.name} 的托管？\n本次先支付 ${fee}☀️ 手续费${fee===0?'（今日已付，不再收取）':'（当天内再次开启不重复收取）'}。\n之后每天最多扣 20☀️（最低护理包干），属性良好时不扣费。\n系统自动补水喂食体检，保证宠物不死不生病。`,()=>{
       p.autoCare=true;p.autoCareLastDate='';
-      Log.pet('开启托管',p.id,'每天最多20阳光，属性良好不扣费');
+      p.autoCareFeeDate=today;
+      if(fee>0){
+        c.sunlight.total-=fee;
+        c.logs.sunlight.unshift({time:nowISO(),action:`🏠 ${p.name} 托管手续费`,delta:-fee,balance:c.sunlight.total});
+      }
+      Log.pet('开启托管',p.id,fee>0?`缴纳手续费${fee}☀️；每天最多20阳光护理，属性良好不扣费`:'今日手续费已付；每天最多20阳光护理，属性良好不扣费');
       Store.save();
       this.decay(c); // 立即检查一次：若已低于安全线马上护理
-      UI.render();toast('🏠 已开启托管');
+      UI.render();toast(fee>0?`🏠 已开启托管（手续费 ${fee}☀️）`:'🏠 已开启托管（今日手续费已付）');
     });
   }
 };
@@ -2081,8 +2098,10 @@ const Shop = {
     if(!spendSunlight(item.price,'兑换：'+item.name))return;
     Audio.play('redeem');
     if(item.action==='game'){
-      // 兑换叠加：已有剩余时间则累加（冻结中也能累加，不浪费）
+      // 兑换叠加：先结算旧余额的后台流逝，再累加（冻结中也能累加，不浪费）
       const g=c.game;
+      if(!g.frozen)this.settleGame();
+      if(!g.frozen&&(g.remainSec||0)>0&&(!g.tickAt||g.tickAt<=0))g.tickAt=Date.now();
       g.remainSec=(g.remainSec||0)+30*60;
       Store.save();UI.render();
       toast('兑换成功：'+item.name+' 🎉 累计 '+fmtClock(g.remainSec));
@@ -2093,6 +2112,28 @@ const Shop = {
     Store.save();UI.render();
   },
   gameTimer:null,
+  // 统一结算：以 tickAt 为锚点按真实时间扣减剩余游戏时间。
+  // 收起弹窗、切换页面、刷新重开都不会暂停计时，读取时补算流逝部分。
+  // 返回 true 表示倒计时刚刚结束。
+  settleGame(){
+    const c=(typeof curChild==='function')?curChild():null;
+    const g=c&&c.game;
+    if(!g||g.frozen||(g.remainSec||0)<=0)return false;
+    if(!g.tickAt||g.tickAt<=0){g.tickAt=Date.now();return false;}
+    const now=Date.now();
+    const elapsed=Math.floor((now-g.tickAt)/1000);
+    if(elapsed<=0)return false;
+    g.tickAt=now;
+    g.remainSec=Math.max(0,g.remainSec-elapsed);
+    if(g.remainSec<=0){
+      g.frozen=false;g.frozenAt=0;g.tickAt=0;
+      Store.save();
+      toast('游戏时间结束！⏰');
+      return true;
+    }
+    Store.save();
+    return false;
+  },
   // 冻结：暂停倒计时并持久化剩余时间，50阳光，成本随时间递减
   GAME_FREEZE_PER_MIN:10, GAME_FREEZE_MIN:10, GAME_FREEZE_MAX:50,
   freezeCost(remainSec){
@@ -2104,12 +2145,17 @@ const Shop = {
     const g=c.game;
     if(g.frozen)return;
     if((g.remainSec||0)<=0){toast('当前没有正在进行的游戏时间');return;}
+    this.settleGame(); // 没按冻结前一直在后台跑：先结算到当前时刻
+    if((g.remainSec||0)<=0){UI.render();return;}
     const cost=this.freezeCost(g.remainSec);
     confirmModal(`冻结游戏时间？\n暂停倒计时，剩余 ${fmtClock(g.remainSec)} 将保留。\n消耗 ☀️${cost} 阳光。`,()=>{
-      if(!spendSunlight(cost,'冻结游戏时间')){toast('阳光不足，需要 '+cost+'☀️');return;}
+      this.settleGame(); // 确认框打开期间仍在计时，实际冻结时按最新余额结算
+      if((g.remainSec||0)<=0){UI.render();return;}
+      const cost2=this.freezeCost(g.remainSec);
+      if(!spendSunlight(cost2,`🧊 冻结游戏时间（剩余 ${fmtClock(g.remainSec)}）`)){toast('阳光不足，需要 '+cost2+'☀️');return;}
       g.frozen=true;
       g.frozenAt=Date.now();
-      c.logs.sunlight.unshift({time:nowISO(),action:`🧊 冻结游戏时间（剩余 ${fmtClock(g.remainSec)}）`,delta:-cost,balance:c.sunlight.total});
+      g.tickAt=0;
       Store.save();
       closeModal();
       toast('🧊 已冻结，剩余 '+fmtClock(g.remainSec)+' 已保留');
@@ -2127,7 +2173,7 @@ const Shop = {
     UI.render();
     this.openGameTimer();
   },
-  // 关闭倒计时页面：保留剩余时间，可随时重新打开继续
+  // 收起倒计时窗口：不停止计时！倒计时在后台按真实时间继续（收起≠暂停）
   closeGameTimer(){
     // 关掉倒计时弹窗及其上的所有叠层（如确认框），避免残留
     const stack=window._modalStack||[];
@@ -2141,15 +2187,38 @@ const Shop = {
     window._curMask=stack.length?stack[stack.length-1]:null;
     if(this.gameTimer){clearInterval(this.gameTimer);this.gameTimer=null;}
     const c=curChild();
-    if(c&&c.game&&!c.game.frozen&&(c.game.remainSec||0)>0){c.game.tickAt=0;Store.save();}
-    toast('已收起，剩余时间已保留');
+    if(c&&c.game&&!c.game.frozen)this.settleGame(); // 收起前结算一次，把锚点推进并持久化
+    toast('已收起，倒计时在后台继续');
     UI.render();
+  },
+  // 关闭（作废）剩余游戏时间：需要确认，作废后不可恢复
+  discardGameTimer(){
+    const c=curChild();const g=c.game||{};
+    if((g.remainSec||0)<=0&&!g.frozen)return;
+    confirmModal(`关闭游戏时间？\n剩余 ${fmtClock(g.remainSec||0)} 将作废，不可恢复。`,()=>{
+      const lost=fmtClock(g.remainSec||0);
+      g.remainSec=0;g.frozen=false;g.frozenAt=0;g.tickAt=0;
+      c.logs.sunlight.unshift({time:nowISO(),action:`⏹ 关闭游戏时间（作废剩余 ${lost}）`,delta:0,balance:c.sunlight.total});
+      if(this.gameTimer){clearInterval(this.gameTimer);this.gameTimer=null;}
+      Store.save();
+      const stack=window._modalStack||[];
+      for(let i=stack.length-1;i>=0;i--){
+        if(stack[i].querySelector&&stack[i].querySelector('#gameTimer')){
+          for(let j=stack.length-1;j>=i;j--){stack[j].remove();}
+          stack.splice(i);
+          break;
+        }
+      }
+      window._curMask=stack.length?stack[stack.length-1]:null;
+      toast('已关闭游戏时间');
+      UI.render();
+    });
   },
   // 打开（或重新打开）倒计时窗口；已结束则提示
   openGameTimer(){
     const c=curChild();const g=c.game||{};
     if((g.remainSec||0)<=0&&!g.frozen){toast('当前没有正在进行的游戏时间');return;}
-    // 已开着倒计时窗口就不重复叠加，直接刷新内容
+    if(!g.frozen)this.settleGame(); // 打开时先补算后台流逝的时间
     if(this.gameTimer){clearInterval(this.gameTimer);this.gameTimer=null;}
     const stack=window._modalStack||[];
     for(let i=stack.length-1;i>=0;i--){
@@ -2165,45 +2234,37 @@ const Shop = {
     const body=`<div style="text-align:center;padding:14px 10px;">
         <div style="font-size:54px;">${frozen?'🧊':'🎮'}</div>
         <div id="gameTimer" style="font-size:34px;font-weight:700;color:${frozen?'#4aa3df':'var(--primary-d)'};letter-spacing:1px;">${clock}</div>
-        <div style="font-size:13px;color:var(--text-light);margin-top:6px;">${frozen?'已冻结 · 剩余时间不会减少':'快乐游戏时间！'}</div>
+        <div style="font-size:13px;color:var(--text-light);margin-top:6px;">${frozen?'已冻结 · 剩余时间不会减少':'⏳ 倒计时在后台持续运行 · 收起页面不影响'}</div>
         <div style="font-size:12px;color:var(--text-light);margin-top:4px;background:#f5f7fa;border-radius:8px;padding:6px 10px;display:inline-block;">☀️ 余额 <b>${c.sunlight.total}</b></div>
       </div>`;
     const footer=frozen
-      ? `<button class="btn ghost sm" onclick="Shop.closeGameTimer()">收起</button>
+      ? `<button class="btn ghost sm" onclick="Shop.closeGameTimer()">🪟 收起</button>
          <button class="btn sm" onclick="Shop.unfreezeGame()">▶️ 解冻继续</button>`
-      : `<button class="btn ghost sm" onclick="Shop.closeGameTimer()">收起</button>
+      : `<button class="btn ghost sm" onclick="Shop.closeGameTimer()">🪟 收起</button>
+         <button class="btn sm" style="background:#ffebee;color:#c62828;" onclick="Shop.discardGameTimer()">⏹ 关闭</button>
          <button class="btn sky sm" onclick="Shop.freezeGame()">🧊 冻结 ${cost}☀️</button>`;
     showModal('游戏时间',body,footer,true);
     if(frozen)return;  // 冻结中不启动计时
-    g.tickAt=Date.now();  // 从打开这一刻起算，不补扣关闭期间的时间
+    if(!g.tickAt||g.tickAt<=0)g.tickAt=Date.now(); // 仅无锚点（新兑换/旧数据）才从现在起算；已有锚点继续后台跑
     this.tickGameTimer();
   },
-  // 启动倒计时：以 game.tickAt 为锚点按真实时间推进（兼容息屏/切后台）
+  // 弹窗内每秒刷新：统一走 settleGame 结算（与商店面板/后台补算共用同一锚点，不会双扣）
   tickGameTimer(){
     const c=curChild();const g=c.game;
     if(this.gameTimer){clearInterval(this.gameTimer);this.gameTimer=null;}
     if(!g||g.frozen||(g.remainSec||0)<=0)return;
-    g.tickAt=Date.now();
+    if(!g.tickAt||g.tickAt<=0)g.tickAt=Date.now();
     const render=()=>{
-      if(!g||g.frozen)return;
       const el=$('#gameTimer');if(el)el.textContent=fmtClock(g.remainSec);
     };
     this.gameTimer=setInterval(()=>{
-      if(g.frozen)return;
-      const now=Date.now();
-      const elapsed=Math.floor((now-(g.tickAt||now))/1000);
-      if(elapsed<=0)return;
-      g.tickAt=now;
-      g.remainSec=Math.max(0,g.remainSec-elapsed);
-      if(g.remainSec<=0){
-        g.frozen=false;g.frozenAt=0;g.tickAt=0;
+      if(!g||g.frozen)return;
+      if(this.settleGame()){
         clearInterval(this.gameTimer);this.gameTimer=null;
-        Store.save();closeModal();
-        toast('游戏时间结束！⏰');
+        closeModal();
         UI.render();
         return;
       }
-      Store.save();
       render();
     },1000);
     render();
@@ -2217,6 +2278,7 @@ const Shop = {
     const c=curChild();
     const g=c&&c.game;
     if(!g||(g.remainSec||0)<=0){return;}
+    this.settleGame(); // 打开面板先补算后台流逝
     const render=()=>{
       const cur=document.getElementById('shopGameClock');
       if(cur&&c.game)cur.textContent=fmtClock(c.game.remainSec);
@@ -2224,19 +2286,11 @@ const Shop = {
     render();
     if(this._shopTick){clearInterval(this._shopTick);this._shopTick=null;}
     if(g.frozen)return;  // 冻结中不需要刷新
-    // 独立锚点：不与倒计时弹窗的 tickAt 争抢
-    let anchor=Date.now();
     this._shopTick=setInterval(()=>{
       // 面板被移除或切换到非商店页时自动停止
       if(!document.getElementById('shopGameClock')){clearInterval(this._shopTick);this._shopTick=null;return;}
       if(!c.game||c.game.frozen||(c.game.remainSec||0)<=0){clearInterval(this._shopTick);this._shopTick=null;UI.render();return;}
-      const now=Date.now();
-      const elapsed=Math.floor((now-anchor)/1000);
-      if(elapsed<=0)return;
-      anchor=now;
-      c.game.remainSec=Math.max(0,c.game.remainSec-elapsed);
-      if(c.game.remainSec<=0){c.game.frozen=false;c.game.frozenAt=0;c.game.tickAt=0;Store.save();clearInterval(this._shopTick);this._shopTick=null;toast('游戏时间结束！⏰');UI.render();return;}
-      Store.save();
+      if(this.settleGame()){clearInterval(this._shopTick);this._shopTick=null;UI.render();return;}
       render();
     },1000);
   }
@@ -2754,13 +2808,10 @@ function closeModal(){
   const top=stack.length?stack[stack.length-1]:window._curMask;
   if(top){top.remove();stack.pop();}
   if(stack.length===0)window._curMask=null;else window._curMask=stack[stack.length-1];
-  // 只有当倒计时弹窗真的被关掉（不在栈中）时才停表，剩余时间保存在 child.game
+  // 只有当倒计时弹窗真的被关掉（不在栈中）时才停 UI 计时；
+  // 计时锚点 tickAt 保留：倒计时在后台按真实时间继续，收起弹窗不影响
   const timerStillOpen=stack.some(m=>m.querySelector&&m.querySelector('#gameTimer'));
   if(!timerStillOpen&&Shop.gameTimer){clearInterval(Shop.gameTimer);Shop.gameTimer=null;}
-  if(!timerStillOpen){
-    const c=(typeof curChild==='function')?curChild():null;
-    if(c&&c.game&&!c.game.frozen&&(c.game.remainSec||0)>0){c.game.tickAt=0;Store.save();}
-  }
 }
 // 全局朗读按钮事件委托：通过 data-speak 属性触发朗读，避免内联 onclick 转义问题
 document.addEventListener('click',function(e){
@@ -4003,7 +4054,7 @@ const UI = {
       <div style="font-size:26px;">${gc?'🛡️':'🏰'}</div>
       <div style="flex:1;">
         <div style="font-weight:700;">花园托管 ${gc?'<span style="color:#2e7d32;font-size:12px;">● 已开启</span>':''}</div>
-        <div style="font-size:11px;color:var(--text-soft);">${gc?'每天消耗 50☀️，不再新增僵尸；植物照常产出与攻击。':'开启后每天消耗 50☀️，不再新增僵尸；植物照常产出与攻击。从下一次每日结算开始生效。'}</div>
+        <div style="font-size:11px;color:var(--text-soft);">${gc?'每天消耗 50☀️，不再新增僵尸；植物照常产出与攻击。':'开启先付 50☀️ 手续费（当天内不重复收）；每天消耗 50☀️，不再新增僵尸；植物照常产出与攻击。从下一次每日结算开始生效。'}</div>
       </div>
       <button class="btn ${gc?'ghost':'sm'}" onclick="Garden.toggleAutoCare()">${gc?'关闭托管':'开启托管'}</button>
     </div></div>`;
@@ -4059,7 +4110,7 @@ const UI = {
         <li>100 阳光可手动消灭 1 只僵尸</li>
         <li>同一行内植物攻击伤害可叠加</li>
         <li>每日凌晨统一结算产出与伤害</li>
-        <li><b>🛡️ 花园托管</b>：开启后每天消耗 50☀️，不再新增僵尸，适合没时间打理的日子</li>
+        <li><b>🛡️ 花园托管</b>：开启先付 50☀️ 手续费（当天内关闭再开启不重复收），之后每天消耗 50☀️，不再新增僵尸，适合没时间打理的日子</li>
         <li>当前累计击杀：<b>${curChild().stats.zombieKills||0}</b> 只僵尸</li>
         <li><b>离线自动补算</b>：连续离线天数都会按真实日历补算产出/攻击/僵尸前进，最多 7 天</li>
       </ul>
@@ -4266,7 +4317,7 @@ const UI = {
         <button class="btn ghost sm" style="font-size:11px;padding:4px 8px;color:var(--danger);" onclick="Pet.abandon('${p.id}')" title="弃养 300阳光">💔弃养</button>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
-        <button class="btn ${p.autoCare?'sky sm':'ghost sm'}" style="font-size:11px;padding:4px 8px;${p.autoCare?'color:#0277bd;':''}" onclick="Pet.toggleAutoCare('${p.id}')" title="托管：每天最多20阳光自动护理，保证不死不生病；属性良好时不扣费">🏠${p.autoCare?'托管中':'托管'}</button>
+        <button class="btn ${p.autoCare?'sky sm':'ghost sm'}" style="font-size:11px;padding:4px 8px;${p.autoCare?'color:#0277bd;':''}" onclick="Pet.toggleAutoCare('${p.id}')" title="托管：开启先付50阳光手续费（当天不重复收）；每天最多20阳光自动护理，保证不死不生病；属性良好时不扣费">🏠${p.autoCare?'托管中':'托管'}</button>
         ${p.autoCare?'<span style="font-size:10px;color:#0277bd;align-self:center;">自动照顾中</span>':''}
       </div></div>`;
     }).join(''):'<div style="text-align:center;color:var(--text-light);padding:20px;">还没有宠物，快去领养一只吧！🐾</div>';
@@ -4321,6 +4372,7 @@ const UI = {
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🏠 托管模式</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>每只宠物可单独开启<b>托管</b>（宠物卡片上的 🏠 按钮）</li>
+        <li>开启需先支付<b> 50☀️ 手续费</b>（当天内关闭再开启<b>不重复收取</b>，次日开启再收一次）</li>
         <li>托管后系统每天自动补水、喂食、体检，<b>保证宠物不死不生病</b></li>
         <li>费用：<b>每天最多 20☀️</b>（最低护理包干），<b>属性良好时不扣费</b></li>
         <li>余额不足时系统垫付，宠物安全第一；离线多天会按天补算护理</li>
@@ -4342,7 +4394,7 @@ const UI = {
         <div style="flex:1;">
           <div style="font-weight:700;">游戏时间${g.frozen?'（已冻结）':'进行中'}</div>
           <div style="font-size:20px;font-weight:700;color:${g.frozen?'#4aa3df':'var(--primary-d)'};" id="shopGameClock">${fmtClock(g.remainSec)}</div>
-          <div style="font-size:11px;color:var(--text-light);">${g.frozen?'剩余时间已保留，随时可以继续':'关闭页面后剩余时间也会保留'}</div>
+          <div style="font-size:11px;color:var(--text-light);">${g.frozen?'剩余时间已保留，随时可以继续':'⏳ 倒计时在后台持续运行，收起页面不影响；冻结或关闭才会停止'}</div>
         </div>
         <button class="btn sm" onclick="Shop.openGameTimer()">${g.frozen?'▶️ 打开':'📺 打开'}</button>
       </div></div>`:'';
@@ -4886,6 +4938,7 @@ function init(){
   };
   window.addEventListener('garden-catchup',onCatchup);
   dailyReset();
+  Shop.settleGame(); // 页面加载：补算收起/离开页面期间后台流逝的游戏时间
   // 更新lastActiveDate
   const c=curChild();
   if(c.stats.lastActiveDate!==todayStr()){c.stats.lastActiveDate=todayStr();Store.save();}
