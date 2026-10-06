@@ -1640,6 +1640,11 @@ const Pet = {
           play:'images/black_cat_play.jpg?v=5',
           wash:'images/black_cat_wash.jpg?v=5'
         },
+        // 动态视频：idle 无互动时随机播放；sick 生病时播放
+        videos:{
+          idle:['images/black_cat_idle1.mp4?v=1','images/black_cat_idle2.mp4?v=1'],
+          sick:'images/black_cat_sick.mp4?v=1'
+        },
         desc:'酷酷的小黑猫，眼神明亮，喜欢戴蓝色小围巾。',
         cost:100,attrs:{饱食:'高',亲密:'中',攻击:'无',防御:'低'}
       },
@@ -2496,7 +2501,68 @@ const UI = {
   },
   renderContent(){
     const v=State.view;const fn=this.views[v]||this.views.dashboard;
+    // 渲染前记录当前宠物视频进度，避免重渲染导致视频从头播放（闪烁）
+    const prev={};
+    document.querySelectorAll('video.pet-video').forEach(el=>{
+      const pid=el.dataset.pid;if(!pid)return;
+      prev[pid]={src:el.getAttribute('src'),ct:el.currentTime||0,paused:el.paused,muted:el.muted};
+    });
+    this._petVideoPrev=prev;
     $('#content').innerHTML=fn();
+    // 渲染后初始化宠物视频（尝试带声音自动播放，被浏览器拦截则等待首次用户交互）
+    this.initPetVideos();
+  },
+  // 宠物视频播放：保留声音；自动播放被拦截时，先静音播放，首次交互后取消静音
+  initPetVideos(){
+    const vids=document.querySelectorAll('video.pet-video');
+    if(!vids.length)return;
+    const prev=this._petVideoPrev||{};
+    vids.forEach(v=>{
+      const pid=v.dataset.pid;
+      const p=pid?prev[pid]:null;
+      const sameSrc=p&&p.src&&p.src===v.getAttribute('src');
+      if(sameSrc&&p.ct>0){
+        // 同一视频：跳回原进度，视觉上连续
+        try{v.currentTime=p.ct;}catch(e){}
+        v.muted=true; // 先按静音拉起，避免多次触发播放音
+        const pr=v.play();
+        if(pr&&pr.catch){
+          pr.catch(()=>{});
+        }
+        // 若原本有声，立即恢复（已在交互上下文中时不会被打断）
+        if(p.muted===false){
+          setTimeout(()=>{v.muted=false;},0);
+        }
+        return;
+      }
+      v.muted=false;
+      const attempt=()=>{
+        const pr=v.play();
+        if(pr&&pr.catch){
+          pr.catch(()=>{
+            // 浏览器拦截有声自动播放：先静音播放保证动画可见，标记待解锁
+            v.muted=true;
+            const pr2=v.play();
+            if(pr2&&pr2.catch)pr2.catch(()=>{});
+            v.dataset.needUnmute='1';
+          });
+        }
+      };
+      attempt();
+    });
+    // 绑定一次性用户交互，解锁声音
+    if(!this._voiceUnlockBound){
+      this._voiceUnlockBound=true;
+      const unlock=()=>{
+        document.querySelectorAll('video.pet-video').forEach(v=>{
+          if(v.dataset.needUnmute==='1'){
+            v.muted=false;v.dataset.needUnmute='0';
+            const pr=v.play();if(pr&&pr.catch)pr.catch(()=>{});
+          }
+        });
+      };
+      ['click','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,unlock,{once:false,passive:true}));
+    }
   },
   views:{
     dashboard(){
@@ -3706,6 +3772,7 @@ const UI = {
       const def=defs[p.type];
       // 根据宠物状态选择图片
       let petImgSrc=def.img;
+      let petVideoSrc='';   // 非空则用视频代替图片
       let petStateLabel='';
       let animClass='pet-anim blink'; // 默认闲置眨眼
       if(def.imgs){
@@ -3719,14 +3786,28 @@ const UI = {
           {at:p.lastCallAt,win:8000,img:def.imgs.happy,label:'📢 听到名字了',anim:'pet-anim call'}
         ].filter(a=>a.img);
         const recent=acts.filter(a=>a.at&&(now-a.at)<a.win).sort((a,b)=>b.at-a.at)[0];
+        const vids=def.videos||{};
         if(p.status==='dead'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='💀 去世了';animClass='';
+        }else if(p.status==='sick'&&vids.sick){
+          // 生病：播放生病视频
+          petVideoSrc=vids.sick;petStateLabel='🤒 生病了';animClass='';
         }else if(p.status==='sick'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='🤒 生病了';animClass='pet-anim sick';
         }else if(recent){
+          // 互动窗口内：优先静态互动图（视频会打断互动反馈）
           petImgSrc=recent.img;petStateLabel=recent.label;animClass=recent.anim;
         }else if(p.status==='hungry'&&def.imgs.sad){
           petImgSrc=def.imgs.sad;petStateLabel='😟 饿了';animClass='pet-anim wag';
+        }else if(vids.idle&&vids.idle.length){
+          // 无互动待机：随机播放两个待机视频之一
+          // 用「宠物id + 时间段」做种子，同一时段内保持稳定（避免每次渲染都跳变），每 30 秒换一次
+          const list=vids.idle;
+          const slot=Math.floor(Date.now()/30000);
+          let h=slot;
+          for(let i=0;i<p.id.length;i++)h=(h*31+p.id.charCodeAt(i))>>>0;
+          petVideoSrc=list[h%list.length];
+          petStateLabel='';animClass='';
         }else if(def.imgs.happy){
           petImgSrc=def.imgs.happy;petStateLabel='😊 好开心';animClass='pet-anim wag';
         }
@@ -3735,7 +3816,10 @@ const UI = {
       const bondLv=p.bondLevel||Pet.bondLevelFromIntimacy(p.intimacy);
       // 健康值
       const health=p.health||100;
-      const imgHtml=petImgSrc?`<div class="${animClass}"><img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div></div>`:`<div class="${animClass}"><div class="pet-emoji">${def.emoji}</div></div>`;
+      const mediaHtml=petVideoSrc
+        ? `<video src="${petVideoSrc}" class="pet-img pet-video" data-pid="${p.id}" autoplay loop playsinline webkit-playsinline preload="auto" style="object-fit:cover;background:#000;"></video>`
+        : (petImgSrc?`<img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div>`:`<div class="pet-emoji">${def.emoji}</div>`);
+      const imgHtml=`<div class="${animClass}">${mediaHtml}</div>`;
       return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️ <span class="bond-badge">羁绊 Lv.${bondLv}</span></div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
       <div><div class="bar-label"><span>饱食度</span><span>${p.satiety}</span></div><div class="bar-wrap"><div class="bar-fill sat" style="width:${clamp(p.satiety/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
