@@ -274,6 +274,8 @@ const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
 // 宠物视频海报图：xxx.mp4?v=1 → xxx.jpg?v=1（视频未起播/加载中显示，防黑屏）
 function posterOf(u){ try{ return String(u).split('?')[0].replace(/\.mp4$/i,'.jpg')+(String(u).includes('?')?'?'+String(u).split('?')[1]:''); }catch(e){ return ''; } }
+// 秒数 → mm:ss 倒计时文本
+function fmtClock(sec){ sec=Math.max(0,Math.floor(sec||0)); const m=Math.floor(sec/60),s=sec%60; return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
 // 唤名录音单条上限（base64 前），建议 1-3 秒清晰说出名字
 const MAX_VOICE_BYTES = 200*1024;
 
@@ -516,6 +518,14 @@ const Store = {
     if(!c.sunlight) c.sunlight={total:0};
     // 初始阳光补偿：老用户如果余额为0且未获得过阳光，补到300
     if(c.sunlight.total===0&&!c._init300){c.sunlight.total=300;c._init300=true;}
+    // 游戏时间：剩余秒数 + 冻结状态（兼容旧数据）
+    if(!c.game) c.game={remainSec:0,frozen:false,frozenAt:0,tickAt:0};
+    if(c.game.remainSec===undefined) c.game.remainSec=0;
+    if(c.game.frozen===undefined) c.game.frozen=false;
+    if(c.game.frozenAt===undefined) c.game.frozenAt=0;
+    if(c.game.tickAt===undefined) c.game.tickAt=0;
+    // 长时间离开后修正：未冻结的计时在会话结束时不流逝（避免关掉页面被白扣）
+    c.game.tickAt=0;
     if(!c.garden) c.garden={grid:this.emptyGrid(),zombies:[],undoFree:true};
     if(!c.garden.grid||c.garden.grid.length!==5) c.garden.grid=this.emptyGrid();
     if(!c.garden.zombies) c.garden.zombies=[];
@@ -558,6 +568,7 @@ const Store = {
           grade:'grade1',
           today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},
           sunlight:{total:300},
+          game:{remainSec:0,frozen:false,frozenAt:0,tickAt:0},
           garden:{grid:this.emptyGrid(),zombies:[this.newZombie()],undoFree:true,undoCount:0},
           pets:[],achievements:[],logs:{sunlight:[],pet:[]},
           wrongQuestions:[],
@@ -1994,19 +2005,164 @@ const Shop = {
     }
     if(!spendSunlight(item.price,'兑换：'+item.name))return;
     Audio.play('redeem');
-    if(item.action==='game'){this.startGameTimer();}
+    if(item.action==='game'){
+      // 兑换叠加：已有剩余时间则累加（冻结中也能累加，不浪费）
+      const g=c.game;
+      g.remainSec=(g.remainSec||0)+30*60;
+      Store.save();UI.render();
+      toast('兑换成功：'+item.name+' 🎉 累计 '+fmtClock(g.remainSec));
+      this.openGameTimer();
+      return;
+    }
     toast('兑换成功：'+item.name+' 🎉');
     Store.save();UI.render();
   },
   gameTimer:null,
-  startGameTimer(){
-    let sec=30*60;
-    if(this.gameTimer)clearInterval(this.gameTimer);
-    const modal=showModal('游戏时间',`<div style="text-align:center;padding:20px;"><div style="font-size:60px;">🎮</div><div id="gameTimer" style="font-size:32px;font-weight:700;color:var(--primary-d);">30:00</div><p>快乐游戏时间！</p></div>`,null,true);
+  // 冻结：暂停倒计时并持久化剩余时间，50阳光，成本随时间递减
+  GAME_FREEZE_PER_MIN:10, GAME_FREEZE_MIN:10, GAME_FREEZE_MAX:50,
+  freezeCost(remainSec){
+    const mins=Math.ceil((remainSec||0)/60);
+    return clamp(mins*this.GAME_FREEZE_PER_MIN,this.GAME_FREEZE_MIN,this.GAME_FREEZE_MAX);
+  },
+  freezeGame(){
+    const c=curChild();
+    const g=c.game;
+    if(g.frozen)return;
+    if((g.remainSec||0)<=0){toast('当前没有正在进行的游戏时间');return;}
+    const cost=this.freezeCost(g.remainSec);
+    confirmModal(`冻结游戏时间？\n暂停倒计时，剩余 ${fmtClock(g.remainSec)} 将保留。\n消耗 ☀️${cost} 阳光。`,()=>{
+      if(!spendSunlight(cost,'冻结游戏时间')){toast('阳光不足，需要 '+cost+'☀️');return;}
+      g.frozen=true;
+      g.frozenAt=Date.now();
+      c.logs.sunlight.unshift({time:nowISO(),action:`🧊 冻结游戏时间（剩余 ${fmtClock(g.remainSec)}）`,delta:-cost,balance:c.sunlight.total});
+      Store.save();
+      closeModal();
+      toast('🧊 已冻结，剩余 '+fmtClock(g.remainSec)+' 已保留');
+      UI.render();
+      this.openGameTimer();
+    });
+  },
+  // 解冻：不额外收费，继续倒计时
+  unfreezeGame(){
+    const g=curChild().game;
+    if(!g.frozen)return;
+    g.frozen=false;g.frozenAt=0;g.tickAt=Date.now();
+    Store.save();closeModal();
+    toast('▶️ 已解冻，继续计时');
+    UI.render();
+    this.openGameTimer();
+  },
+  // 关闭倒计时页面：保留剩余时间，可随时重新打开继续
+  closeGameTimer(){
+    // 关掉倒计时弹窗及其上的所有叠层（如确认框），避免残留
+    const stack=window._modalStack||[];
+    for(let i=stack.length-1;i>=0;i--){
+      if(stack[i].querySelector&&stack[i].querySelector('#gameTimer')){
+        for(let j=stack.length-1;j>=i;j--){stack[j].remove();}
+        stack.splice(i);
+        break;
+      }
+    }
+    window._curMask=stack.length?stack[stack.length-1]:null;
+    if(this.gameTimer){clearInterval(this.gameTimer);this.gameTimer=null;}
+    const c=curChild();
+    if(c&&c.game&&!c.game.frozen&&(c.game.remainSec||0)>0){c.game.tickAt=0;Store.save();}
+    toast('已收起，剩余时间已保留');
+    UI.render();
+  },
+  // 打开（或重新打开）倒计时窗口；已结束则提示
+  openGameTimer(){
+    const c=curChild();const g=c.game||{};
+    if((g.remainSec||0)<=0&&!g.frozen){toast('当前没有正在进行的游戏时间');return;}
+    // 已开着倒计时窗口就不重复叠加，直接刷新内容
+    if(this.gameTimer){clearInterval(this.gameTimer);this.gameTimer=null;}
+    const stack=window._modalStack||[];
+    for(let i=stack.length-1;i>=0;i--){
+      if(stack[i].querySelector&&stack[i].querySelector('#gameTimer')){
+        stack[i].remove();stack.splice(i,1);
+      }
+    }
+    window._curMask=stack.length?stack[stack.length-1]:null;
+    const frozen=!!g.frozen;
+    const remain=g.remainSec;
+    const cost=this.freezeCost(remain);
+    const clock=fmtClock(remain);
+    const body=`<div style="text-align:center;padding:14px 10px;">
+        <div style="font-size:54px;">${frozen?'🧊':'🎮'}</div>
+        <div id="gameTimer" style="font-size:34px;font-weight:700;color:${frozen?'#4aa3df':'var(--primary-d)'};letter-spacing:1px;">${clock}</div>
+        <div style="font-size:13px;color:var(--text-light);margin-top:6px;">${frozen?'已冻结 · 剩余时间不会减少':'快乐游戏时间！'}</div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px;background:#f5f7fa;border-radius:8px;padding:6px 10px;display:inline-block;">☀️ 余额 <b>${c.sunlight.total}</b></div>
+      </div>`;
+    const footer=frozen
+      ? `<button class="btn ghost sm" onclick="Shop.closeGameTimer()">收起</button>
+         <button class="btn sm" onclick="Shop.unfreezeGame()">▶️ 解冻继续</button>`
+      : `<button class="btn ghost sm" onclick="Shop.closeGameTimer()">收起</button>
+         <button class="btn sky sm" onclick="Shop.freezeGame()">🧊 冻结 ${cost}☀️</button>`;
+    showModal('游戏时间',body,footer,true);
+    if(frozen)return;  // 冻结中不启动计时
+    g.tickAt=Date.now();  // 从打开这一刻起算，不补扣关闭期间的时间
+    this.tickGameTimer();
+  },
+  // 启动倒计时：以 game.tickAt 为锚点按真实时间推进（兼容息屏/切后台）
+  tickGameTimer(){
+    const c=curChild();const g=c.game;
+    if(this.gameTimer){clearInterval(this.gameTimer);this.gameTimer=null;}
+    if(!g||g.frozen||(g.remainSec||0)<=0)return;
+    g.tickAt=Date.now();
+    const render=()=>{
+      if(!g||g.frozen)return;
+      const el=$('#gameTimer');if(el)el.textContent=fmtClock(g.remainSec);
+    };
     this.gameTimer=setInterval(()=>{
-      sec--;const m=Math.floor(sec/60),s=sec%60;
-      const t=$('#gameTimer');if(t)t.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-      if(sec<=0){clearInterval(this.gameTimer);closeModal();toast('游戏时间结束！⏰');}
+      if(g.frozen)return;
+      const now=Date.now();
+      const elapsed=Math.floor((now-(g.tickAt||now))/1000);
+      if(elapsed<=0)return;
+      g.tickAt=now;
+      g.remainSec=Math.max(0,g.remainSec-elapsed);
+      if(g.remainSec<=0){
+        g.frozen=false;g.frozenAt=0;g.tickAt=0;
+        clearInterval(this.gameTimer);this.gameTimer=null;
+        Store.save();closeModal();
+        toast('游戏时间结束！⏰');
+        UI.render();
+        return;
+      }
+      Store.save();
+      render();
+    },1000);
+    render();
+  },
+  // 供倒计时窗口重新打开入口（dashboard/商店页调用）
+  startGameTimer(){this.openGameTimer();},
+  // 同步商店页上的游戏时间面板（时钟继续走 + 冻结/结束状态切换）
+  syncGameViews(){
+    const el=document.getElementById('shopGameClock');
+    if(!el)return;
+    const c=curChild();
+    const g=c&&c.game;
+    if(!g||(g.remainSec||0)<=0){return;}
+    const render=()=>{
+      const cur=document.getElementById('shopGameClock');
+      if(cur&&c.game)cur.textContent=fmtClock(c.game.remainSec);
+    };
+    render();
+    if(this._shopTick){clearInterval(this._shopTick);this._shopTick=null;}
+    if(g.frozen)return;  // 冻结中不需要刷新
+    // 独立锚点：不与倒计时弹窗的 tickAt 争抢
+    let anchor=Date.now();
+    this._shopTick=setInterval(()=>{
+      // 面板被移除或切换到非商店页时自动停止
+      if(!document.getElementById('shopGameClock')){clearInterval(this._shopTick);this._shopTick=null;return;}
+      if(!c.game||c.game.frozen||(c.game.remainSec||0)<=0){clearInterval(this._shopTick);this._shopTick=null;UI.render();return;}
+      const now=Date.now();
+      const elapsed=Math.floor((now-anchor)/1000);
+      if(elapsed<=0)return;
+      anchor=now;
+      c.game.remainSec=Math.max(0,c.game.remainSec-elapsed);
+      if(c.game.remainSec<=0){c.game.frozen=false;c.game.frozenAt=0;c.game.tickAt=0;Store.save();clearInterval(this._shopTick);this._shopTick=null;toast('游戏时间结束！⏰');UI.render();return;}
+      Store.save();
+      render();
     },1000);
   }
 };
@@ -2511,10 +2667,26 @@ function showModal(title,body,footer='',noClose){
   mask.innerHTML=`<div class="modal"><div class="modal-title"><span>${title}</span>${noClose?'':'<button class="modal-close" onclick="closeModal()">×</button>'}</div><div>${body}</div>${footer?`<div class="modal-footer">${footer}</div>`:''}</div>`;
   mask.addEventListener('click',(e)=>{if(e.target===mask&&!noClose)closeModal();});
   root.appendChild(mask);
+  // 弹窗栈：支持「倒计时弹窗上再叠确认弹窗」，关闭时逐层出栈不错乱
+  window._modalStack=window._modalStack||[];
+  window._modalStack.push(mask);
   window._curMask=mask;
   return mask;
 }
-function closeModal(){if(window._curMask){window._curMask.remove();window._curMask=null;}if(Shop.gameTimer){clearInterval(Shop.gameTimer);Shop.gameTimer=null;}}
+// 关闭最上层弹窗；游戏计时器仅在最上层是倒计时弹窗时才停
+function closeModal(){
+  const stack=window._modalStack||[];
+  const top=stack.length?stack[stack.length-1]:window._curMask;
+  if(top){top.remove();stack.pop();}
+  if(stack.length===0)window._curMask=null;else window._curMask=stack[stack.length-1];
+  // 只有当倒计时弹窗真的被关掉（不在栈中）时才停表，剩余时间保存在 child.game
+  const timerStillOpen=stack.some(m=>m.querySelector&&m.querySelector('#gameTimer'));
+  if(!timerStillOpen&&Shop.gameTimer){clearInterval(Shop.gameTimer);Shop.gameTimer=null;}
+  if(!timerStillOpen){
+    const c=(typeof curChild==='function')?curChild():null;
+    if(c&&c.game&&!c.game.frozen&&(c.game.remainSec||0)>0){c.game.tickAt=0;Store.save();}
+  }
+}
 // 全局朗读按钮事件委托：通过 data-speak 属性触发朗读，避免内联 onclick 转义问题
 document.addEventListener('click',function(e){
   const btn=e.target.closest('[data-speak]');
@@ -2563,6 +2735,7 @@ const Router = {
 const UI = {
   render(){
     this.renderTopbar();this.renderSidebar();this.renderContent();this.renderFooter();
+    Shop.syncGameViews();
   },
   renderTopbar(){
     const c=curChild();if(!c)return;
@@ -4065,7 +4238,18 @@ const UI = {
   },
   renderShop(){
     const c=curChild();
-    return `<div class="card"><div class="card-title">🛒 阳光商店</div><div style="margin-bottom:10px;">当前阳光余额：<b style="color:var(--orange-d);font-size:18px;">${c.sunlight.total}</b> ☀️</div>
+    const g=c.game||{};
+    const hasGame=(g.remainSec||0)>0;
+    const gamePanel=hasGame?`<div class="card" style="border-left:5px solid ${g.frozen?'#4aa3df':'var(--primary)'};"><div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:34px;">${g.frozen?'🧊':'🎮'}</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;">游戏时间${g.frozen?'（已冻结）':'进行中'}</div>
+          <div style="font-size:20px;font-weight:700;color:${g.frozen?'#4aa3df':'var(--primary-d)'};" id="shopGameClock">${fmtClock(g.remainSec)}</div>
+          <div style="font-size:11px;color:var(--text-light);">${g.frozen?'剩余时间已保留，随时可以继续':'关闭页面后剩余时间也会保留'}</div>
+        </div>
+        <button class="btn sm" onclick="Shop.openGameTimer()">${g.frozen?'▶️ 打开':'📺 打开'}</button>
+      </div></div>`:'';
+    return `${gamePanel}<div class="card"><div class="card-title">🛒 阳光商店</div><div style="margin-bottom:10px;">当前阳光余额：<b style="color:var(--orange-d);font-size:18px;">${c.sunlight.total}</b> ☀️</div>
     <div class="grid grid-3">${Store.data.shopItems.map(it=>`<div class="shop-card"><div class="s-icon">${it.icon}</div><div style="font-weight:700;margin:6px 0;">${it.name}</div><div class="price">${it.price}☀️</div><button class="btn orange sm" style="margin-top:8px;" ${c.sunlight.total>=it.price?'':'disabled'} onclick="Shop.redeem('${it.id}')">兑换</button></div>`).join('')}</div></div>`;
   },
   renderBadge(){
@@ -4633,6 +4817,7 @@ window.App=App;window.UI=UI;window.Router=Router;window.Store=Store;
 window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=undoTask;
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
 window.Pet=Pet;window.PetVoice=PetVoice;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;
+window.fmtClock=fmtClock;window.posterOf=posterOf;
 window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;window.recordZombieKill=recordZombieKill;
 
 })();
