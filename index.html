@@ -272,6 +272,8 @@ const pick = (arr,n)=>{const c=[...arr];const r=[];for(let i=0;i<n&&c.length;i++
 const shuffle = (arr)=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
 const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+// 宠物视频海报图：xxx.mp4?v=1 → xxx.jpg?v=1（视频未起播/加载中显示，防黑屏）
+function posterOf(u){ try{ return String(u).split('?')[0].replace(/\.mp4$/i,'.jpg')+(String(u).includes('?')?'?'+String(u).split('?')[1]:''); }catch(e){ return ''; } }
 // 唤名录音单条上限（base64 前），建议 1-3 秒清晰说出名字
 const MAX_VOICE_BYTES = 200*1024;
 
@@ -2595,13 +2597,18 @@ const UI = {
       const pid=v.dataset.pid;
       const p=pid?prev[pid]:null;
       const sameSrc=p&&p.src&&p.src===v.getAttribute('src');
+      // 资源加载失败（404/断网）：降级为静态图，绝不让头像变黑块
+      if(!v._failBound){
+        v._failBound=true;
+        v.addEventListener('error',()=>{UI.videoFailToImg(v);},{once:true});
+      }
       if(sameSrc&&p.ct>0){
         // 同一视频：跳回原进度，视觉上连续
         try{v.currentTime=p.ct;}catch(e){}
         v.muted=true; // 先按静音拉起，避免多次触发播放音
         const pr=v.play();
         if(pr&&pr.catch){
-          pr.catch(()=>{});
+          pr.catch(()=>{ v.dataset.needUnmute='1'; });
         }
         // 若原本有声，立即恢复（已在交互上下文中时不会被打断）
         if(p.muted===false){
@@ -2637,6 +2644,23 @@ const UI = {
       };
       ['click','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,unlock,{once:false,passive:true}));
     }
+  },
+  // 视频资源加载失败时降级为静态图（用互动/开心图，避免黑块）
+  videoFailToImg(v){
+    try{
+      if(!v||v.dataset.failed==='1')return;
+      v.dataset.failed='1';
+      const pid=v.dataset.pid;
+      const c=curChild();
+      const p=c&&pid?(c.pets||[]).find(x=>x.id===pid):null;
+      const def=p?Pet.list()[p.type]:null;
+      const src=(def&&def.imgs&&(def.imgs.happy||def.imgs.touch||def.img))||posterOf(v.getAttribute('src'));
+      if(!src)return;
+      const img=document.createElement('img');
+      img.className='pet-img';img.dataset.pid=pid||'';img.src=src;
+      img.alt=def?def.name:'pet';
+      v.replaceWith(img);
+    }catch(e){}
   },
   views:{
     dashboard(){
@@ -3848,10 +3872,10 @@ const UI = {
     const at=Date.now();
     this._petTapAt[petId]=at;
     if(p.status==='sick'&&vids.sick){
-      // 生病：重播生病视频
+      // 生病：重播生病视频（点击有手势，直接带声音）
       Audio.play('pet');
       const el=document.querySelector('video.pet-video[data-pid="'+petId+'"]');
-      if(el){try{el.currentTime=0;const pr=el.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}}
+      if(el){try{el.muted=false;el.dataset.needUnmute='0';el.currentTime=0;const pr=el.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}}
       setTimeout(()=>{ if(this._petTapAt&&this._petTapAt[petId]===at){ UI.render(); } },3100);
       return;
     }
@@ -3866,6 +3890,11 @@ const UI = {
     this._petVideoPick[petId]=next;
     Audio.play('pet');
     UI.render();
+    // 渲染出的新视频在本次点击手势上下文内直接带声音起播（iOS/低电量模式也允许）
+    setTimeout(()=>{
+      const el=document.querySelector('video.pet-video[data-pid="'+petId+'"]');
+      if(el){try{el.muted=false;el.dataset.needUnmute='0';const pr=el.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}}
+    },0);
     // 3 秒后回到正常状态显示；60 秒后清掉点击选片，回归时段轮换
     setTimeout(()=>{ if(this._petTapAt&&this._petTapAt[petId]===at){ UI.render(); } },3100);
     setTimeout(()=>{ if(this._petVideoPick&&this._petVideoPick[petId]===next){ delete this._petVideoPick[petId]; UI.render(); } },60000);
@@ -3930,8 +3959,9 @@ const UI = {
       const bondLv=p.bondLevel||Pet.bondLevelFromIntimacy(p.intimacy);
       // 健康值
       const health=p.health||100;
+      // 宠物视频：poster 显示视频首帧海报，播放未起时不会黑屏
       const mediaHtml=petVideoSrc
-        ? `<video src="${petVideoSrc}" class="pet-img pet-video" data-pid="${p.id}" autoplay loop playsinline webkit-playsinline preload="auto" style="object-fit:cover;background:#000;"></video>`
+        ? `<video src="${petVideoSrc}" poster="${posterOf(petVideoSrc)}" class="pet-img pet-video" data-pid="${p.id}" autoplay loop playsinline webkit-playsinline preload="auto" style="object-fit:cover;background:#000;"></video>`
         : (petImgSrc?`<img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div>`:`<div class="pet-emoji">${def.emoji}</div>`);
       // 点击头像：有视频的宠物可随机换一段视频
       const canTap=!!(def.videos&&(def.videos.idle||def.videos.sick));
