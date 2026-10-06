@@ -1545,24 +1545,41 @@ const PetVoice = {
     }
     speak(pet&&pet.name?pet.name:'');
   },
-  // 唤名后宠物回应：合成拟声（喵/汪），带音高与节奏变化更逼真
+  // 唤名后宠物回应：优先播放视频里提取的真实叫声（3 秒），失败退回 Web Audio 合成，再退语音朗读
   respond(pet){
     if(!pet)return;
     const def=(Pet.list()[pet.type])||{};
     const v=def.voice;
     // 无配置时按 emoji 兜底：猫→喵，狗→汪
-    let kind='cat', texts=['喵～'];
-    if(v&&v.type){kind=v.type;texts=v.text||texts;}
+    let kind='cat';
+    if(v&&v.type){kind=v.type;}
     else{
-      const em=(def.emoji||'')+'' ;
-      if(em.indexOf('🐕')>=0){kind='dog';texts=['汪！','汪汪'];}
-      else if(em.indexOf('🐩')>=0){kind='dog';texts=['汪～','汪汪'];}
-      else{kind='cat';texts=['喵～','喵喵'];}
+      const em=(def.emoji||'')+'';
+      if(em.indexOf('🐕')>=0||em.indexOf('🐩')>=0){kind='dog';}
     }
+    const realUrl=(kind==='dog'?'images/dog_bark.m4a':'images/cat_meow.m4a')+'?v=1';
+    if(this._playRealSound(realUrl,()=>this._synthFallback(kind,v)))return;
+  },
+  // 播放真实叫声文件；播放失败时执行 onFail 回退
+  _playRealSound(url,onFail){
+    try{
+      if(this._audioEl){try{this._audioEl.pause();}catch(e){}}
+      // 注意：应用内 const Audio 是音效模块，会遮蔽原生构造器，必须用 window.Audio
+      const a=new window.Audio(url);this._audioEl=a;a.volume=1;
+      const pr=a.play();
+      if(pr&&pr.catch){pr.catch(()=>{if(onFail)onFail();});}
+      return true;
+    }catch(e){
+      if(onFail)onFail();
+      return false;
+    }
+  },
+  // 合成回退：Web Audio 拟声 → 语音朗读
+  _synthFallback(kind,v){
+    let texts=kind==='dog'?['汪！','汪汪','汪汪汪']:['喵～','喵喵','喵呜'];
+    if(v&&v.text&&v.text.length)texts=v.text;
     const text=texts[Math.floor(Math.random()*texts.length)];
-    // 优先用 Web Audio 合成（更像动物、无需加载、离线可用）
     const ok=this._synthAnimal(kind,text);
-    // 合成失败则退回语音朗读
     if(!ok){
       try{speak(text,'zh-CN');}catch(e){}
     }
@@ -4019,7 +4036,7 @@ const UI = {
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🎮 互动玩法</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>🤗 <b>抚摸</b>（10☀️）亲密度+10</li>
-        <li>📢 <b>唤名</b>（免费）不限次数，每天<b>首次</b>亲密度+3，之后只发声不计分，宠物会叫一声回应你（喵/汪），家长可在家长模式为宠物设置自定义唤名声音</li>
+        <li>📢 <b>唤名</b>（免费）不限次数，每天<b>首次</b>亲密度+3，之后只发声不计分，宠物会用真实的叫声回应你（🐱猫叫 / 🐶狗叫，约3秒），家长可在家长模式为宠物设置自定义唤名声音</li>
         <li>🎾 <b>玩玩具</b>（5☀️）亲密度+15，健康+3</li>
         <li>🛁 <b>洗澡</b>（10☀️）健康+15</li>
         <li>🦮 <b>遛宠</b>（10☀️）亲密度+10</li>
