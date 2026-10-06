@@ -505,6 +505,8 @@ const Store = {
     if(d.settings.reviewMode===undefined) d.settings.reviewMode=false;
     if(!d.settings.hiddenTasks) d.settings.hiddenTasks=[];
     if(!d.deedDefs) d.deedDefs=Bank.defaultDeeds();
+    // 德育任务支持自定义阳光数：老数据补默认 5
+    (d.deedDefs||[]).forEach(x=>{if(x.reward===undefined)x.reward=5;});
     if(!d.customTasks) d.customTasks=[];
     Object.keys(d.children).forEach(cid=>this.fixChild(d.children[cid]));
   },
@@ -2422,7 +2424,7 @@ function todayTaskList(c){
   // 家务
   Bank.chores.forEach(ch=>list.push({id:ch.id,cat:'家务',name:ch.name,icon:ch.icon,reward:10,review:true}));
   // 作息德育
-  Bank.deeds().forEach(d=>list.push({id:d.id,cat:'德育',name:d.name,icon:d.icon,reward:5,review:true}));
+  Bank.deeds().forEach(d=>list.push({id:d.id,cat:'德育',name:d.name,icon:d.icon,reward:(d.reward===undefined?5:d.reward),review:true}));
   // 家长自定义作业任务（按归属过滤：共有任务或当前孩子的专属任务）
   (Store.data.customTasks||[]).forEach(t=>{
     // scope='all' 或未设置 → 所有孩子可见
@@ -3016,6 +3018,8 @@ const UI = {
   },
   views:{
     dashboard(){
+      // 家长模式下首页 = 管理面板（任务/商店/德育/数值设置等）
+      if(State.mode==='parent')return `<div class="grid grid-2">${UI.renderParent()}</div>`;
       const c=curChild();const tasks=todayTaskList(c);
       const done=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
       const rate=tasks.length?Math.round(done/tasks.length*100):0;
@@ -3317,9 +3321,11 @@ const UI = {
     }else{
       btns=`<button class="btn sm" onclick="completeTask('${id}',${reward},'${name}')">完成 +${reward}</button> <button class="btn ghost sm" onclick="UI.startFocus('${id}')">🎯 专注</button>`;
     }
-    // 家长模式下显示删除按钮
+    // 家长模式下显示删除按钮（德育内置任务额外提供"修改"）
+    const isDeed=id.startsWith('deed_');
+    const editBtn=(State.mode==='parent'&&isDeed)?`<button class="btn sm" style="font-size:11px;" onclick="UI.editDeed('${id}')" title="修改任务内容与阳光数量">✏️ 修改</button>`:'';
     const delBtn=State.mode==='parent'?(isCustom?`<button class="btn danger sm" onclick="UI.delCustomTaskConfirm('${id}')" title="删除此自定义作业">🗑️ 删除</button>`:`<button class="btn ghost sm" style="color:var(--danger);font-size:11px;" onclick="UI.hideTask('${id}')" title="隐藏此内置作业">🚫 隐藏</button>`):'';
-    return `<div class="task-card ${done?'done':''} ${pending?'':''}"><div class="t-title">${icon} ${name} ${readBtn} ${perfectReward?'<span class="reward-tag">满分+'+perfectReward+'</span>':''}</div><div class="t-desc">${desc}</div><div class="t-foot"><span class="reward-tag">+${reward}☀️</span><div>${btns} ${delBtn}</div></div></div>`;
+    return `<div class="task-card ${done?'done':''} ${pending?'':''}"><div class="t-title">${icon} ${name} ${readBtn} ${perfectReward?'<span class="reward-tag">满分+'+perfectReward+'</span>':''}</div><div class="t-desc">${desc}</div><div class="t-foot"><span class="reward-tag">+${reward}☀️</span><div>${btns} ${editBtn} ${delBtn}</div></div></div>`;
   },
   // 答题系统
   curQuiz:null,
@@ -4454,7 +4460,7 @@ const UI = {
   renderDeed(){
     const ids=Bank.deeds().map(d=>d.id);
     const customs=(Store.data.customTasks||[]).filter(t=>t.cat==='德育').map(t=>t.id);
-    return `<div class="card"><div class="card-title">🌟 作息德育打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">培养良好品德习惯，每项+5阳光。家长审核模式下需家长确认。</p><div class="grid grid-2">${ids.concat(customs).map(id=>UI.taskCardById(id)).join('')}</div></div>${State.mode==='parent'?UI.customTaskInlineForm('德育'):''}`;
+    return `<div class="card"><div class="card-title">🌟 作息德育打卡</div><p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">培养良好品德习惯，每项阳光数由家长设置。家长审核模式下需家长确认。</p><div class="grid grid-2">${ids.concat(customs).map(id=>UI.taskCardById(id)).join('')}</div></div>${State.mode==='parent'?UI.customTaskInlineForm('德育'):''}`;
   },
   // 错题本
   renderWrong(){
@@ -4726,8 +4732,10 @@ const UI = {
         return `<button class="btn ghost sm" onclick="UI.restoreTask('${id}')">🔄 ${name}</button>`;
       }).join('')}</div></div>`:''}
       ${d_settings().reviewMode?`<div class="card"><div class="card-title">⏳ 待审核任务</div>${(()=>{const pending=[];Object.entries(Store.data.children).forEach(([cid,ch])=>{Object.entries(ch.today.tasks||{}).forEach(([tid,t])=>{if(t.pendingReview)pending.push({cid,ch,tid,t});});});if(!pending.length)return'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无待审核任务</div>';return pending.map(x=>`<div class="log-item"><span>${x.ch.profile.name}：${x.tid}</span><div><button class="btn sm" onclick="UI.approveChild('${x.cid}','${x.tid}')">✅ 通过</button> <button class="btn danger sm" onclick="UI.rejectChild('${x.cid}','${x.tid}')">❌ 驳回</button></div></div>`).join('');})()}</div>`:''}
-      <div class="card"><div class="card-title">🌟 德育任务管理</div>${Store.data.deedDefs.map(d=>`<div class="log-item"><span>${d.icon} ${d.name}</span><button class="btn danger sm" onclick="UI.delDeed('${d.id}')">删除</button></div>`).join('')}
-        <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newDeedName" placeholder="名称"><input id="newDeedIcon" placeholder="图标" value="✨"><button class="btn sm" onclick="UI.addDeed()">添加</button></div>
+      <div class="card"><div class="card-title">🌟 德育任务管理 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（可修改内容与阳光数量）</span></div>
+        ${Store.data.deedDefs.map(d=>`<div class="log-item"><span style="flex:1;min-width:0;">${d.icon||'✨'} <b>${d.name}</b> <span class="reward-tag" style="font-size:11px;">+${d.reward===undefined?5:d.reward}☀️</span></span>
+          <span style="display:flex;gap:4px;"><button class="btn sm" style="font-size:11px;padding:4px 10px;" onclick="UI.editDeed('${d.id}')">✏️ 修改</button><button class="btn danger sm" style="font-size:11px;padding:4px 10px;" onclick="UI.delDeed('${d.id}')">删除</button></span></div>`).join('')}
+        <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;"><input id="newDeedName" placeholder="任务内容（如：主动问好）" style="flex:1;min-width:120px;padding:6px;border:1px solid var(--border);border-radius:6px;"><input id="newDeedIcon" placeholder="图标" value="✨" style="width:56px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;"><input id="newDeedReward" type="number" value="5" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;">☀️<button class="btn sm" onclick="UI.addDeed()">添加</button></div>
       </div>
       <div class="card"><div class="card-title">🛒 商店管理</div><div id="shopMgr">${Store.data.shopItems.map(it=>`<div class="log-item"><span>${it.icon} <input type="text" value="${it.name}" style="width:90px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').name=this.value;Store.save()"> <input type="number" value="${it.price}" style="width:60px;border:1px solid var(--border);border-radius:4px;padding:2px;" onchange="Store.data.shopItems.find(x=>x.id==='${it.id}').price=+this.value;Store.save()">☀️</span><button class="btn danger sm" onclick="UI.delShop('${it.id}')">删除</button></div>`).join('')}</div>
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newShopName" placeholder="名称"><input id="newShopPrice" type="number" placeholder="价格"><input id="newShopIcon" placeholder="图标" value="🎁"><button class="btn sm" onclick="UI.addShop()">添加</button></div>
@@ -4851,10 +4859,55 @@ const UI = {
   addDeed(){
     const name=$('#newDeedName').value.trim();const icon=$('#newDeedIcon').value||'✨';
     if(!name){toast('请填写名称');return;}
-    Store.data.deedDefs.push({id:'deed_'+uid(),name,icon});
-    Store.save();UI.render();
+    const reward=+($('#newDeedReward')?.value)||5;
+    Store.data.deedDefs.push({id:'deed_'+uid(),name,icon,reward});
+    Store.save();UI.render();toast(`已添加德育任务：${name}（+${reward}☀️）`);
   },
-  delDeed(id){Store.data.deedDefs=Store.data.deedDefs.filter(x=>x.id!==id);Store.save();UI.render();},
+  delDeed(id){
+    const d=(Store.data.deedDefs||[]).find(x=>x.id===id);
+    const name=d?d.name:id;
+    confirmModal('确定删除德育任务「'+name+'」？已完成的记录也会清除。',()=>{
+      Store.data.deedDefs=Store.data.deedDefs.filter(x=>x.id!==id);
+      Object.values(Store.data.children).forEach(c=>{if(c.today&&c.today.tasks)delete c.today.tasks[id];});
+      Store.save();UI.render();toast('已删除：'+name);
+    });
+  },
+  // 修改/新增德育任务（弹窗式，支持名称、图标、阳光数量）
+  editDeed(id){
+    const d=(Store.data.deedDefs||[]).find(x=>x.id===id);
+    if(!d)return;
+    showModal('编辑德育任务',`
+      <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">
+        <label style="font-size:12px;color:var(--text-soft);">图标
+          <input id="edDeedIcon" type="text" value="${d.icon||'✨'}" style="width:100%;margin-top:4px;padding:8px;border:1px solid var(--border);border-radius:8px;text-align:center;font-size:20px;">
+        </label>
+        <label style="font-size:12px;color:var(--text-soft);">任务内容
+          <input id="edDeedName" type="text" value="${d.name||''}" style="width:100%;margin-top:4px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+        </label>
+        <label style="font-size:12px;color:var(--text-soft);">完成获得阳光
+          <input id="edDeedReward" type="number" min="0" value="${d.reward===undefined?5:d.reward}" style="width:100%;margin-top:4px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+        </label>
+      </div>`,
+      `<button class="btn ghost sm" onclick="closeModal()">取消</button> <button class="btn sm" onclick="UI.saveDeed('${id}')">保存</button>`);
+    setTimeout(()=>{const el=$('#edDeedName');if(el)el.focus();},50);
+  },
+  saveDeed(id){
+    const d=(Store.data.deedDefs||[]).find(x=>x.id===id);
+    if(!d)return;
+    const name=($('#edDeedName')?.value||'').trim();
+    if(!name){toast('任务内容不能为空');return;}
+    const icon=($('#edDeedIcon')?.value||'').trim()||'✨';
+    const reward=Math.max(0,+($('#edDeedReward')?.value)||0);
+    const oldName=d.name;
+    d.name=name;d.icon=icon;d.reward=reward;
+    // 同步各孩子当日该任务的阳光数（未完成的，完成后按新数值结算）
+    Object.values(Store.data.children).forEach(c=>{
+      const t=c.today&&c.today.tasks&&c.today.tasks[id];
+      if(t&&!t.completed){t.base=reward;t.score=reward;}
+    });
+    Store.save();closeModal();UI.render();
+    toast(`已保存：${oldName} → ${name}（+${reward}☀️）`);
+  },
   addCustomTask(){
     // 兼容家长管理页面的表单（带 #newCtName 等元素）
     const nameEl=$('#newCtName');
@@ -5005,7 +5058,7 @@ init();
 window.App=App;window.UI=UI;window.Router=Router;window.Store=Store;
 window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=undoTask;
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
-window.Pet=Pet;window.PetVoice=PetVoice;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;
+window.Pet=Pet;window.PetVoice=PetVoice;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;window.State=State;
 window.fmtClock=fmtClock;window.posterOf=posterOf;
 window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;window.recordZombieKill=recordZombieKill;
 
