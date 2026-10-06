@@ -529,6 +529,8 @@ const Store = {
     if(!c.garden) c.garden={grid:this.emptyGrid(),zombies:[],undoFree:true};
     if(!c.garden.grid||c.garden.grid.length!==5) c.garden.grid=this.emptyGrid();
     if(!c.garden.zombies) c.garden.zombies=[];
+    // 花园托管：默认关闭（兼容旧数据）
+    if(c.garden.autoCare===undefined)c.garden.autoCare=false;
     // 为已有僵尸补充图片和位置字段（兼容旧数据）
     c.garden.zombies.forEach((z,idx)=>{
       z.img='images/zombie.png?v=2';
@@ -544,6 +546,8 @@ const Store = {
       if(p.health===undefined)p.health=100;
       if(p.bondLevel===undefined)p.bondLevel=Pet.bondLevelFromIntimacy(p.intimacy);
       if(p.lastDailyReward===undefined)p.lastDailyReward='';
+      if(p.autoCare===undefined)p.autoCare=false;
+      if(p.autoCareLastDate===undefined)p.autoCareLastDate='';
     });
     if(!c.achievements) c.achievements=[];
     if(!c.logs) c.logs={sunlight:[],pet:[]};
@@ -569,7 +573,7 @@ const Store = {
           today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},
           sunlight:{total:300},
           game:{remainSec:0,frozen:false,frozenAt:0,tickAt:0},
-          garden:{grid:this.emptyGrid(),zombies:[this.newZombie()],undoFree:true,undoCount:0},
+          garden:{grid:this.emptyGrid(),zombies:[this.newZombie()],undoFree:true,undoCount:0,autoCare:false},
           pets:[],achievements:[],logs:{sunlight:[],pet:[]},
           wrongQuestions:[],
           stats:{streakDays:0,lastActiveDate:'',lastSportDate:'',totalReading:0,perfectMathCount:0,totalPerfect:0,sportsDays:0,focusMinutes:0,level:0,levelGifts:[],moodHistory:[],zombieKills:0}
@@ -1409,6 +1413,22 @@ function spendSunlight(amount,reason){
 
 /* ============ Garden 模块 ============ */
 const Garden = {
+  // 花园托管：每天50阳光，不再新增僵尸
+  toggleAutoCare(){
+    const c=curChild();
+    if(!c.garden)return;
+    if(c.garden.autoCare){
+      c.garden.autoCare=false;
+      Store.save();UI.render();
+      toast('已关闭花园托管，恢复常规僵尸入侵');
+      return;
+    }
+    confirmModal('开启花园托管？\n每天消耗 50☀️，不再新增僵尸（已有的仍会前进，植物照常产出与攻击）。\n从下一次每日结算开始生效。',()=>{
+      c.garden.autoCare=true;
+      Store.save();UI.render();
+      toast('🛡️ 花园托管已开启');
+    });
+  },
   defaultDefs(){
     return{
       sunflower:{name:'向日葵',emoji:'🌻',img:'images/sunflower.png?v=1',cost:50,produce:5,attack:0,desc:'每日产出5阳光'},
@@ -1490,6 +1510,7 @@ function gardenSettleFor(c, days=1){
   const realRate=dailyRate(c);
   const realDone=todayTaskList(c).filter(t=>c.today.tasks[t.id]?.completed).length;
   let produce=0;
+  let gardenCareDays=0; // 花园托管生效天数
   for(let day=0; day<days; day++){
     // 第1天用昨日真实数据，后续补算天按0处理（当天没做任务）
     const rate=day===0?realRate:0;
@@ -1519,9 +1540,17 @@ function gardenSettleFor(c, days=1){
     if(d_settings().zombieEnabled){
       // 僵尸前进
       if(rate<0.5&&!hasWallnut)c.garden.zombies.forEach(z=>{z.pos=Math.min(8,z.pos+1);});
+      // 花园托管：每天50阳光，僵尸不再新增（已有的仍会前进、被攻击）
+      if(c.garden.autoCare){gardenCareDays++;}
       // 保底：当日完成任意2项任务，不再新增僵尸
-      if(rate<0.3&&c.garden.zombies.length<5&&doneCount<2)c.garden.zombies.push(Store.newZombie());
+      else if(rate<0.3&&c.garden.zombies.length<5&&doneCount<2)c.garden.zombies.push(Store.newZombie());
     }
+  }
+  if(gardenCareDays>0){
+    const cost=50*gardenCareDays;
+    const paid=Math.min(cost,c.sunlight.total); // 余额不足也照常拦截（垫付）
+    c.sunlight.total-=paid;
+    c.logs.sunlight.unshift({time:nowISO(),action:`🛡️ 花园托管${gardenCareDays>1?`（补算${gardenCareDays}天）`:''}，已拦截僵尸入侵${paid<cost?'（余额不足，已垫付）':''}`,delta:-paid,balance:c.sunlight.total});
   }
   if(produce>0){
     c.sunlight.total+=produce;
@@ -1981,6 +2010,52 @@ const Pet = {
       }
     });
     c.pets=c.pets.filter(p=>p.status!=='dead');
+    this.autoCareAll(c);
+  },
+  /* ============ 宠物托管 ============
+     每天最多扣 20☀️（最低护理包干：补水+口粮+健康检查）。
+     属性低于安全线时自动拉回，保证不死不生病；状态良好时不扣费。 */
+  CARE_SAFE:{satiety:40,intimacy:55,health:40},
+  CARE_COST_PER_DAY:20,
+  autoCareAll(c){
+    const today=todayStr();
+    c.pets.forEach(p=>{
+      if(!p.autoCare||p.status==='dead')return;
+      const last=p.autoCareLastDate||'';
+      if(last===today)return; // 今天已护理/检查过
+      p.autoCareLastDate=today;
+      const S=this.CARE_SAFE;
+      const need=(p.satiety<S.satiety)||(p.intimacy<S.intimacy)||((p.health||0)<S.health);
+      if(!need)return; // 状态良好：不扣费
+      const days=last?Math.max(1,daysBetween(last,today)):1;
+      const cost=this.CARE_COST_PER_DAY*days;
+      const paid=Math.min(cost,c.sunlight.total);
+      c.sunlight.total-=paid; // 余额不足也照常护理（保证宠物安全第一）
+      p.satiety=Math.max(p.satiety,S.satiety);
+      p.intimacy=Math.max(p.intimacy,S.intimacy);
+      p.health=Math.max(p.health||0,S.health);
+      this.updateBondLevel(p);this.updateStatus(p);
+      const note=`🏠 ${p.name} 托管护理${days>1?`（补算${days}天）`:''}${paid<cost?'（余额不足，已垫付）':''}`;
+      c.logs.sunlight.unshift({time:nowISO(),action:note,delta:-paid,balance:c.sunlight.total});
+      c.logs.pet.unshift({time:nowISO(),action:'托管护理',petId:p.id,detail:`补水喂食体检，消耗${paid}☀️`});
+    });
+  },
+  toggleAutoCare(petId){
+    const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
+    if(p.status==='dead'){toast('宠物已死亡，无法托管');return;}
+    if(p.autoCare){
+      p.autoCare=false;
+      Log.pet('关闭托管',p.id,'恢复手动照顾');
+      Store.save();UI.render();toast('已关闭托管，恢复手动照顾');
+      return;
+    }
+    confirmModal(`开启 ${p.name} 的托管？\n每天最多扣 20☀️（最低护理包干），属性良好时不扣费。\n系统自动补水喂食体检，保证宠物不死不生病。`,()=>{
+      p.autoCare=true;p.autoCareLastDate='';
+      Log.pet('开启托管',p.id,'每天最多20阳光，属性良好不扣费');
+      Store.save();
+      this.decay(c); // 立即检查一次：若已低于安全线马上护理
+      UI.render();toast('🏠 已开启托管');
+    });
   }
 };
 
@@ -3923,7 +3998,16 @@ const UI = {
     const undefendedRows=[...new Set(c.garden.zombies.map(z=>z.row!==undefined?z.row:0))].filter(r=>!atkRows.has(r)).sort((a,b)=>a-b);
     const undefendTip=(zCount>0&&undefendedRows.length>0)?`<span style="color:#ff8a65;margin-left:8px;">⚠️ 第${undefendedRows.map(r=>r+1).join('、')}行没有攻击植物！</span>`:'';
     const zSummary=zCount>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(74,74,74,.85);border-radius:8px;color:#fff;font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">🧟 <b>${zCount}</b> 只僵尸入侵花园！${undefendTip}<span style="margin-left:auto;font-size:11px;opacity:.8;">点击僵尸查看详情/消灭</span></div>`:'<div style="margin-top:6px;padding:6px 10px;background:rgba(76,175,80,.2);border-radius:8px;color:#2e7d32;font-size:12px;">✅ 花园安全，暂无僵尸入侵</div>';
-    return `<div class="card"><div class="card-title">🌻 我的花园 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showGardenHelp()">📖 玩法介绍</button></div>
+    const gc=c.garden.autoCare;
+    const careHtml=`<div class="card" style="${gc?'border-left:5px solid #2e7d32;':''}"><div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:26px;">${gc?'🛡️':'🏰'}</div>
+      <div style="flex:1;">
+        <div style="font-weight:700;">花园托管 ${gc?'<span style="color:#2e7d32;font-size:12px;">● 已开启</span>':''}</div>
+        <div style="font-size:11px;color:var(--text-soft);">${gc?'每天消耗 50☀️，不再新增僵尸；植物照常产出与攻击。':'开启后每天消耗 50☀️，不再新增僵尸；植物照常产出与攻击。从下一次每日结算开始生效。'}</div>
+      </div>
+      <button class="btn ${gc?'ghost':'sm'}" onclick="Garden.toggleAutoCare()">${gc?'关闭托管':'开启托管'}</button>
+    </div></div>`;
+    return `${careHtml}<div class="card"><div class="card-title">🌻 我的花园 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showGardenHelp()">📖 玩法介绍</button></div>
       <div class="garden-wrap"><div class="garden-grid">${gridHtml}</div>${zSummary}</div>
       <p style="font-size:12px;color:var(--text-soft);margin-top:8px;">点击空格种植植物，点击僵尸查看详情。攻击型植物每日凌晨自动攻击<b>本行</b>僵尸，同一行的伤害叠加。僵尸从右侧入侵，完成任务可阻止前进。<br><b style="color:var(--primary-d);">☀️ 离线会自动按天数补算产出与战斗（最多补 7 天）。</b> 💀 累计击杀 <b>${c.stats.zombieKills||0}</b> 只僵尸</p></div>
       <div class="card"><div class="card-title">🛒 植物商店 <span style="font-size:11px;color:var(--text-soft);font-weight:400;margin-left:8px;">点击植物卡片 → 选择格子种植</span></div>
@@ -3975,6 +4059,7 @@ const UI = {
         <li>100 阳光可手动消灭 1 只僵尸</li>
         <li>同一行内植物攻击伤害可叠加</li>
         <li>每日凌晨统一结算产出与伤害</li>
+        <li><b>🛡️ 花园托管</b>：开启后每天消耗 50☀️，不再新增僵尸，适合没时间打理的日子</li>
         <li>当前累计击杀：<b>${curChild().stats.zombieKills||0}</b> 只僵尸</li>
         <li><b>离线自动补算</b>：连续离线天数都会按真实日历补算产出/攻击/僵尸前进，最多 7 天</li>
       </ul>
@@ -4179,6 +4264,10 @@ const UI = {
         <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.walk('${p.id}')" title="遛宠 10阳光">🦮10</button>
         ${p.status==='sick'?'<button class="btn danger sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.heal(\''+p.id+'\')">💊治疗'+(Pet._healCost||150)+'</button>':''}
         <button class="btn ghost sm" style="font-size:11px;padding:4px 8px;color:var(--danger);" onclick="Pet.abandon('${p.id}')" title="弃养 300阳光">💔弃养</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
+        <button class="btn ${p.autoCare?'sky sm':'ghost sm'}" style="font-size:11px;padding:4px 8px;${p.autoCare?'color:#0277bd;':''}" onclick="Pet.toggleAutoCare('${p.id}')" title="托管：每天最多20阳光自动护理，保证不死不生病；属性良好时不扣费">🏠${p.autoCare?'托管中':'托管'}</button>
+        ${p.autoCare?'<span style="font-size:10px;color:#0277bd;align-self:center;">自动照顾中</span>':''}
       </div></div>`;
     }).join(''):'<div style="text-align:center;color:var(--text-light);padding:20px;">还没有宠物，快去领养一只吧！🐾</div>';
     return `<div class="card"><div class="card-title">🐾 我的宠物 <button class="btn ghost sm" style="margin-left:auto;font-size:12px;" onclick="UI.showPetHelp()">📖 玩法介绍</button></div><div class="grid grid-2">${petHtml}</div></div>
@@ -4228,6 +4317,14 @@ const UI = {
         <li>🌙 凌晨 0:00-8:00 不消耗（宠物睡觉）</li>
         <li>饱食度≤30 或健康值≤30 → 生病（治疗${Pet._healCost||150}☀️）</li>
         <li>饱食度或亲密度≤0 → 死亡</li>
+      </ul>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">🏠 托管模式</h4>
+      <ul style="padding-left:18px;font-size:12px;">
+        <li>每只宠物可单独开启<b>托管</b>（宠物卡片上的 🏠 按钮）</li>
+        <li>托管后系统每天自动补水、喂食、体检，<b>保证宠物不死不生病</b></li>
+        <li>费用：<b>每天最多 20☀️</b>（最低护理包干），<b>属性良好时不扣费</b></li>
+        <li>余额不足时系统垫付，宠物安全第一；离线多天会按天补算护理</li>
+        <li>随时可以关闭托管，恢复手动照顾</li>
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">💸 领养与弃养</h4>
       <ul style="padding-left:18px;font-size:12px;">
