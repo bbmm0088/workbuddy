@@ -1543,6 +1543,70 @@ const PetVoice = {
     }
     speak(pet&&pet.name?pet.name:'');
   },
+  // 唤名后宠物回应：合成拟声（喵/汪），带音高与节奏变化更逼真
+  respond(pet){
+    if(!pet)return;
+    const def=(Pet.list()[pet.type])||{};
+    const v=def.voice;
+    // 无配置时按 emoji 兜底：猫→喵，狗→汪
+    let kind='cat', texts=['喵～'];
+    if(v&&v.type){kind=v.type;texts=v.text||texts;}
+    else{
+      const em=(def.emoji||'')+'' ;
+      if(em.indexOf('🐕')>=0){kind='dog';texts=['汪！','汪汪'];}
+      else if(em.indexOf('🐩')>=0){kind='dog';texts=['汪～','汪汪'];}
+      else{kind='cat';texts=['喵～','喵喵'];}
+    }
+    const text=texts[Math.floor(Math.random()*texts.length)];
+    // 优先用 Web Audio 合成（更像动物、无需加载、离线可用）
+    const ok=this._synthAnimal(kind,text);
+    // 合成失败则退回语音朗读
+    if(!ok){
+      try{speak(text,'zh-CN');}catch(e){}
+    }
+  },
+  // 用 Web Audio 合成猫/狗叫声；返回是否成功
+  _synthAnimal(kind,text){
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC)return false;
+      if(!this._actx)this._actx=new AC();
+      const ctx=this._actx;
+      if(ctx.state==='suspended'){try{ctx.resume();}catch(e){}}
+      const now=ctx.currentTime+0.02;
+      const n=(text||'').length;
+      // 喵：多段上行下滑滑音；汪：短促爆音，2-3 声
+      const isDog=(kind==='dog');
+      const bursts=isDog?Math.min(3,Math.max(1,text.split('汪').length-1)):1;
+      const beep=(t0,f0,f1,dur,vol,type)=>{
+        const o=ctx.createOscillator(),g=ctx.createGain(),flt=ctx.createBiquadFilter();
+        o.type=type||(isDog?'sawtooth':'triangle');
+        flt.type='lowpass';flt.frequency.value=isDog?1600:2400;
+        o.connect(flt);flt.connect(g);g.connect(ctx.destination);
+        o.frequency.setValueAtTime(f0,t0);
+        o.frequency.exponentialRampToValueAtTime(Math.max(60,f1),t0+dur);
+        g.gain.setValueAtTime(0.0001,t0);
+        g.gain.exponentialRampToValueAtTime(vol,t0+dur*0.18);
+        g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+        o.start(t0);o.stop(t0+dur+0.02);
+      };
+      if(isDog){
+        // 汪：2~3 声短促，音高先高后低
+        for(let i=0;i<bursts;i++){
+          const t0=now+i*0.16;
+          beep(t0,520-i*40,180,0.11,0.16,'sawtooth');
+        }
+      }else{
+        // 喵：一声，先上扬再下滑，模拟"喵～"
+        const dur=0.42;
+        beep(now,620,760,dur*0.45,0.13,'triangle');
+        beep(now+dur*0.42,760,420,dur*0.6,0.11,'triangle');
+      }
+      return true;
+    }catch(e){
+      return false;
+    }
+  },
   // 是否支持录音
   supported(){return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);},
   // 开始录音（针对某只宠物，可指定所属孩子）
@@ -1645,6 +1709,8 @@ const Pet = {
           idle:['images/black_cat_idle1.mp4?v=1','images/black_cat_idle2.mp4?v=1'],
           sick:'images/black_cat_sick.mp4?v=1'
         },
+        // 唤名回应音（拟声）：猫叫
+        voice:{type:'cat',text:['喵～','喵呜','喵喵']},
         desc:'酷酷的小黑猫，眼神明亮，喜欢戴蓝色小围巾。',
         cost:100,attrs:{饱食:'高',亲密:'中',攻击:'无',防御:'低'}
       },
@@ -1660,7 +1726,8 @@ const Pet = {
           play:'images/labrador_play.jpg?v=1',
           wash:'images/labrador_wash.jpg?v=1'
         },
-        desc:'温柔的拉布拉多，戴橙色项圈，最喜欢和主人玩耍。',cost:100,attrs:{饱食:'高',亲密:'高',攻击:'低',防御:'中'}
+        desc:'温柔的拉布拉多，戴橙色项圈，最喜欢和主人玩耍。',cost:100,attrs:{饱食:'高',亲密:'高',攻击:'低',防御:'中'},
+        voice:{type:'dog',text:['汪！','汪汪','汪汪汪']}
       },
       tricolor:{
         name:'三花猫',emoji:'🐱',
@@ -1675,7 +1742,8 @@ const Pet = {
           wash:'images/tricolor_wash.jpg?v=6'
         },
         desc:'可爱的小三花，戴粉色蝴蝶结，毛色由黄白黑相间。',
-        cost:150,attrs:{饱食:'中',亲密:'高',攻击:'无',防御:'中'}
+        cost:150,attrs:{饱食:'中',亲密:'高',攻击:'无',防御:'中'},
+        voice:{type:'cat',text:['喵～','喵喵','喵呜']}
       },
       samoyed:{
         name:'萨摩耶',emoji:'🐩',
@@ -1689,7 +1757,8 @@ const Pet = {
           play:'images/samoyed_play.jpg?v=1',
           wash:'images/samoyed_wash.jpg?v=1'
         },
-        desc:'微笑天使萨摩耶，戴口水巾，笑容治愈每一天。',cost:150,attrs:{饱食:'高',亲密:'高',攻击:'无',防御:'高'}
+        desc:'微笑天使萨摩耶，戴口水巾，笑容治愈每一天。',cost:150,attrs:{饱食:'高',亲密:'高',攻击:'无',防御:'高'},
+        voice:{type:'dog',text:['汪～','汪汪','嗷呜～']}
       }
     };
   },
@@ -1790,6 +1859,7 @@ const Pet = {
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     const today=todayStr();
     // 播放唤名声音：有自定义录音用录音，否则用语音合成朗读名字
+    const hasCustom=!!p.callSound;
     PetVoice.play(p);
     p.lastCallAt=Date.now();
     if(p.lastCallRewardDate!==today){
@@ -1800,7 +1870,11 @@ const Pet = {
     }else{
       toast('🔊 '+p.name+'！今天已经叫过啦，明天再来～');
     }
-    if(!p.callSound)Audio.play('pet'); // 有自定义录音时不播蜂鸣，避免盖住录音
+    if(!hasCustom)Audio.play('pet'); // 有自定义录音时不播蜂鸣，避免盖住录音
+    // 唤名结束后宠物自动回应（喵/汪），像真的听懂了在应答
+    const delay=hasCustom?2200:1200;
+    if(this._respondTimer)clearTimeout(this._respondTimer);
+    this._respondTimer=setTimeout(()=>{PetVoice.respond(p);},delay);
     Store.save();UI.render();
   },
   play(petId){ // 玩玩具：5阳光，亲密度+15，健康+3
@@ -3915,7 +3989,7 @@ const UI = {
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🎮 互动玩法</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li>🤗 <b>抚摸</b>（10☀️）亲密度+10</li>
-        <li>📢 <b>唤名</b>（免费）不限次数，每天<b>首次</b>亲密度+3，之后只发声不计分，宠物会有反应（家长可在家长模式为宠物设置自定义唤名声音）</li>
+        <li>📢 <b>唤名</b>（免费）不限次数，每天<b>首次</b>亲密度+3，之后只发声不计分，宠物会叫一声回应你（喵/汪），家长可在家长模式为宠物设置自定义唤名声音</li>
         <li>🎾 <b>玩玩具</b>（5☀️）亲密度+15，健康+3</li>
         <li>🛁 <b>洗澡</b>（10☀️）健康+15</li>
         <li>🦮 <b>遛宠</b>（10☀️）亲密度+10</li>
