@@ -1557,7 +1557,7 @@ const PetVoice = {
       const em=(def.emoji||'')+'';
       if(em.indexOf('🐕')>=0||em.indexOf('🐩')>=0){kind='dog';}
     }
-    const realUrl=(kind==='dog'?'images/dog_bark.m4a':'images/cat_meow.m4a')+'?v=1';
+    const realUrl=(kind==='dog'?'images/dog_bark.m4a':'images/cat_meow.m4a')+'?v=2';
     if(this._playRealSound(realUrl,()=>this._synthFallback(kind,v)))return;
   },
   // 播放真实叫声文件；播放失败时执行 onFail 回退
