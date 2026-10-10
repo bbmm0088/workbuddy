@@ -2015,11 +2015,16 @@ const Pet = {
         p.intimacy=Math.max(-1,p.intimacy-di*totalDecayHours);
         p.health=Math.max(-1,(p.health||100)-2*totalDecayHours);
         p.lastDecayAt=now;
+        // 【托管保护】托管中的宠物，属性衰减后立即钳制到安全线以上，
+        // 保证「不死不生病」——必须在死亡判定之前，否则离线多天会先判死再护理（无效）
+        if(p.autoCare)this.careClamp(p);
         this.updateBondLevel(p);
         this.updateStatus(p);
         if(p.status==='dead'){c.logs.pet.unshift({time:nowISO(),action:'死亡',petId:p.id,detail:'属性耗尽'});}
       }
     });
+    // 托管宠保底：极端情况下（如中途开启托管、数据异常）未被钳制到安全线的，救回后再过滤
+    c.pets.forEach(p=>{if(p.autoCare&&p.status==='dead')this.careClamp(p);});
     c.pets=c.pets.filter(p=>p.status!=='dead');
     this.autoCareAll(c);
   },
@@ -2028,6 +2033,15 @@ const Pet = {
      属性低于安全线时自动拉回，保证不死不生病；状态良好时不扣费。 */
   CARE_SAFE:{satiety:40,intimacy:55,health:40},
   CARE_COST_PER_DAY:20,
+  // 把托管宠的属性直接钳制到安全线以上（不扣费，仅保命）
+  careClamp(p){
+    const S=this.CARE_SAFE;
+    p.satiety=Math.max(p.satiety,S.satiety);
+    p.intimacy=Math.max(p.intimacy,S.intimacy);
+    p.health=Math.max(p.health||0,S.health);
+    this.updateBondLevel(p);
+    this.updateStatus(p);
+  },
   autoCareAll(c){
     const today=todayStr();
     c.pets.forEach(p=>{
@@ -4420,6 +4434,7 @@ const UI = {
         <li>开启需先支付<b> 50☀️ 手续费</b>（当天内关闭再开启<b>不重复收取</b>，次日开启再收一次）</li>
         <li>托管后系统每天自动补水、喂食、体检，<b>保证宠物不死不生病</b></li>
         <li>费用：<b>每天最多 20☀️</b>（最低护理包干），<b>属性良好时不扣费</b></li>
+        <li>托管中的宠物属性<b>永不低于安全线</b>（饱食40/亲密55/健康40），离线再久也会自动保命</li>
         <li>余额不足时系统垫付，宠物安全第一；离线多天会按天补算护理</li>
         <li>随时可以关闭托管，恢复手动照顾</li>
       </ul>
