@@ -265,6 +265,16 @@ const $ = (s,p=document)=>p.querySelector(s);
 const $$ = (s,p=document)=>[...p.querySelectorAll(s)];
 const todayStr = ()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const nowISO = ()=>new Date().toISOString();
+// 周标识（ISO 周：周一到周日算一周），用于"每周一次"限制
+const weekStr = (d)=>{
+  const dt=d?new Date(d):new Date();
+  const t=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate()));
+  const dayNum=t.getUTCDay()||7;
+  t.setUTCDate(t.getUTCDate()+4-dayNum);              // 移到本周四，决定年份归属
+  const yearStart=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  const weekNo=Math.ceil(((t-yearStart)/86400000+1)/7);
+  return t.getUTCFullYear()+'-W'+String(weekNo).padStart(2,'0');
+};
 // 计算两个 'YYYY-MM-DD' 日期字符串之间的真实日历天数差（本地时区，按午夜切分）
 const daysBetween = (a,b)=>{const d1=new Date(a+'T00:00:00'),d2=new Date(b+'T00:00:00');return Math.round((d2-d1)/86400000);};
 const rnd = (n)=>Math.floor(Math.random()*n);
@@ -526,6 +536,10 @@ const Store = {
     if(c.game.frozen===undefined) c.game.frozen=false;
     if(c.game.frozenAt===undefined) c.game.frozenAt=0;
     if(c.game.tickAt===undefined) c.game.tickAt=0;
+    // 商店兑换次数统计：{itemId:{week:'2026-W41',n:1}}，用于"每周只能兑换一次"限制
+    if(!c.shopRedeem) c.shopRedeem={};
+    // 待家长审核的兑换申请：[{id,itemId,itemName,price,applyAt,week}]
+    if(!c.redeemApply) c.redeemApply=[];
     // 倒计时后台持续运行：tickAt 锚点保留，页面加载后由 Shop.settleGame 按真实时间补算流逝部分
     if(!c.garden) c.garden={grid:this.emptyGrid(),zombies:[],undoFree:true};
     if(!c.garden.grid||c.garden.grid.length!==5) c.garden.grid=this.emptyGrid();
@@ -576,6 +590,7 @@ const Store = {
           today:{date:todayStr(),sunlight:0,tasks:{},quizRecords:{},mood:''},
           sunlight:{total:300},
           game:{remainSec:0,frozen:false,frozenAt:0,tickAt:0},
+          shopRedeem:{},redeemApply:[],
           garden:{grid:this.emptyGrid(),zombies:[this.newZombie()],undoFree:true,undoCount:0,autoCare:false},
           pets:[],achievements:[],logs:{sunlight:[],pet:[]},
           wrongQuestions:[],
@@ -2138,9 +2153,44 @@ const Shop = {
       {id:'sh_park',name:'一次游乐场奖励',icon:'🎠',price:500,action:'park'}
     ];
   },
+  // 限购规则：游戏时间、游乐场奖励每周各只能兑换1次，超出需向家长申请
+  WEEKLY_LIMIT_ACTIONS:['game','park'],
+  WEEKLY_LIMIT:1,
+  // 查询某商品本周已兑换次数
+  weekCount(c,itemId){
+    const rec=(c.shopRedeem||{})[itemId];
+    if(!rec||rec.week!==weekStr())return 0;
+    return rec.n||0;
+  },
+  // 该商品是否受每周限购约束
+  isWeeklyLimited(item){
+    return this.WEEKLY_LIMIT_ACTIONS.indexOf(item.action)>=0;
+  },
+  // 是否能直接兑换（未受限 / 本周次数未超）
+  canRedeemDirect(c,item){
+    if(!this.isWeeklyLimited(item))return true;
+    return this.weekCount(c,item.id)<this.WEEKLY_LIMIT;
+  },
+  // 是否已有待审核申请
+  hasPendingApply(c,itemId){
+    return (c.redeemApply||[]).some(a=>a.itemId===itemId&&a.week===weekStr());
+  },
+  // 记录一次成功兑换（仅限购商品计数）
+  countRedeem(c,item){
+    if(!this.isWeeklyLimited(item))return;
+    if(!c.shopRedeem)c.shopRedeem={};
+    const w=weekStr();
+    const rec=c.shopRedeem[item.id];
+    if(!rec||rec.week!==w)c.shopRedeem[item.id]={week:w,n:1};
+    else rec.n=(rec.n||0)+1;
+  },
   redeem(itemId){
     const item=Store.data.shopItems.find(x=>x.id===itemId);if(!item)return;
     const c=curChild();
+    // 每周限购：超过限额则不直接兑换，转为向家长申请
+    if(!this.canRedeemDirect(c,item)){
+      return this.applyRedeem(itemId);
+    }
     if(c.sunlight.total<item.price){toast('阳光不足');return;}
     if(item.action==='killZombie'){
       if(c.garden.zombies.length===0){toast('当前没有僵尸');return;}
@@ -2148,6 +2198,7 @@ const Shop = {
       recordZombieKill(c,1);
     }
     if(!spendSunlight(item.price,'兑换：'+item.name))return;
+    this.countRedeem(c,item);
     Audio.play('redeem');
     if(item.action==='game'){
       // 兑换叠加：先结算旧余额的后台流逝，再累加（冻结中也能累加，不浪费）
@@ -2162,6 +2213,66 @@ const Shop = {
     }
     toast('兑换成功：'+item.name+' 🎉');
     Store.save();UI.render();
+  },
+  // 超出每周限购 → 提交给家长的兑换申请（不扣阳光、不自动生效）
+  applyRedeem(itemId){
+    const item=Store.data.shopItems.find(x=>x.id===itemId);if(!item)return;
+    const c=curChild();
+    if(this.hasPendingApply(c,itemId)){toast('本周已提交申请，请等家长确认');return;}
+    confirmModal(`「${item.name}」本周已兑换过，再兑换需要家长同意。\n提交申请给家长？\n（家长通过后自动扣除 ${item.price}☀️ 并生效）`,()=>{
+      if(!c.redeemApply)c.redeemApply=[];
+      c.redeemApply.push({id:'ra_'+uid(),itemId:item.id,itemName:item.name,price:item.price,
+        applyAt:nowISO(),week:weekStr()});
+      Store.save();UI.render();
+      toast('已提交申请，请等家长确认 🙋');
+    });
+  },
+  // 家长通过兑换申请：扣阳光并执行兑换
+  approveRedeemApply(cid,applyId){
+    const ch=Store.data.children[cid];if(!ch)return;
+    const list=ch.redeemApply||[];
+    const a=list.find(x=>x.id===applyId);if(!a)return;
+    if(ch.sunlight.total<a.price){
+      confirmModal(`孩子阳光不足（需 ${a.price}☀️，现有 ${ch.sunlight.total}☀️）。\n仍然通过吗？（余额将变为0）`,()=>{
+        this._doApproveRedeem(ch,a,true);
+      });
+      return;
+    }
+    confirmModal(`通过「${a.itemName}」的兑换申请？\n将扣除 ${a.price}☀️ 并立即生效。`,()=>{
+      this._doApproveRedeem(ch,a,false);
+    });
+  },
+  _doApproveRedeem(ch,a,force){
+    const item=Store.data.shopItems.find(x=>x.id===a.itemId);
+    if(!item){
+      ch.redeemApply=(ch.redeemApply||[]).filter(x=>x.id!==a.id);
+      Store.save();UI.render();toast('商品已不存在，申请作废');return;
+    }
+    const paid=Math.min(a.price,ch.sunlight.total);
+    ch.sunlight.total-=paid;
+    ch.logs.sunlight.unshift({time:nowISO(),action:`✅ 家长通过兑换申请：${item.name}`,delta:-paid,balance:ch.sunlight.total});
+    this.countRedeem(ch,item);
+    // 执行兑换效果
+    if(item.action==='game'){
+      if(!ch.game)ch.game={remainSec:0,frozen:false,frozenAt:0,tickAt:0};
+      const g=ch.game;
+      if(!g.frozen&&(g.remainSec||0)>0&&(!g.tickAt||g.tickAt<=0))g.tickAt=Date.now();
+      g.remainSec=(g.remainSec||0)+30*60;
+    }else if(item.action==='killZombie'){
+      if(ch.garden&&ch.garden.zombies&&ch.garden.zombies.length){ch.garden.zombies.shift();recordZombieKill(ch,1);}
+    }
+    ch.logs.sunlight.unshift({time:nowISO(),action:`🎁 兑换生效：${item.name}`,delta:0,balance:ch.sunlight.total});
+    ch.redeemApply=(ch.redeemApply||[]).filter(x=>x.id!==a.id);
+    Store.save();UI.render();
+    toast(`已通过：${item.name}（扣 ${paid}☀️）`);
+  },
+  // 家长驳回兑换申请
+  rejectRedeemApply(cid,applyId){
+    const ch=Store.data.children[cid];if(!ch)return;
+    const a=(ch.redeemApply||[]).find(x=>x.id===applyId);if(!a)return;
+    ch.redeemApply=(ch.redeemApply||[]).filter(x=>x.id!==applyId);
+    Store.save();UI.render();
+    toast('已驳回：'+a.itemName);
   },
   gameTimer:null,
   // 统一结算：以 tickAt 为锚点按真实时间扣减剩余游戏时间。
@@ -2876,7 +2987,9 @@ document.addEventListener('click',function(e){
 function confirmModal(msg,onYes){
   showModal('请确认',`<p style="margin:10px 0;font-size:14px;">${msg}</p>`,
     `<button class="btn ghost sm" onclick="closeModal()">取消</button> <button class="btn danger sm" id="cfYes">确定</button>`);
-  setTimeout(()=>{const b=$('#cfYes');if(b)b.onclick=()=>{closeModal();onYes();};},0);
+  // 同步绑定（showModal 是同步插入 DOM 的，无需 setTimeout）
+  const b=$('#cfYes');
+  if(b)b.onclick=()=>{closeModal();onYes();};
 }
 
 /* ============ Router & UI ============ */
@@ -4459,7 +4572,19 @@ const UI = {
         <button class="btn sm" onclick="Shop.openGameTimer()">${g.frozen?'▶️ 打开':'📺 打开'}</button>
       </div></div>`:'';
     return `${gamePanel}<div class="card"><div class="card-title">🛒 阳光商店</div><div style="margin-bottom:10px;">当前阳光余额：<b style="color:var(--orange-d);font-size:18px;">${c.sunlight.total}</b> ☀️</div>
-    <div class="grid grid-3">${Store.data.shopItems.map(it=>`<div class="shop-card"><div class="s-icon">${it.icon}</div><div style="font-weight:700;margin:6px 0;">${it.name}</div><div class="price">${it.price}☀️</div><button class="btn orange sm" style="margin-top:8px;" ${c.sunlight.total>=it.price?'':'disabled'} onclick="Shop.redeem('${it.id}')">兑换</button></div>`).join('')}</div></div>`;
+    <div class="grid grid-3">${Store.data.shopItems.map(it=>{
+      const limited=Shop.isWeeklyLimited(it);
+      const used=limited?Shop.weekCount(c,it.id):0;
+      const exceeded=limited&&used>=Shop.WEEKLY_LIMIT;
+      const pending=exceeded&&Shop.hasPendingApply(c,it.id);
+      const lack=c.sunlight.total<it.price;
+      let btn;
+      if(pending){btn=`<button class="btn sm" disabled style="margin-top:8px;background:#ffe0b2;color:#e65100;">⏳ 待家长确认</button>`;}
+      else if(exceeded){btn=`<button class="btn sky sm" style="margin-top:8px;" ${lack?'disabled':''} onclick="Shop.redeem('${it.id}')">🙋 申请兑换</button>`;}
+      else{btn=`<button class="btn orange sm" style="margin-top:8px;" ${lack?'disabled':''} onclick="Shop.redeem('${it.id}')">兑换</button>`;}
+      const limitTag=limited?`<div style="font-size:10px;margin-top:4px;color:${exceeded?'#e65100':'var(--text-soft)'};">每周限1次 · 本周已用 <b>${used}</b>/1</div>`:'';
+      return `<div class="shop-card"><div class="s-icon">${it.icon}</div><div style="font-weight:700;margin:6px 0;">${it.name}</div><div class="price">${it.price}☀️</div>${limitTag}${btn}</div>`;
+    }).join('')}</div></div>`;
   },
   renderBadge(){
     const c=curChild();const defs=Store.data.achievementDefs;
@@ -4747,6 +4872,7 @@ const UI = {
         return `<button class="btn ghost sm" onclick="UI.restoreTask('${id}')">🔄 ${name}</button>`;
       }).join('')}</div></div>`:''}
       ${d_settings().reviewMode?`<div class="card"><div class="card-title">⏳ 待审核任务</div>${(()=>{const pending=[];Object.entries(Store.data.children).forEach(([cid,ch])=>{Object.entries(ch.today.tasks||{}).forEach(([tid,t])=>{if(t.pendingReview)pending.push({cid,ch,tid,t});});});if(!pending.length)return'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无待审核任务</div>';return pending.map(x=>`<div class="log-item"><span>${x.ch.profile.name}：${x.tid}</span><div><button class="btn sm" onclick="UI.approveChild('${x.cid}','${x.tid}')">✅ 通过</button> <button class="btn danger sm" onclick="UI.rejectChild('${x.cid}','${x.tid}')">❌ 驳回</button></div></div>`).join('');})()}</div>`:''}
+      ${(()=>{const applies=[];Object.entries(Store.data.children).forEach(([cid,ch])=>{(ch.redeemApply||[]).forEach(a=>applies.push({cid,ch,a}));});if(!applies.length)return'';return `<div class="card" style="border-left:5px solid var(--orange-d);"><div class="card-title">🙋 待审核兑换申请 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（每周限购商品超次申请）</span></div>${applies.map(x=>`<div class="log-item"><span>${x.ch.profile.name}：<b>${x.a.itemName}</b> · ${x.a.price}☀️ <span style="font-size:11px;color:var(--text-soft);">${new Date(x.a.applyAt).toLocaleString()}</span></span><div><button class="btn sm" onclick="Shop.approveRedeemApply('${x.cid}','${x.a.id}')">✅ 通过</button> <button class="btn danger sm" onclick="Shop.rejectRedeemApply('${x.cid}','${x.a.id}')">❌ 驳回</button></div></div>`).join('')}</div>`;})()}
       <div class="card"><div class="card-title">🌟 德育任务管理 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（可修改内容与阳光数量）</span></div>
         ${Store.data.deedDefs.map(d=>`<div class="log-item"><span style="flex:1;min-width:0;">${d.icon||'✨'} <b>${d.name}</b> <span class="reward-tag" style="font-size:11px;">+${d.reward===undefined?5:d.reward}☀️</span></span>
           <span style="display:flex;gap:4px;"><button class="btn sm" style="font-size:11px;padding:4px 10px;" onclick="UI.editDeed('${d.id}')">✏️ 修改</button><button class="btn danger sm" style="font-size:11px;padding:4px 10px;" onclick="UI.delDeed('${d.id}')">删除</button></span></div>`).join('')}
@@ -5075,7 +5201,7 @@ window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=un
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
 window.Pet=Pet;window.PetVoice=PetVoice;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;window.State=State;
 window.fmtClock=fmtClock;window.posterOf=posterOf;
-window.todayStr=todayStr;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;window.recordZombieKill=recordZombieKill;
+window.todayStr=todayStr;window.weekStr=weekStr;window.nowISO=nowISO;window.uid=uid;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;window.recordZombieKill=recordZombieKill;
 
 })();
 </script>
