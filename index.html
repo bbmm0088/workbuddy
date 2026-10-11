@@ -1902,27 +1902,46 @@ const Pet = {
     if(cn===0&&en>12)return'字母数字最多12个字符';
     return'';
   },
-  // ============ 四类食材投喂 ============
+  // ============ 属性满值保护 ============
+  MAXVAL:200,
+  // 该操作会提升的属性是否已全部满值；满值则弹提醒并返回 true（调用方直接 return）
+  isCapped(p,fields){
+    const MAX=this.MAXVAL;
+    const cappedAt=MAX-2; // 接近满值即视为满（留2点余量，避免边际操作无意义）
+    const full=fields.every(f=>{
+      const v=f==='health'?(p.health===undefined?100:p.health):(p[f]||0);
+      return v>=cappedAt;
+    });
+    if(!full)return false;
+    const names={satiety:'饱食度',intimacy:'亲密度',health:'健康值'};
+    const list=fields.map(f=>names[f]).join('、');
+    toast(`⚠️ ${p.name} 的${list}已满，不需要再操作啦～`);
+    return true;
+  },
   feedWater(petId){ // 白开水：2阳光，饱食+5
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this.isCapped(p,['satiety']))return;
     if(!spendSunlight(2,'喂水'+p.name))return;
     p.satiety=clamp(p.satiety+5,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);
     Log.pet('喂水',p.id,'饱食+5');Audio.play('pet');Store.save();UI.render();
   },
   feedKibble(petId){ // 粮：5阳光，饱食+15，健康+2
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this.isCapped(p,['satiety']))return;
     if(!spendSunlight(5,'喂粮'+p.name))return;
     p.satiety=clamp(p.satiety+15,0,200);p.health=clamp((p.health||100)+2,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);
     Log.pet('喂粮',p.id,'饱食+15 健康+2');Audio.play('pet');Store.save();UI.render();
   },
   feedCan(petId){ // 罐头：15阳光，饱食+25，健康+5
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this.isCapped(p,['satiety']))return;
     if(!spendSunlight(15,'喂罐头'+p.name))return;
     p.satiety=clamp(p.satiety+25,0,200);p.health=clamp((p.health||100)+5,0,200);p.lastFeedAt=Date.now();this.updateStatus(p);
     Log.pet('喂罐头',p.id,'饱食+25 健康+5');Audio.play('pet');Store.save();UI.render();
   },
   feedNutrition(petId){ // 营养餐：25阳光，饱食+35，亲密度+5，健康+10
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this.isCapped(p,['satiety','health','intimacy']))return;
     if(!spendSunlight(25,'喂营养餐'+p.name))return;
     p.satiety=clamp(p.satiety+35,0,200);p.health=clamp((p.health||100)+10,0,200);p.intimacy=clamp(p.intimacy+5,0,200);p.lastFeedAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
     Log.pet('喂营养餐',p.id,'饱食+35 健康+10 亲密+5');Audio.play('pet');Store.save();UI.render();
@@ -1930,12 +1949,14 @@ const Pet = {
   // ============ 互动玩法 ============
   touch(petId){ // 抚摸：10阳光，亲密度+10
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this.isCapped(p,['intimacy']))return;
     if(!spendSunlight(10,'抚摸'+p.name))return;
     p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
     Log.pet('抚摸',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();
   },
   walk(petId){ // 遛宠：10阳光，亲密度+10
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this.isCapped(p,['intimacy']))return;
     if(!spendSunlight(10,'遛宠'+p.name))return;
     p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
     Log.pet('遛宠',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();
@@ -1964,12 +1985,14 @@ const Pet = {
   },
   play(petId){ // 玩玩具：5阳光，亲密度+15，健康+3
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this.isCapped(p,['intimacy','health']))return;
     if(!spendSunlight(5,'玩玩具'+p.name))return;
     p.intimacy=clamp(p.intimacy+15,0,200);p.health=clamp((p.health||100)+3,0,200);p.lastPlayAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
     Log.pet('玩玩具',p.id,'亲密+15 健康+3');Audio.play('pet');Store.save();UI.render();
   },
   wash(petId){ // 洗澡：10阳光，健康+15
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
+    if(this.isCapped(p,['health']))return;
     if(!spendSunlight(10,'洗澡'+p.name))return;
     p.health=clamp((p.health||100)+15,0,200);p.lastWashAt=Date.now();this.updateStatus(p);
     Log.pet('洗澡',p.id,'健康+15');Audio.play('pet');Store.save();UI.render();
@@ -4358,6 +4381,7 @@ const UI = {
     Audio.play('zombie');toast('消灭成功！');closeModal();UI.render();
   },
   // 点击宠物头像：随机切换一段视频（有视频的宠物）
+  // 点击宠物状态图：播放「原声」。当前视频→重播并解除静音；静态图→切到视频播原声 / 播放真实叫声
   tapPet(petId){
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p)return;
     const def=Pet.list()[p.type];if(!def)return;
@@ -4366,33 +4390,63 @@ const UI = {
     this._petTapAt=this._petTapAt||{};
     const at=Date.now();
     this._petTapAt[petId]=at;
+    // 1) 生病中：重播生病视频（带原声）
     if(p.status==='sick'&&vids.sick){
-      // 生病：重播生病视频（点击有手势，直接带声音）
-      Audio.play('pet');
-      const el=document.querySelector('video.pet-video[data-pid="'+petId+'"]');
-      if(el){try{el.muted=false;el.dataset.needUnmute='0';el.currentTime=0;const pr=el.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}}
-      setTimeout(()=>{ if(this._petTapAt&&this._petTapAt[petId]===at){ UI.render(); } },3100);
+      const el0=document.querySelector('video.pet-video[data-pid="'+petId+'"]');
+      if(el0){
+        try{el0.muted=false;el0.dataset.needUnmute='0';el0.currentTime=0;const pr=el0.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}
+      }else if(idle.length){
+        this._petVideoPick=this._petVideoPick||{};
+        this._petVideoPick[petId]=idle[0];
+        this._forceSound(petId);
+      }else{
+        this._playPetVoice(p);
+      }
+      this._petTapReset(at,petId);
       return;
     }
-    if(!idle.length){Audio.play('pet');return;}
-    // 当前实际显示的视频（用于保证切换后不同）
+    // 2) 点击手势上下文内：确定要播放的片段（优先与当前不同），随后强制解除静音起播
     const shown=document.querySelector('video.pet-video[data-pid="'+petId+'"]');
-    const shownSrc=shown?shown.getAttribute('src'):'';
-    const pool=idle.filter(v=>v!==shownSrc);
-    const src=pool.length?pool:idle;
-    const next=src[Math.floor(Math.random()*src.length)];
-    this._petVideoPick=this._petVideoPick||{};
-    this._petVideoPick[petId]=next;
-    Audio.play('pet');
-    UI.render();
-    // 渲染出的新视频在本次点击手势上下文内直接带声音起播（iOS/低电量模式也允许）
+    const shownSrc=shown?shown.getAttribute('src').split('?')[0]:'';
+    let next='';
+    if(idle.length){
+      const pool=idle.filter(v=>v.split('?')[0]!==shownSrc);
+      const src=pool.length?pool:idle;
+      next=src[Math.floor(Math.random()*src.length)];
+      this._petVideoPick=this._petVideoPick||{};
+      this._petVideoPick[petId]=next;
+    }
+    // 2a) 若当前已有视频元素且内容不变（只有一个视频/无需换片）→ 直接重播原声，避免闪烁
+    if(shown&&next&&shownSrc===next.split('?')[0]){
+      try{shown.muted=false;shown.dataset.needUnmute='0';shown.currentTime=0;const pr=shown.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}
+      this._petTapReset(at,petId);
+      return;
+    }
+    // 2b) 需要换片 / 从静态图切到视频 → 同步渲染后在手势上下文内起播原声
+    if(idle.length){
+      UI.render();
+      this._forceSound(petId);
+      setTimeout(()=>{ if(this._petVideoPick&&this._petVideoPick[petId]===next){ delete this._petVideoPick[petId]; UI.render(); } },60000);
+    }else{
+      // 无视频的宠物：播放对应真实叫声（狗吠 / 猫喵），失败回退合成音
+      this._playPetVoice(p);
+    }
+    this._petTapReset(at,petId);
+  },
+  // 点击后的统一收尾：3 秒后回到常规状态显示
+  _petTapReset(at,petId){
+    setTimeout(()=>{ if(this._petTapAt&&this._petTapAt[petId]===at){ UI.render(); } },3100);
+  },
+  // 在本次点击手势的上下文内，为指定宠物的视频解除静音并起播（播原声）
+  _forceSound(petId){
     setTimeout(()=>{
       const el=document.querySelector('video.pet-video[data-pid="'+petId+'"]');
       if(el){try{el.muted=false;el.dataset.needUnmute='0';const pr=el.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}}
     },0);
-    // 3 秒后回到正常状态显示；60 秒后清掉点击选片，回归时段轮换
-    setTimeout(()=>{ if(this._petTapAt&&this._petTapAt[petId]===at){ UI.render(); } },3100);
-    setTimeout(()=>{ if(this._petVideoPick&&this._petVideoPick[petId]===next){ delete this._petVideoPick[petId]; UI.render(); } },60000);
+  },
+  // 无视频宠物：播放真实叫声（狗吠/猫喵），失败自动回退
+  _playPetVoice(p){
+    try{ if(window.PetVoice) PetVoice.respond(p); else Audio.play('pet'); }catch(e){}
   },
   renderPet(){
     // 检查每日奖励
@@ -4454,13 +4508,17 @@ const UI = {
       const bondLv=p.bondLevel||Pet.bondLevelFromIntimacy(p.intimacy);
       // 健康值
       const health=p.health||100;
+      // 属性满值标记（用于按钮置灰与提示）：留2点余量
+      const CAP=Pet.MAXVAL-2;
+      const satFull=p.satiety>=CAP, intFull=p.intimacy>=CAP, healthFull=health>=CAP;
+      const allFull=satFull&&intFull&&healthFull;
       // 宠物视频：poster 显示视频首帧海报，播放未起时不会黑屏
       const mediaHtml=petVideoSrc
         ? `<video src="${petVideoSrc}" poster="${posterOf(petVideoSrc)}" class="pet-img pet-video" data-pid="${p.id}" autoplay loop playsinline webkit-playsinline preload="auto" style="object-fit:cover;background:#000;"></video>`
         : (petImgSrc?`<img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div>`:`<div class="pet-emoji">${def.emoji}</div>`);
-      // 点击头像：有视频的宠物可随机换一段视频
-      const canTap=!!(def.videos&&(def.videos.idle||def.videos.sick));
-      const imgHtml=`<div class="${animClass}" ${canTap?`onclick="UI.tapPet('${p.id}')" title="点我一下～" style="cursor:pointer;"`:''}>${mediaHtml}</div>`;
+      // 点击头像/状态图：有视频的换视频播原声，无视频的播放真实叫声
+      const canTap=!!(def.videos&&(def.videos.idle||def.videos.sick)) || !!(def.voice||def.sound);
+      const imgHtml=`<div class="${animClass}" ${canTap?`onclick="UI.tapPet('${p.id}')" title="点我听它的原声～" style="cursor:pointer;"`:''}>${mediaHtml}</div>`;
       return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️ <span class="bond-badge">羁绊 Lv.${bondLv}</span></div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
       <div><div class="bar-label"><span>饱食度</span><span>${p.satiety}</span></div><div class="bar-wrap"><div class="bar-fill sat" style="width:${clamp(p.satiety/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
@@ -4468,20 +4526,21 @@ const UI = {
       ${p.status==='sick'?'<div style="color:var(--danger);font-size:12px;text-align:center;">⚠️ 宠物生病了，需要治疗！</div>':''}
       ${p.satiety<50&&p.status!=='dead'?'<div style="color:var(--orange-d);font-size:12px;text-align:center;">饥饿提示：请尽快喂食</div>':''}
       ${health<60&&p.status!=='dead'?'<div style="color:var(--danger);font-size:12px;text-align:center;">💔 健康值偏低，建议洗澡或喂营养餐</div>':''}
+      ${allFull?'<div style="color:#2e7d32;font-size:12px;text-align:center;">✨ 三项属性全满！保持状态即可～</div>':''}
       <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
-        <button class="btn sky sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.feedWater('${p.id}')" title="白开水 2阳光">💧2</button>
-        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.feedKibble('${p.id}')" title="粮 5阳光">🍖5</button>
-        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.feedCan('${p.id}')" title="罐头 15阳光">🥫15</button>
-        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.feedNutrition('${p.id}')" title="营养餐 25阳光">🥗25</button>
+        <button class="btn sky sm" style="font-size:11px;padding:4px 8px;${satFull?'opacity:.4;':''}" onclick="Pet.feedWater('${p.id}')" title="白开水 2阳光${satFull?'（饱食度已满）':''}">💧2</button>
+        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;${satFull?'opacity:.4;':''}" onclick="Pet.feedKibble('${p.id}')" title="粮 5阳光${satFull?'（饱食度已满）':''}">🍖5</button>
+        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;${satFull?'opacity:.4;':''}" onclick="Pet.feedCan('${p.id}')" title="罐头 15阳光${satFull?'（饱食度已满）':''}">🥫15</button>
+        <button class="btn orange sm" style="font-size:11px;padding:4px 8px;${allFull?'opacity:.4;':''}" onclick="Pet.feedNutrition('${p.id}')" title="营养餐 25阳光${allFull?'（属性已全满）':''}">🥗25</button>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
-        <button class="btn pink sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.touch('${p.id}')" title="抚摸 10阳光">🤗10</button>
+        <button class="btn pink sm" style="font-size:11px;padding:4px 8px;${intFull?'opacity:.4;':''}" onclick="Pet.touch('${p.id}')" title="抚摸 10阳光${intFull?'（亲密度已满）':''}">🤗10</button>
         <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.call('${p.id}')" title="唤名 免费，每天首次+3亲密，之后只发声不计分">📢免费</button>
-        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.play('${p.id}')" title="玩玩具 5阳光">🎾5</button>
-        <button class="btn sky sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.wash('${p.id}')" title="洗澡 10阳光">🛁10</button>
+        <button class="btn sm" style="font-size:11px;padding:4px 8px;${(intFull&&healthFull)?'opacity:.4;':''}" onclick="Pet.play('${p.id}')" title="玩玩具 5阳光${(intFull&&healthFull)?'（亲密度与健康值已满）':''}">🎾5</button>
+        <button class="btn sky sm" style="font-size:11px;padding:4px 8px;${healthFull?'opacity:.4;':''}" onclick="Pet.wash('${p.id}')" title="洗澡 10阳光${healthFull?'（健康值已满）':''}">🛁10</button>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
-        <button class="btn sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.walk('${p.id}')" title="遛宠 10阳光">🦮10</button>
+        <button class="btn sm" style="font-size:11px;padding:4px 8px;${intFull?'opacity:.4;':''}" onclick="Pet.walk('${p.id}')" title="遛宠 10阳光${intFull?'（亲密度已满）':''}">🦮10</button>
         ${p.status==='sick'?'<button class="btn danger sm" style="font-size:11px;padding:4px 8px;" onclick="Pet.heal(\''+p.id+'\')">💊治疗'+(Pet._healCost||150)+'</button>':''}
         <button class="btn ghost sm" style="font-size:11px;padding:4px 8px;color:var(--danger);" onclick="Pet.abandon('${p.id}')" title="弃养 300阳光">💔弃养</button>
       </div>
@@ -4525,12 +4584,14 @@ const UI = {
         <li>🎾 <b>玩玩具</b>（5☀️）亲密度+15，健康+3</li>
         <li>🛁 <b>洗澡</b>（10☀️）健康+15</li>
         <li>🦮 <b>遛宠</b>（10☀️）亲密度+10</li>
+        <li>👆 <b>点击宠物状态图</b>：随时点一下宠物图片/视频，就会播放它的<b>原始声音</b>（🐈‍⬛ 小黑猫播放视频原声，🐕🐱🐩 其他宠物播放真实叫声），不用花阳光也不影响属性</li>
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">📊 属性系统</h4>
       <ul style="padding-left:18px;font-size:12px;">
         <li><b>饱食度</b>：喂食恢复，影响饥饿/生病</li>
         <li><b>亲密度</b>：互动恢复，影响羁绊等级</li>
         <li><b>健康值</b>：洗澡/营养餐恢复，低于30会生病</li>
+        <li><b>满值提醒</b>：饱食度/亲密度/健康值达到上限（200）后，对应的喂养与互动按钮会变灰且无法再操作，并弹出提醒，不浪费阳光</li>
         <li><b>羁绊等级</b>（Lv.1-10）：亲密度越高等级越高</li>
         <li><b>每日奖励</b>：饱食度>50且亲密度>50，每天自动获20☀️</li>
       </ul>
