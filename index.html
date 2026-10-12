@@ -2005,6 +2005,11 @@ const Pet = {
   },
   // ============ 状态与等级 ============
   updateStatus(p){
+    // 【托管保护】托管中的宠物永不生病/死亡：无视数值，一直是正常状态
+    if(p.autoCare){
+      p.status='healthy';
+      return;
+    }
     if(p.satiety<=0||p.intimacy<=0){p.status='dead';return;}
     if((p.health||100)<=30||p.satiety<=30||p.intimacy<50){p.status='sick';}
     else if(p.satiety<50||(p.health||100)<60){p.status='hungry';}
@@ -2062,9 +2067,11 @@ const Pet = {
       }
     });
     // 托管宠保底：极端情况下（如中途开启托管、数据异常）未被钳制到安全线的，救回后再过滤
-    c.pets.forEach(p=>{if(p.autoCare&&p.status==='dead')this.careClamp(p);});
+    c.pets.forEach(p=>{if(p.autoCare&&p.status==='dead'){this.careClamp(p);p.status='healthy';}});
     c.pets=c.pets.filter(p=>p.status!=='dead');
     this.autoCareAll(c);
+    // 托管宠状态校正：托管中的一律视为正常（数值再低也不生病）
+    c.pets.forEach(p=>{if(p.autoCare&&p.status!=='healthy')this.updateStatus(p);});
   },
   /* ============ 宠物托管 ============
      每天最多扣 20☀️（最低护理包干：补水+口粮+健康检查）。
@@ -2115,14 +2122,19 @@ const Pet = {
     const today=todayStr();
     const fee=(p.autoCareFeeDate===today)?0:50;
     if(fee>0&&c.sunlight.total<fee){toast('阳光不足：开启托管需先支付 50☀️ 手续费');return;}
-    confirmModal(`开启 ${p.name} 的托管？\n本次先支付 ${fee}☀️ 手续费${fee===0?'（今日已付，不再收取）':'（当天内再次开启不重复收取）'}。\n之后每天最多扣 20☀️（最低护理包干），属性良好时不扣费。\n系统自动补水喂食体检，保证宠物不死不生病。`,()=>{
+    confirmModal(`开启 ${p.name} 的托管？\n本次先支付 ${fee}☀️ 手续费${fee===0?'（今日已付，不再收取）':'（当天内再次开启不重复收取）'}。\n之后每天最多扣 20☀️（最低护理包干），属性良好时不扣费。\n系统自动补水喂食体检，托管期间数值再低也不会生病、不会死亡。`,()=>{
       p.autoCare=true;p.autoCareLastDate='';
       p.autoCareFeeDate=today;
       if(fee>0){
         c.sunlight.total-=fee;
         c.logs.sunlight.unshift({time:nowISO(),action:`🏠 ${p.name} 托管手续费`,delta:-fee,balance:c.sunlight.total});
       }
-      Log.pet('开启托管',p.id,fee>0?`缴纳手续费${fee}☀️；每天最多20阳光护理，属性良好不扣费`:'今日手续费已付；每天最多20阳光护理，属性良好不扣费');
+      // 【托管保护】开启托管即治愈：已有病症立刻解除，托管期间永不生病
+      if(p.status==='sick'){
+        p.status='healthy';
+        Log.pet('托管治愈',p.id,'开启托管，自动体检治愈病症');
+      }
+      Log.pet('开启托管',p.id,fee>0?`缴纳手续费${fee}☀️；每天最多20阳光护理，属性良好不扣费；托管期间不生病`:'今日手续费已付；每天最多20阳光护理，属性良好不扣费；托管期间不生病');
       Store.save();
       this.decay(c); // 立即检查一次：若已低于安全线马上护理
       UI.render();toast(fee>0?`🏠 已开启托管（手续费 ${fee}☀️）`:'🏠 已开启托管（今日手续费已付）');
@@ -2146,13 +2158,15 @@ const Pet = {
     const fee=feePets.length*50;
     if(fee>0&&c.sunlight.total<fee){toast(`阳光不足：本次手续费共 ${fee}☀️`);return;}
     const names=off.map(p=>p.name).join('、');
-    confirmModal(`一键托管 ${off.length} 只宠物（${names}）？\n本次手续费共 ${fee}☀️${fee===0?'（今日均已付过，不再收取）':'（今天已付过的不再收）'}。\n之后每只每天最多扣 20☀️，属性良好时不扣费。`,()=>{
+    confirmModal(`一键托管 ${off.length} 只宠物（${names}）？\n本次手续费共 ${fee}☀️${fee===0?'（今日均已付过，不再收取）':'（今天已付过的不再收）'}。\n之后每只每天最多扣 20☀️，属性良好时不扣费。\n托管期间数值再低也不会生病、不会死亡。`,()=>{
       if(fee>0&&c.sunlight.total<fee){toast('阳光不足');return;}
       off.forEach(p=>{
         p.autoCare=true;p.autoCareLastDate='';
         const needFee=p.autoCareFeeDate!==today;
         p.autoCareFeeDate=today;
-        Log.pet('开启托管',p.id,needFee?'批量开启，缴纳手续费50☀️':'批量开启，今日手续费已付');
+        // 【托管保护】开启即治愈已生病宠物
+        if(p.status==='sick'){p.status='healthy';Log.pet('托管治愈',p.id,'批量开启托管，自动体检治愈病症');}
+        Log.pet('开启托管',p.id,needFee?'批量开启，缴纳手续费50☀️；托管期间不生病':'批量开启，今日手续费已付；托管期间不生病');
       });
       if(fee>0){
         c.sunlight.total-=fee;
@@ -4524,8 +4538,9 @@ const UI = {
       <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>❤️ 健康值</span><span>${health}</span></div><div class="bar-wrap"><div class="bar-fill" style="width:${clamp(health/200*100,0,100)}%;background:linear-gradient(90deg,#ef5350,#e53935);"></div></div></div>
       ${p.status==='sick'?'<div style="color:var(--danger);font-size:12px;text-align:center;">⚠️ 宠物生病了，需要治疗！</div>':''}
-      ${p.satiety<50&&p.status!=='dead'?'<div style="color:var(--orange-d);font-size:12px;text-align:center;">饥饿提示：请尽快喂食</div>':''}
-      ${health<60&&p.status!=='dead'?'<div style="color:var(--danger);font-size:12px;text-align:center;">💔 健康值偏低，建议洗澡或喂营养餐</div>':''}
+      ${(!p.autoCare&&p.satiety<50&&p.status!=='dead')?'<div style="color:var(--orange-d);font-size:12px;text-align:center;">饥饿提示：请尽快喂食</div>':''}
+      ${(!p.autoCare&&health<60&&p.status!=='dead')?'<div style="color:var(--danger);font-size:12px;text-align:center;">💔 健康值偏低，建议洗澡或喂营养餐</div>':''}
+      ${(p.autoCare&&!allFull)?'<div style="color:#0277bd;font-size:12px;text-align:center;">🏠 托管中：自动照顾，数值再低也不会生病</div>':''}
       ${allFull?'<div style="color:#2e7d32;font-size:12px;text-align:center;">✨ 三项属性全满！保持状态即可～</div>':''}
       <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;font-size:11px;">
         <button class="btn sky sm" style="font-size:11px;padding:4px 8px;${satFull?'opacity:.4;':''}" onclick="Pet.feedWater('${p.id}')" title="白开水 2阳光${satFull?'（饱食度已满）':''}">💧2</button>
@@ -4607,6 +4622,7 @@ const UI = {
         <li>每只宠物可单独开启<b>托管</b>（宠物卡片上的 🏠 按钮），也可点列表标题的<b>「🏠 全部托管」</b>一键托管所有动物</li>
         <li>开启需先支付<b> 50☀️ 手续费</b>（当天内关闭再开启<b>不重复收取</b>，次日开启再收一次）</li>
         <li>托管后系统每天自动补水、喂食、体检，<b>保证宠物不死不生病</b></li>
+        <li>托管中的宠物<b>数值再低也不会生病、不会死亡</b>（状态恒为「正常」），已有病症在开启托管时自动治愈</li>
         <li>费用：<b>每天最多 20☀️</b>（最低护理包干），<b>属性良好时不扣费</b></li>
         <li>托管中的宠物属性<b>永不低于安全线</b>（饱食40/亲密55/健康40），离线再久也会自动保命</li>
         <li>余额不足时系统垫付，宠物安全第一；离线多天会按天补算护理</li>
