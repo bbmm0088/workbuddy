@@ -574,6 +574,8 @@ const Store = {
     if(c.stats.level===undefined) c.stats.level=0;
     if(!c.stats.levelGifts) c.stats.levelGifts=[];
     if(!c.stats.moodHistory) c.stats.moodHistory=[];
+    if(c.stats.zombieKills===undefined) c.stats.zombieKills=0;
+    if(!c.stats.zombieKillLog) c.stats.zombieKillLog=[];
     if(!c.undoCount) c.undoCount=0;
   },
   emptyGrid(){const g=[];for(let r=0;r<5;r++){g.push(new Array(9).fill(null));}return g;},
@@ -1494,7 +1496,7 @@ const Garden = {
         if(killed>0){
           c.logs.sunlight.unshift({time:nowISO(),action:`🍒 樱桃炸弹爆炸，炸飞 ${killed} 只僵尸！`,delta:0,balance:c.sunlight.total});
           toast(`🍒 爆炸！炸飞 ${killed} 只僵尸！`,'🎉');
-          recordZombieKill(c,killed);
+          recordZombieKill(c,killed,'炸弹');
         }else{
           toast('🍒 樱桃炸弹爆炸！周围没有僵尸');
         }
@@ -1522,9 +1524,15 @@ const Garden = {
   },
 };
 // 累计击杀僵尸并检查勋章（击杀数累加，不因僵尸重置回退）
-function recordZombieKill(c,n=1){
+// source：击杀来源，用于「击杀历史」记录
+//   '植物' 花园植物每日自动攻击 / '炸弹' 樱桃炸弹 / '手动' 手动点击消灭 / '兑换' 阳光商店兑换
+function recordZombieKill(c,n=1,source='植物'){
   if(!c.stats)c.stats={};
   c.stats.zombieKills=(c.stats.zombieKills||0)+n;
+  // 【击杀历史】写入带时间/数量/来源的记录（最多保留最近 100 条）
+  if(!c.stats.zombieKillLog)c.stats.zombieKillLog=[];
+  c.stats.zombieKillLog.unshift({id:uid(),time:nowISO(),n:n,source:source,total:c.stats.zombieKills});
+  if(c.stats.zombieKillLog.length>100)c.stats.zombieKillLog.length=100;
   Ach.check();
 }
 // 每日结算：产阳光+攻击僵尸+僵尸移动
@@ -1561,7 +1569,7 @@ function gardenSettleFor(c, days=1){
     if(killed>0){
       c.garden.zombies=c.garden.zombies.filter(z=>z.hp>0);
       c.logs.sunlight.unshift({time:nowISO(),action:`⚔️ 花园植物击杀了 ${killed} 只僵尸！`,delta:0,balance:c.sunlight.total});
-      recordZombieKill(c,killed);
+      recordZombieKill(c,killed,'植物');
     }
     if(d_settings().zombieEnabled){
       // 僵尸前进
@@ -2232,7 +2240,7 @@ const Shop = {
     if(item.action==='killZombie'){
       if(c.garden.zombies.length===0){toast('当前没有僵尸');return;}
       c.garden.zombies.shift();
-      recordZombieKill(c,1);
+      recordZombieKill(c,1,'兑换');
     }
     if(!spendSunlight(item.price,'兑换：'+item.name))return;
     this.countRedeem(c,item);
@@ -2296,7 +2304,7 @@ const Shop = {
       if(!g.frozen&&(g.remainSec||0)>0&&(!g.tickAt||g.tickAt<=0))g.tickAt=Date.now();
       g.remainSec=(g.remainSec||0)+30*60;
     }else if(item.action==='killZombie'){
-      if(ch.garden&&ch.garden.zombies&&ch.garden.zombies.length){ch.garden.zombies.shift();recordZombieKill(ch,1);}
+      if(ch.garden&&ch.garden.zombies&&ch.garden.zombies.length){ch.garden.zombies.shift();recordZombieKill(ch,1,'兑换');}
     }
     ch.logs.sunlight.unshift({time:nowISO(),action:`🎁 兑换生效：${item.name}`,delta:0,balance:ch.sunlight.total});
     ch.redeemApply=(ch.redeemApply||[]).filter(x=>x.id!==a.id);
@@ -4256,6 +4264,32 @@ const UI = {
     const undefendTip=(zCount>0&&undefendedRows.length>0)?`<span style="color:#ff8a65;margin-left:8px;">⚠️ 第${undefendedRows.map(r=>r+1).join('、')}行没有攻击植物！</span>`:'';
     const zSummary=zCount>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(74,74,74,.85);border-radius:8px;color:#fff;font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">🧟 <b>${zCount}</b> 只僵尸入侵花园！${undefendTip}<span style="margin-left:auto;font-size:11px;opacity:.8;">点击僵尸查看详情/消灭</span></div>`:'<div style="margin-top:6px;padding:6px 10px;background:rgba(76,175,80,.2);border-radius:8px;color:#2e7d32;font-size:12px;">✅ 花园安全，暂无僵尸入侵</div>';
     const gc=c.garden.autoCare;
+    // 【击杀历史】按来源汇总 + 最近记录列表
+    const killLog=(c.stats.zombieKillLog||[]);
+    const killTotal=c.stats.zombieKills||0;
+    const killBySrc={};
+    killLog.forEach(r=>{killBySrc[r.source]=(killBySrc[r.source]||0)+r.n;});
+    const srcMeta={'植物':'🌿 植物自动攻击','炸弹':'🍒 樱桃炸弹','手动':'💀 手动消灭','兑换':'🎁 商店兑换'};
+    const srcKeys=['植物','炸弹','手动','兑换'].filter(k=>killBySrc[k]);
+    const srcChips=killTotal>0?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+      ${srcKeys.map(k=>`<span style="font-size:12px;padding:4px 10px;border-radius:12px;background:var(--bg-soft,#f3f3f3);border:1px solid var(--border,#e0e0e0);">${srcMeta[k]} <b>${killBySrc[k]}</b> 只</span>`).join('')||`<span style="font-size:12px;color:var(--text-soft);">暂无来源明细</span>`}
+    </div>`:'';
+    // 按天分组统计最近击杀（取最近 7 天）
+    const dayMap={};
+    killLog.forEach(r=>{const d=(r.time||'').slice(0,10);dayMap[d]=(dayMap[d]||0)+r.n;});
+    const dayKeys=Object.keys(dayMap).sort().reverse().slice(0,7);
+    const dayRows=dayKeys.map(d=>{
+      const rows=killLog.filter(r=>(r.time||'').slice(0,10)===d);
+      return `<div class="log-item"><div><div>📅 ${d} 击杀 <b>${dayMap[d]}</b> 只</div><div class="log-time">${rows.map(r=>`${(r.time||'').slice(11,16)} ${srcMeta[r.source]||r.source}${r.n>1?'×'+r.n:''}`).join(' · ')}</div></div><div class="log-delta pos">+${dayMap[d]} 💀</div></div>`;
+    }).join('');
+    const killHistoryHtml=`<div class="card"><div class="card-title">💀 击杀僵尸历史
+      <span style="margin-left:auto;font-size:11px;color:var(--text-soft);font-weight:400;">累计 ${killTotal} 只</span>
+      ${killLog.length?`<button class="btn ghost sm" style="font-size:11px;margin-left:6px;" onclick="UI.clearKillLog()">清空记录</button>`:''}
+    </div>
+      ${srcChips}
+      <div style="max-height:260px;overflow-y:auto;">${dayRows||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无击杀记录，快去消灭僵尸吧 🧟</div>'}</div>
+      <p style="font-size:11px;color:var(--text-soft);margin-top:8px;">记录最近 100 次击杀，按天分组展示（最多显示最近 7 天）。</p>
+    </div>`;
     const careHtml=`<div class="card" style="${gc?'border-left:5px solid #2e7d32;':''}"><div style="display:flex;align-items:center;gap:10px;">
       <div style="font-size:26px;">${gc?'🛡️':'🏰'}</div>
       <div style="flex:1;">
@@ -4274,7 +4308,17 @@ const UI = {
         const cursorStyle=canBuy?'cursor:pointer;':'cursor:not-allowed;opacity:.5;';
         return `<div class="task-card" style="${cursorStyle}" onclick="UI.shopPlant('${k}')" title="${canBuy?'点击选择格子种植 '+d.name:'阳光不足'}">${plantImg}<div class="t-title" style="justify-content:center;">${d.name}</div><div class="t-desc" style="text-align:center;">${d.desc}</div><div class="t-foot" style="justify-content:center;"><span class="reward-tag">${d.cost}☀️</span></div></div>`;
       }).join('')}</div></div>
-      <div class="card"><div class="card-title">📋 花园日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.sunlight.filter(l=>/花园|植物|僵尸|种植|移除|消灭/.test(l.action)).map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()}</div></div>${l.delta?`<div class="log-delta ${l.delta>0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta} ☀️</div>`:''}</div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无花园日志</div>'}</div></div>`;
+      <div class="card"><div class="card-title">📋 花园日志</div><div style="max-height:240px;overflow-y:auto;">${c.logs.sunlight.filter(l=>/花园|植物|僵尸|种植|移除|消灭/.test(l.action)).map(l=>`<div class="log-item"><div><div>${l.action}</div><div class="log-time">${new Date(l.time).toLocaleString()}</div></div>${l.delta?`<div class="log-delta ${l.delta>0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta} ☀️</div>`:''}</div>`).join('')||'<div style="text-align:center;color:var(--text-light);padding:10px;">暂无花园日志</div>'}</div></div>
+      ${killHistoryHtml}`;
+  },
+  // 清空击杀历史记录（不影响累计击杀数与勋章进度）
+  clearKillLog(){
+    const c=curChild();
+    if(!(c.stats.zombieKillLog||[]).length){toast('暂无击杀记录');return;}
+    confirmModal('确定清空击杀历史记录？\n仅清除历史列表，累计击杀数与已获勋章不受影响。',()=>{
+      c.stats.zombieKillLog=[];
+      Store.save();UI.render();toast('击杀历史已清空');
+    });
   },
   showGardenHelp(){
     showModal('🌻 花园玩法介绍',`<div style="line-height:1.7;font-size:13px;">
@@ -4304,6 +4348,12 @@ const UI = {
         <li>每行是一条独立赛道：<b>同一行的攻击植物伤害叠加</b>，只打本行最深入（最靠左）的那只僵尸</li>
         <li>想守住哪一行，就要在那一种攻击植物；<b>某行没有攻击植物时，该行僵尸不受伤害</b></li>
         <li>行与行之间互不干扰，植物不会跨行攻击</li>
+      </ul>
+      <h4 style="color:var(--primary-d);margin:12px 0 6px;">💀 击杀历史</h4>
+      <ul style="padding-left:18px;font-size:12px;">
+        <li>花园页面底部有<b>击杀僵尸历史</b>卡片，按天汇总展示每一次击杀的时间、数量与来源</li>
+        <li>击杀来源分为：🌿 植物自动攻击 / 🍒 樱桃炸弹 / 💀 手动消灭 / 🎁 商店兑换</li>
+        <li>保留最近 <b>100 次</b>击杀记录，展示最近 <b>7 天</b>；可点「清空记录」清除历史（不影响累计击杀与已获勋章）</li>
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">🏆 战斗勋章</h4>
       <ul style="padding-left:18px;font-size:12px;">
@@ -4391,7 +4441,7 @@ const UI = {
     if(c.sunlight.total<100){toast('阳光不足');return;}
     if(!spendSunlight(100,'手动消灭僵尸'))return;
     c.garden.zombies=c.garden.zombies.filter(z=>z.id!==id);
-    recordZombieKill(c,1);
+    recordZombieKill(c,1,'手动');
     Audio.play('zombie');toast('消灭成功！');closeModal();UI.render();
   },
   // 点击宠物头像：随机切换一段视频（有视频的宠物）
