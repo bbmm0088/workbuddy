@@ -560,7 +560,9 @@ const Store = {
     c.pets.forEach(p=>{
       if(p.lastDecayAt===undefined)p.lastDecayAt=p.purchasedAt?new Date(p.purchasedAt).getTime():Date.now();
       if(p.health===undefined)p.health=100;
-      if(p.bondLevel===undefined)p.bondLevel=Pet.bondLevelFromIntimacy(p.intimacy);
+      // 【羁绊经验】旧数据无 bondExp 时，以当前亲密度为起点（保证等级不倒退）
+      if(p.bondExp===undefined)p.bondExp=p.intimacy||0;
+      p.bondLevel=Pet.bondLevelFromExp(p.bondExp);
       if(p.lastDailyReward===undefined)p.lastDailyReward='';
       if(p.autoCare===undefined)p.autoCare=false;
       if(p.autoCareLastDate===undefined)p.autoCareLastDate='';
@@ -1856,15 +1858,30 @@ const Pet = {
     };
   },
   list(){return Store.data.petDefs;},
-  // 羁绊等级计算（亲密度→1-10级）
+  // 羁绊等级上限（每 10 级一个勋章台阶，最高 Lv.50）
+  BOND_MAX:50,
+  BOND_EXP_PER_LEVEL:20,
+  // 羁绊等级计算：基于累计羁绊经验（bondExp），最高 50 级
+  // 每 20 点羁绊经验升 1 级；经验随每次亲密增长累加，不受亲密度 200 上限限制
+  bondLevelFromExp(exp){
+    return Math.min(this.BOND_MAX, Math.floor((exp||0)/this.BOND_EXP_PER_LEVEL)+1);
+  },
+  // 兼容旧接口：按亲密度推算（旧数据无 bondExp 时使用）
   bondLevelFromIntimacy(intimacy){
-    return Math.min(10,Math.floor(intimacy/20)+1);
+    return this.bondLevelFromExp(intimacy);
+  },
+  // 增加羁绊经验（每次亲密增长同步调用），并刷新等级
+  addBondExp(p,amount){
+    if(!p||!amount||amount<=0)return;
+    if(p.bondExp===undefined)p.bondExp=p.intimacy||0;
+    p.bondExp+=amount;
+    this.updateBondLevel(p);
   },
   buy(type){
     const def=this.list()[type];if(!def)return false;
     if(!spendSunlight(def.cost,'领养'+def.name))return false;
     const c=curChild();
-    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,health:100,bondLevel:4,status:'healthy',purchasedAt:nowISO(),lastDecayAt:Date.now(),canRegret:true,lastDailyReward:''};
+    const pet={id:uid(),type,name:def.name,satiety:80,intimacy:60,health:100,bondExp:60,bondLevel:4,status:'healthy',purchasedAt:nowISO(),lastDecayAt:Date.now(),canRegret:true,lastDailyReward:''};
     c.pets.push(pet);
     Log.pet('领养',pet.id,def.name);
     Audio.play('pet');Ach.check();Store.save();
@@ -1951,7 +1968,7 @@ const Pet = {
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(this.isCapped(p,['satiety','health','intimacy']))return;
     if(!spendSunlight(25,'喂营养餐'+p.name))return;
-    p.satiety=clamp(p.satiety+35,0,200);p.health=clamp((p.health||100)+10,0,200);p.intimacy=clamp(p.intimacy+5,0,200);p.lastFeedAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    p.satiety=clamp(p.satiety+35,0,200);p.health=clamp((p.health||100)+10,0,200);p.intimacy=clamp(p.intimacy+5,0,200);p.lastFeedAt=Date.now();this.addBondExp(p,5);this.updateStatus(p);
     Log.pet('喂营养餐',p.id,'饱食+35 健康+10 亲密+5');Audio.play('pet');Store.save();UI.render();
   },
   // ============ 互动玩法 ============
@@ -1959,14 +1976,14 @@ const Pet = {
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(this.isCapped(p,['intimacy']))return;
     if(!spendSunlight(10,'抚摸'+p.name))return;
-    p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.addBondExp(p,10);this.updateStatus(p);
     Log.pet('抚摸',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();
   },
   walk(petId){ // 遛宠：10阳光，亲密度+10
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(this.isCapped(p,['intimacy']))return;
     if(!spendSunlight(10,'遛宠'+p.name))return;
-    p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    p.intimacy=clamp(p.intimacy+10,0,200);p.lastTouchAt=Date.now();this.addBondExp(p,10);this.updateStatus(p);
     Log.pet('遛宠',p.id,'亲密+10');Audio.play('pet');Store.save();UI.render();
   },
   call(petId){ // 唤名：不限次数，每天仅首次加亲密度；优先播放家长自定义录音，否则语音合成
@@ -1978,7 +1995,7 @@ const Pet = {
     p.lastCallAt=Date.now();
     if(p.lastCallRewardDate!==today){
       p.lastCallRewardDate=today;
-      p.intimacy=clamp(p.intimacy+3,0,200);this.updateBondLevel(p);this.updateStatus(p);
+      p.intimacy=clamp(p.intimacy+3,0,200);this.addBondExp(p,3);this.updateStatus(p);
       Log.pet('唤名',p.id,'亲密+3（今日首次）');
       toast('🔊 '+p.name+'！亲密度 +3');
     }else{
@@ -1995,7 +2012,7 @@ const Pet = {
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     if(this.isCapped(p,['intimacy','health']))return;
     if(!spendSunlight(5,'玩玩具'+p.name))return;
-    p.intimacy=clamp(p.intimacy+15,0,200);p.health=clamp((p.health||100)+3,0,200);p.lastPlayAt=Date.now();this.updateBondLevel(p);this.updateStatus(p);
+    p.intimacy=clamp(p.intimacy+15,0,200);p.health=clamp((p.health||100)+3,0,200);p.lastPlayAt=Date.now();this.addBondExp(p,15);this.updateStatus(p);
     Log.pet('玩玩具',p.id,'亲密+15 健康+3');Audio.play('pet');Store.save();UI.render();
   },
   wash(petId){ // 洗澡：10阳光，健康+15
@@ -2009,7 +2026,7 @@ const Pet = {
     const c=curChild();const p=c.pets.find(x=>x.id===petId);if(!p||p.status==='dead')return;
     const cost=this._healCost||150;
     if(!spendSunlight(cost,'治疗'+p.name))return;
-    p.satiety=clamp(p.satiety+50,0,200);p.intimacy=clamp(p.intimacy+50,0,200);p.health=clamp((p.health||100)+80,0,200);p.status='healthy';this.updateBondLevel(p);Log.pet('治疗',p.id,'恢复健康');Audio.play('pet');Store.save();UI.render();
+    p.satiety=clamp(p.satiety+50,0,200);p.intimacy=clamp(p.intimacy+50,0,200);p.health=clamp((p.health||100)+80,0,200);p.status='healthy';this.addBondExp(p,50);Log.pet('治疗',p.id,'恢复健康');Audio.play('pet');Store.save();UI.render();
   },
   // ============ 状态与等级 ============
   updateStatus(p){
@@ -2024,7 +2041,9 @@ const Pet = {
     else{p.status='healthy';}
   },
   updateBondLevel(p){
-    p.bondLevel=this.bondLevelFromIntimacy(p.intimacy);
+    // 兼容旧数据：无 bondExp 时以当前亲密度为起点初始化
+    if(p.bondExp===undefined)p.bondExp=p.intimacy||0;
+    p.bondLevel=this.bondLevelFromExp(p.bondExp);
   },
   // 每日奖励：精心饲养（饱食度>50且亲密度>50）赠送20阳光
   checkDailyReward(){
@@ -2036,7 +2055,9 @@ const Pet = {
       if(p.satiety>50&&p.intimacy>50){
         addSunlight(20,'宠物每日奖励：'+p.name);
         p.lastDailyReward=today;
-        Log.pet('每日奖励',p.id,'+20阳光');
+        // 持续精心饲养也累积羁绊经验，让等级可持续成长
+        this.addBondExp(p,5);
+        Log.pet('每日奖励',p.id,'+20阳光 羁绊经验+5');
       }
     });
     Store.save();
@@ -2518,6 +2539,11 @@ const Ach = {
       {id:'pet3',name:'宠物专家',icon:'🐈',cond:'养3只宠物',custom:false},
       {id:'pet4',name:'宠物大师',icon:'🎖️',cond:'养4只宠物',custom:false},
       {id:'pet5',name:'宠物传说',icon:'👑',cond:'养5只宠物',custom:false},
+      {id:'bond10',name:'亲密伙伴',icon:'💛',cond:'任意宠物羁绊达到 Lv.10',custom:false},
+      {id:'bond20',name:'知心好友',icon:'💚',cond:'任意宠物羁绊达到 Lv.20',custom:false},
+      {id:'bond30',name:'灵魂知己',icon:'💙',cond:'任意宠物羁绊达到 Lv.30',custom:false},
+      {id:'bond40',name:'生死之交',icon:'💜',cond:'任意宠物羁绊达到 Lv.40',custom:false},
+      {id:'bond50',name:'羁绊永恒',icon:'❤️',cond:'任意宠物羁绊达到 Lv.50',custom:false},
       {id:'plant1',name:'种植新手',icon:'🌱',cond:'花园种植1棵植物',custom:false},
       {id:'plant3',name:'种植达人',icon:'🌿',cond:'花园种植3棵植物',custom:false},
       {id:'plant5',name:'种植专家',icon:'🌷',cond:'花园种植5棵植物',custom:false},
@@ -2547,6 +2573,9 @@ const Ach = {
     // 宠物养成阶梯（按当前拥有宠物数量：1新手/2达人/3专家/4大师/5传说）
     const petCount=(c.pets||[]).length;
     [[1,'pet1'],[2,'pet2'],[3,'pet3'],[4,'pet4'],[5,'pet5']].forEach(([n,id])=>{if(petCount>=n)unlock(id);});
+    // 宠物羁绊阶梯（任意一只宠物羁绊等级达标即可：10/20/30/40/50，每 10 级一个）
+    const maxBond=(c.pets||[]).reduce((m,p)=>Math.max(m,p.bondLevel||1),1);
+    [[10,'bond10'],[20,'bond20'],[30,'bond30'],[40,'bond40'],[50,'bond50']].forEach(([n,id])=>{if(maxBond>=n)unlock(id);});
     // 花园种植阶梯（按当前花园植物数量：1新手/3达人/5专家/10大师/15传说）
     const plantCount=(c.garden.grid||[]).flat().filter(Boolean).length;
     [[1,'plant1'],[3,'plant3'],[5,'plant5'],[10,'plant10'],[15,'plant15']].forEach(([n,id])=>{if(plantCount>=n)unlock(id);});
@@ -4602,8 +4631,15 @@ const UI = {
         : (petImgSrc?`<img src="${petImgSrc}" class="pet-img" data-pid="${p.id}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="pet-emoji" style="display:none;">${def.emoji}</div>`:`<div class="pet-emoji">${def.emoji}</div>`);
       // 点击头像/状态图：有视频的换视频播原声，无视频的播放真实叫声
       const canTap=!!(def.videos&&(def.videos.idle||def.videos.sick)) || !!(def.voice||def.sound);
+      // 羁绊进度：距下一级还需多少经验（满级 Lv.50 时不再显示进度）
+      const BEXP=Pet.BOND_EXP_PER_LEVEL, BMAX=Pet.BOND_MAX;
+      const bondExpTotal=(p.bondExp===undefined?(p.intimacy||0):p.bondExp);
+      const bondCur=bondExpTotal%BEXP;
+      const bondPct=bondLv>=BMAX?100:Math.round(bondCur/BEXP*100);
+      const bondTip=bondLv>=BMAX?`羁绊已满级 Lv.${BMAX}`:`距 Lv.${bondLv+1} 还需 ${BEXP-bondCur} 点羁绊经验`;
+      const bondBar=`<div title="${bondTip}" style="margin-top:3px;"><div class="bar-label" style="font-size:10px;"><span>羁绊进度</span><span>${bondLv>=BMAX?'MAX':bondCur+'/'+BEXP}</span></div><div class="bar-wrap" style="height:6px;"><div class="bar-fill" style="width:${bondPct}%;background:linear-gradient(90deg,#7c4dff,#b388ff);"></div></div></div>`;
       const imgHtml=`<div class="${animClass}" ${canTap?`onclick="UI.tapPet('${p.id}')" title="点我听它的原声～" style="cursor:pointer;"`:''}>${mediaHtml}</div>`;
-      return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️ <span class="bond-badge">羁绊 Lv.${bondLv}</span></div><span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
+      return `<div class="pet-card">${imgHtml}${petStateLabel?`<div style="text-align:center;font-size:13px;color:var(--primary-d);font-weight:700;margin-top:4px;">${petStateLabel}</div>`:''}<div style="text-align:center;font-weight:700;cursor:pointer;color:var(--primary-d);" onclick="UI.promptName('${p.id}','修改宠物名字')" title="点击改名">${p.name} ✏️ <span class="bond-badge">羁绊 Lv.${bondLv}</span></div>${bondBar}<span class="status-tag ${p.status}">${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>
       <div><div class="bar-label"><span>饱食度</span><span>${p.satiety}</span></div><div class="bar-wrap"><div class="bar-fill sat" style="width:${clamp(p.satiety/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>亲密度</span><span>${p.intimacy}</span></div><div class="bar-wrap"><div class="bar-fill int" style="width:${clamp(p.intimacy/200*100,0,100)}%"></div></div></div>
       <div><div class="bar-label"><span>❤️ 健康值</span><span>${health}</span></div><div class="bar-wrap"><div class="bar-fill" style="width:${clamp(health/200*100,0,100)}%;background:linear-gradient(90deg,#ef5350,#e53935);"></div></div></div>
@@ -4677,8 +4713,9 @@ const UI = {
         <li><b>亲密度</b>：互动恢复，影响羁绊等级</li>
         <li><b>健康值</b>：洗澡/营养餐恢复，低于30会生病</li>
         <li><b>满值提醒</b>：饱食度/亲密度/健康值达到上限（200）后，对应的喂养与互动按钮会变灰且无法再操作，并弹出提醒，不浪费阳光</li>
-        <li><b>羁绊等级</b>（Lv.1-10）：亲密度越高等级越高</li>
-        <li><b>每日奖励</b>：饱食度>50且亲密度>50，每天自动获20☀️</li>
+        <li><b>羁绊等级</b>（Lv.1-50）：每次互动与日常饲养都累积<b>羁绊经验</b>，每 20 点经验升 1 级。亲密度封顶后，羁绊经验仍会继续累积，可以一直升到 Lv.50。宠物卡片上有羁绊进度条</li>
+        <li><b>羁绊勋章</b>：任意宠物羁绊达到 <b>Lv.10 / 20 / 30 / 40 / 50</b> 各解锁一枚勋章（每 10 级一个）</li>
+        <li><b>每日奖励</b>：饱食度>50且亲密度>50，每天自动获20☀️，同时羁绊经验+5</li>
       </ul>
       <h4 style="color:var(--primary-d);margin:12px 0 6px;">⏰ 消耗机制</h4>
       <ul style="padding-left:18px;font-size:12px;">
