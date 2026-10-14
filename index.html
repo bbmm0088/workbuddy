@@ -2564,6 +2564,14 @@ function dailyRate(c){
   const done=tasks.filter(t=>c.today.tasks[t.id]?.completed).length;
   return done/tasks.length;
 }
+// 【减分项目判定】所有用户的减分项目都不计入完成值（作业完成率）
+// 判定规则：分类为「减分」，或（分类为「自定义」/无分类 但带减分标记 penalty）
+function isPenaltyTask(t){
+  if(!t)return false;
+  if(t.cat==='减分')return true;
+  if(t.penalty===true)return true;
+  return false;
+}
 function todayTaskList(c){
   const grade=c.grade;const list=[];
   const hidden=new Set(d_settings().hiddenTasks||[]);
@@ -2600,8 +2608,8 @@ function todayTaskList(c){
     // scope='all' 或未设置 → 所有孩子可见
     // scope='child' → 只在 t.childId === 当前孩子ID 时可见
     if(t.scope==='child'&&t.childId&&t.childId!==d_settings().currentChildId)return;
-    // 减分项目不计入作业完成率，单独在减分页面处理
-    if(t.cat==='减分')return;
+    // 【减分项目】所有用户的减分项目一律不计入作业完成率，只在减分页面处理
+    if(isPenaltyTask(t))return;
     list.push({id:t.id,cat:t.cat||'自定义',name:t.name,icon:t.icon||'📝',reward:t.reward,review:!!t.review,custom:true});
   });
   // 过滤被家长隐藏的内置任务
@@ -3250,9 +3258,14 @@ const UI = {
     deed(){return UI.renderDeed();},
     penalty(){
       const c=curChild();
-      const items=(Store.data.customTasks||[]).filter(t=>t.cat==='减分'||t.cat==='自定义'||!t.cat);
-      return `<div class="card"><div class="card-title">⚠️ 减分项目</div>
-        <p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">家长对表现不佳的行为扣减阳光，点击项目即可执行扣分。</p>
+      // 只取真正的减分项目（所有用户），「自定义」等作业任务不再混入
+      const items=(Store.data.customTasks||[]).filter(t=>{
+        if(!isPenaltyTask(t))return false;
+        if(t.scope==='child'&&t.childId&&t.childId!==d_settings().currentChildId)return false;
+        return true;
+      });
+      return `<div class="card"><div class="card-title">⚠️ 减分项目 <span style="margin-left:auto;font-size:11px;color:var(--text-soft);font-weight:400;">不计入作业完成率</span></div>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">家长对表现不佳的行为扣减阳光，点击项目即可执行扣分。减分项目<b>不计入作业完成值</b>。</p>
         ${items.length?`<div class="grid grid-2">${items.map(t=>UI.penaltyCard(t)).join('')}</div>`:'<div style="color:var(--text-light);text-align:center;padding:20px;font-size:13px;">暂无减分项目<br><span style="font-size:11px;">家长可在下方添加</span></div>'}
       </div>${State.mode==='parent'?UI.penaltyInlineForm():''}`;
     },
@@ -3390,16 +3403,23 @@ const UI = {
     const c=curChild();
     const count=c.today.penalties?.[t.id]||0;
     const isParent=State.mode==='parent';
+    // 幼小衔接：减分项目也提供读题（朗读）功能，孩子识字量少，靠听
+    const readBtn=(c.grade==='gradeK')?`<button class="btn sky sm" data-speak="${encodeURIComponent(UI.penaltyReadText(t))}" data-lang="zh-CN" title="朗读减分项目">🔊 读题</button>`:'';
     return `<div class="task-card" style="border-color:var(--danger);">
       <div class="t-title">${t.icon||'⚠️'} ${t.name}</div>
-      <div class="t-desc">扣分项目 · 今日已扣 ${count} 次</div>
+      <div class="t-desc">扣分项目 · 今日已扣 ${count} 次 · 不计入完成率</div>
       <div class="t-foot"><span class="reward-tag" style="background:var(--danger);color:#fff;">-${t.reward}☀️</span>
         <div>
+          ${readBtn}
           <button class="btn danger sm" onclick="UI.doPenalty('${t.id}')">⚠️ 扣 ${t.reward} 阳光</button>
           ${isParent?`<button class="btn ghost sm" style="color:var(--danger);font-size:11px;margin-left:4px;" onclick="UI.delCustomTaskConfirm('${t.id}')">🗑️</button>`:''}
         </div>
       </div>
     </div>`;
+  },
+  // 减分项目朗读文本：项目名 + 扣分说明，方便幼小衔接孩子听懂
+  penaltyReadText(t){
+    return `${t.name}，如果没做好，要扣${t.reward}个阳光。`;
   },
   // 减分项目添加表单（家长模式专用）
   penaltyInlineForm(){
@@ -5009,7 +5029,7 @@ const UI = {
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;"><input id="newShopName" placeholder="名称"><input id="newShopPrice" type="number" placeholder="价格"><input id="newShopIcon" placeholder="图标" value="🎁"><button class="btn sm" onclick="UI.addShop()">添加</button></div>
       </div>
       <div class="card"><div class="card-title">📝 作业任务管理 <span style="font-size:11px;color:var(--text-soft);font-weight:400;">（自定义作业 / 减分项目，可设阳光值和归属）</span></div>
-        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">分类选「减分」的项目会出现在减分页面，用于扣减阳光；其他分类为作业任务。共有任务对所有孩子可见，专属任务只对指定孩子显示。</p>
+        <p style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">分类选「减分」的项目会出现在减分页面，用于扣减阳光，<b>不计入作业完成率（所有用户）</b>；其他分类为作业任务，计入完成率。共有任务对所有孩子可见，专属任务只对指定孩子显示。</p>
         ${(Store.data.customTasks||[]).map(t=>{
           const childName=t.scope==='child'&&t.childId?Store.data.children[t.childId]?.profile?.name||'已删除孩子':'';
           return `<div class="log-item">
@@ -5328,7 +5348,7 @@ window.closeModal=closeModal;window.completeTask=completeTask;window.undoTask=un
 window.approveTask=approveTask;window.rejectTask=rejectTask;window.checkLevelUp=checkLevelUp;
 window.Pet=Pet;window.PetVoice=PetVoice;window.Garden=Garden;window.Shop=Shop;window.Sync=Sync;window.Bank=Bank;window.Levels=Levels;window.speak=speak;window.State=State;
 window.fmtClock=fmtClock;window.posterOf=posterOf;
-window.todayStr=todayStr;window.weekStr=weekStr;window.nowISO=nowISO;window.uid=uid;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;window.recordZombieKill=recordZombieKill;
+window.todayStr=todayStr;window.weekStr=weekStr;window.nowISO=nowISO;window.uid=uid;window.dailyReset=dailyReset;window.daysBetween=daysBetween;window.curChild=curChild;window.d_settings=d_settings;window.todayTaskList=todayTaskList;window.gardenSettleFor=gardenSettleFor;window.dailyRate=dailyRate;window.Ach=Ach;window.recordZombieKill=recordZombieKill;window.isPenaltyTask=isPenaltyTask;
 
 })();
 </script>
