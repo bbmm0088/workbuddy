@@ -4800,7 +4800,9 @@ const UI = {
       <button class="btn sm" onclick="UI.startWrongQuiz()">开始复习</button>`:`<p style="color:var(--text-light);">暂无待复习错题，继续保持！🌟</p>`}
       </div>
       <div class="card"><div class="card-title">🎯 薄弱知识点</div><div>${weakHtml}</div></div>
-      <div class="card"><div class="card-title">📚 全部错题记录（${allList.length}）</div>
+      <div class="card"><div class="card-title">📚 全部错题记录（${allList.length}）
+        ${allList.length?`<button class="btn danger sm" style="margin-left:auto;font-size:11px;" onclick="UI.clearAllWrong()">🗑️ 清空错题本</button>`:''}
+      </div>
       <div style="max-height:240px;overflow-y:auto;">${allList.slice(-30).reverse().map(w=>{
         const isEN=w.subject==='en';
         const lang=isEN?'en-US':'zh-CN';
@@ -4822,6 +4824,20 @@ const UI = {
       </div>`;
   },
   curWrongQuiz:null,
+  // 【清空错题本】清空所有孩子的全部错题（含待复习/已收录），带二次确认
+  clearAllWrong(){
+    const children=Store.data.children||{};
+    const total=Object.values(children).reduce((s,c)=>s+((c.wrongQuestions||[]).length),0);
+    if(!total){toast('错题本已经是空的');return;}
+    const names=Object.values(children).map(c=>c.profile.name).join('、');
+    confirmModal(`确定清空错题本吗？\n将删除全部 ${total} 道错题（${names}），清空后「薄弱知识点」统计也会归零，且无法恢复。`,()=>{
+      let n=0;
+      Object.values(children).forEach(c=>{n+=(c.wrongQuestions||[]).length;c.wrongQuestions=[];});
+      this.curWrongQuiz=null;
+      Store.save();UI.render();
+      toast(`🗑️ 已清空错题本（共 ${n} 道）`);
+    });
+  },
   startWrongQuiz(){
     const c=curChild();
     const list=c.wrongQuestions.filter(w=>w.retry&&!w.answered);
