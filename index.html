@@ -4228,8 +4228,9 @@ const UI = {
       const ok=a===b||a.includes(b)||b.includes(a);
       if(ok)correct++;
       else{
-        // 答错自动收录错题本
-        curChild().wrongQuestions.push({id:uid(),subject:q.taskId.split('_')[0],q:item.q,a:item.a,userA:a,time:nowISO(),retry:false,answered:false});
+        // 答错自动收录错题本（保留 picture 图案，幼小衔接看图列式复习时才能显示图案）
+        curChild().wrongQuestions.push({id:uid(),subject:q.taskId.split('_')[0],q:item.q,a:item.a,userA:a,time:nowISO(),retry:false,answered:false,
+          picture:item.picture||null,readText:item.readText||'',opts:item.opts||null,type:item.type||''});
       }
     });
     if(curChild().wrongQuestions.length>200)curChild().wrongQuestions=curChild().wrongQuestions.slice(-200);
@@ -4807,7 +4808,16 @@ const UI = {
         let speakTxt='';
         if(isEN){speakTxt=w.a;}else{speakTxt=w.a;}
         const spkBtn=(isEN||/[\u4e00-\u9fa5a-zA-Z]/.test(w.a))?`<button class="btn sky sm" style="padding:2px 6px;font-size:11px;" data-speak="${encodeURIComponent(String(speakTxt))}" data-lang="${lang}">🔊</button>`:'';
-        return `<div class="log-item"><div><div style="font-size:12px;">${w.q} ${spkBtn}</div><div class="log-time">正确：${w.a} · 你的答案：${w.userA} · ${new Date(w.time).toLocaleDateString()}</div></div><span class="log-delta neg">${w.retry?(w.answered?'已复习':'待复习'):'已收录'}</span></div>`;
+        // 幼小衔接看图列式：列表里用小图案示意（紧凑版）
+        let miniPic='';
+        if(w.picture){
+          const p=w.picture;const em=p.emoji||'🍎';
+          const mk=(n)=>Array(Math.min(n,10)).fill(em).join('')+(n>10?'…':'');
+          miniPic=p.kind==='add'
+            ? `<span style="font-size:13px;">${mk(p.left)} + ${mk(p.right)}</span>`
+            : `<span style="font-size:13px;">${mk(p.total)} − ${mk(p.removed)}</span>`;
+        }
+        return `<div class="log-item"><div><div style="font-size:12px;">${w.q} ${spkBtn}</div>${miniPic?`<div style="margin:2px 0;">${miniPic}</div>`:''}<div class="log-time">正确：${w.a} · 你的答案：${w.userA} · ${new Date(w.time).toLocaleDateString()}</div></div><span class="log-delta neg">${w.retry?(w.answered?'已复习':'待复习'):'已收录'}</span></div>`;
       }).join('')||'<div style="color:var(--text-light);text-align:center;padding:10px;">暂无错题</div>'}</div>
       </div>`;
   },
@@ -4825,26 +4835,52 @@ const UI = {
     const lang=isEN?'en-US':'zh-CN';
     const speakTxt=item.a;
     const spkBtn=(isEN||/[\u4e00-\u9fa5a-zA-Z]/.test(item.a))?`<button class="btn sky sm" data-speak="${encodeURIComponent(String(speakTxt))}" data-lang="${lang}">🔊 朗读</button>`:'';
+    // 【图案】幼小衔接数学看图列式：错题保留了 picture，复习时同样显示图案
+    let picHtml='';
+    if(item.picture){
+      const p=item.picture;const em=p.emoji||'🍎';
+      let row;
+      if(p.kind==='add'){
+        row=`<div class="pic-group">${Array(p.left).fill(`<span class="pic-item">${em}</span>`).join('')}</div>
+            <span class="pic-op">+</span>
+            <div class="pic-group">${Array(p.right).fill(`<span class="pic-item">${em}</span>`).join('')}</div>`;
+      }else{
+        const all=Array(p.total).fill(`<span class="pic-item">${em}</span>`);
+        for(let k=p.total-1;k>=p.total-p.removed;k--){all[k]=`<span class="pic-item pic-removed">${em}</span>`;}
+        row=`<div class="pic-group">${all.join('')}</div><span class="pic-op">−</span><div class="pic-group pic-removed-group">${Array(p.removed).fill(`<span class="pic-item">${em}</span>`).join('')}</div>`;
+      }
+      picHtml=`<div class="pic-area">${row}</div>
+        <div class="pic-formula">${p.kind==='add'?(p.left+' + '+p.right+' = □'):(p.total+' − '+p.removed+' = □')}</div>`;
+    }
     const ansHtml=`<div class="quiz-ans"><input type="text" id="qInput" placeholder="请输入答案" onkeydown="if(event.key==='Enter')UI.nextWrong()"></div>`;
-    showModal('错题复习',`<div class="quiz-box"><div style="font-size:12px;color:var(--text-soft);">第 ${i+1}/${q.length} 题</div><div class="quiz-q">${item.q} ${spkBtn}</div>${ansHtml}</div>`,
+    showModal('错题复习',`<div class="quiz-box"><div style="font-size:12px;color:var(--text-soft);">第 ${i+1}/${q.length} 题</div><div class="quiz-q">${item.q} ${spkBtn}</div>${picHtml}${ansHtml}</div>`,
       `<button class="btn ghost sm" onclick="UI.exitWrongQuiz()">退出</button> <button class="btn sm" onclick="UI.nextWrong()">${i===q.length-1?'完成':'下一题'}</button>`,true);
     setTimeout(()=>{const inp=$('#qInput');if(inp)inp.focus();},0);
   },
   exitWrongQuiz(){
     confirmModal('确定要退出错题复习吗？',()=>{
-      this.curWrongQuiz=null;closeModal();toast('已退出错题复习');UI.render();
+      this.curWrongQuiz=null;
+      // 弹窗栈此时有两层：错题复习弹窗 + 确认弹窗，需全部关闭才能真正退出
+      while((window._modalStack||[]).length){closeModal();}
+      toast('已退出错题复习');UI.render();
     });
   },
   nextWrong(){
     const q=this.curWrongQuiz;if(!q)return;const i=q.idx||0;
-    const inp=$('#qInput');if(!inp||!inp.value.trim()){toast('请作答');return;}
+    const inp=$('#qInput');if(!inp)return; // 弹窗已被关闭
+    if(!inp.value.trim()){toast('请作答');return;}
     const a=inp.value.trim();const item=q[i];const ok=a===item.a||a.includes(item.a)||item.a.includes(a);
     item.answered=true;item.retry=false;
     if(ok){toast('✅ 答对了，已移出错题本');Audio.play('correct');}
     else{toast('❌ 还是答错了，继续留存');Audio.play('wrong');curChild().wrongQuestions.push({...item,id:uid(),time:nowISO(),retry:false,answered:false});}
     Store.save();
     q.idx=i+1;
-    if(q.idx>=q.length){closeModal();this.curWrongQuiz=null;toast('错题复习完成！');UI.render();}
+    if(q.idx>=q.length){
+      this.curWrongQuiz=null;
+      // 关闭错题复习弹窗（可能叠有其它弹窗，逐层清空）
+      while((window._modalStack||[]).length){closeModal();}
+      toast('错题复习完成！');UI.render();
+    }
     else{this.renderWrongQuiz();}
   },
   // 成长报表
