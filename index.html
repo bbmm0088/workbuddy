@@ -1871,11 +1871,21 @@ const Pet = {
     return this.bondLevelFromExp(intimacy);
   },
   // 增加羁绊经验（每次亲密增长同步调用），并刷新等级
+  // 【即时发勋章】等级达标当场结算徽章，不必等下一次领养/结算/刷新
   addBondExp(p,amount){
     if(!p||!amount||amount<=0)return;
     if(p.bondExp===undefined)p.bondExp=p.intimacy||0;
     p.bondExp+=amount;
     this.updateBondLevel(p);
+    this.unlockBondBadges();
+  },
+  // 羁绊阶梯勋章结算：任意一只宠物等级达标即点亮（10/20/30/40/50 每 10 级一枚）
+  // 单独抽出便于互动升级、托管护理、衰减等所有会改动等级的路径统一调用
+  unlockBondBadges(){
+    try{
+      if(!Store.data||!curChild())return;
+      Ach.check();
+    }catch(e){}
   },
   buy(type){
     const def=this.list()[type];if(!def)return false;
@@ -2060,6 +2070,8 @@ const Pet = {
         Log.pet('每日奖励',p.id,'+20阳光 羁绊经验+5');
       }
     });
+    // 累积经验同样可能触发羁绊升级，需要即时结算勋章
+    this.unlockBondBadges();
     Store.save();
   },
   // ============ 衰减系统 ============
@@ -3241,7 +3253,7 @@ const UI = {
       const cats={};tasks.forEach(t=>{cats[t.cat]=cats[t.cat]||{total:0,done:0};cats[t.cat].total++;if(c.today.tasks[t.id]?.completed)cats[t.cat].done++;});
       const catBars=Object.entries(cats).map(([cat,d])=>`<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span>${cat}</span><span>${d.done}/${d.total}</span></div><div class="progress-bar" style="height:10px;"><div class="progress-fill" style="width:${d.total?Math.round(d.done/d.total*100):0}%;background:linear-gradient(90deg,#66bb6a,#43a047);"></div></div></div>`).join('');
       // 宠物状态
-      const petStatus=c.pets.length?c.pets.map(p=>`<span class="status-tag ${p.status}">${Pet.list()[p.type].emoji}${p.name}：${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>`).join(' '):'<span style="color:var(--text-light);font-size:12px;">还没有宠物，去商店购买吧～</span>';
+      const petStatus=c.pets.length?c.pets.map(p=>`<span class="status-tag ${p.status}">${(Pet.list()[p.type]||{}).emoji||'🐾'}${p.name}：${({healthy:'正常',hungry:'饥饿',sick:'生病',dead:'死亡'})[p.status]}</span>`).join(' '):'<span style="color:var(--text-light);font-size:12px;">还没有宠物，去商店购买吧～</span>';
       // 等级
       const lvDef=Levels[c.stats.level]||Levels[0];
       const moodOpts=[{k:'happy',e:'😊',t:'开心'},{k:'normal',e:'😐',t:'普通'},{k:'sad',e:'😢',t:'难过'}];
@@ -3268,7 +3280,7 @@ const UI = {
           ${rate>=0.8?'<div style="color:var(--primary-d);font-size:12px;margin-top:4px;">✨ 完成率≥80%，僵尸被冻结！</div>':''}
           ${settleNote?'<div style="color:var(--primary-d);font-size:12px;margin-top:4px;">'+settleNote+'</div>':''}
         </div>
-        ${c.pets.length?`<div class="floating-pet" onclick="Router.navigate('pet')" title="去看看${c.pets[0].name}">${Pet.list()[c.pets[0].type].emoji}</div>`:''}`;
+        ${c.pets.length?`<div class="floating-pet" onclick="Router.navigate('pet')" title="去看看${c.pets[0].name}">${(Pet.list()[c.pets[0].type]||{}).emoji||'🐾'}</div>`:''}`;
     },
     chinese(){const g=curChild().grade;const ids=Bank.characters[g]?['cn_pinyin','cn_literacy','cn_dictation','cn_callig','cn_poetry','cn_reading']:['cn_pinyin','cn_callig','cn_poetry','cn_reading'];return UI.renderSubject('chinese','语文',ids);},
     math(){const c=curChild();const ids=['math_add','math_sub'];if(c.grade!=='gradeK'&&c.grade!=='grade1')ids.push('math_mul');ids.push('math_think');return UI.renderSubject('math','数学',ids);},
@@ -4942,7 +4954,7 @@ const UI = {
     // 购买后首次命名可反悔（退还全额阳光）
     const regretBtn=p.canRegret?`<button class="btn ghost sm" onclick="Pet.regret('${petId}')" title="购买后可免费反悔一次，退还全额阳光">反悔退回</button>`:'';
     showModal('🐾 '+hint,`<div style="text-align:center;padding:6px 0;">
-      <div style="font-size:48px;">${Pet.list()[p.type].emoji}</div>
+      <div style="font-size:48px;">${(Pet.list()[p.type]||{}).emoji||'🐾'}</div>
       <p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">当前：${p.name}</p>
       <input type="text" id="petNameInput" maxlength="16" placeholder="输入名字（最多8个汉字）" style="padding:10px;border:2px solid var(--border);border-radius:8px;font-size:15px;text-align:center;width:200px;" value="${p.name}">
       <p id="nameTip" style="font-size:11px;color:var(--text-light);margin-top:6px;">只能用汉字、字母、数字${p.canRegret?'<br>💡 购买后可免费反悔一次，点击"反悔退回"退还全额阳光':''}</p>
